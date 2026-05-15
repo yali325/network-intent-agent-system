@@ -1,16 +1,23 @@
 package com.yali.mactav.agent.core.context;
 
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * 保存一次 Agent 调用的上下文，比如 taskId、rawText，还有一个扩展用的 attributes Map。
+ */
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class AgentContext {
 
     private String taskId;
     private String rawText;
     private Map<String, Object> attributes = new HashMap<>();
-
-    public AgentContext() {
-    }
 
     public AgentContext(String taskId, String rawText) {
         this.taskId = taskId;
@@ -19,37 +26,5 @@ public class AgentContext {
 
     public static AgentContext of(String taskId, String rawText) {
         return new AgentContext(taskId, rawText);
-    }
-
-    public String getTaskId() {
-        return taskId;
-    }
-
-    public void setTaskId(String taskId) {
-        this.taskId = taskId;
-    }
-
-    public String getRawText() {
-        return rawText;
-    }
-
-    public void setRawText(String rawText) {
-        this.rawText = rawText;
-    }
-
-    public Map<String, Object> getAttributes() {
-        return attributes;
-    }
-
-    public void setAttributes(Map<String, Object> attributes) {
-        this.attributes = attributes == null ? new HashMap<>() : attributes;
-    }
-
-    public void putAttribute(String key, Object value) {
-        attributes.put(key, value);
-    }
-
-    public Object getAttribute(String key) {
-        return attributes.get(key);
     }
 }

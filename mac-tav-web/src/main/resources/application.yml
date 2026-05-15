@@ -1,0 +1,14 @@
+mactav:
+  agent:
+    intent-mode: ${MACTAV_AGENT_INTENT_MODE:mock}
+
+spring:
+  ai:
+    model:
+      chat: ${SPRING_AI_MODEL_CHAT:none}
+    dashscope:
+      api-key: ${aliApi-key:${ALI_API_KEY:}}
+      chat:
+        options:
+          model: ${DASHSCOPE_CHAT_MODEL:qwen-plus}
+          temperature: 0.2

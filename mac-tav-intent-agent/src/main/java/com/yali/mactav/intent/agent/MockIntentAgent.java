@@ -9,7 +9,9 @@ import com.yali.mactav.model.intent.IntentRelation;
 import com.yali.mactav.model.intent.NetworkIntent;
 import com.yali.mactav.model.intent.SemanticIntentGraph;
 import java.util.List;
+import org.springframework.stereotype.Component;
 
+@Component
 public class MockIntentAgent implements IntentAgent {
 
     public static final String AGENT_NAME = "MockIntentAgent";

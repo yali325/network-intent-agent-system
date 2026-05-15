@@ -1,5 +1,9 @@
 package com.yali.mactav.agent.core.result;
 
+/**
+ * Agent 的统一返回结构
+ * @param <O>
+ */
 public class AgentResult<O> {
 
     private boolean success;

@@ -1,809 +1,602 @@
 # 系统模块设计
-# 开发约束
 
-1. 本文档用于指导项目 Demo 阶段开发，优先实现可运行的端到端流程。
-2. 各模块先以 Java DTO、Service 接口、假数据实现为主，不要求一开始接入真实大模型、真实 RAG、真实 Mininet。
-3. 所有模块输出必须保存到 Model Core / NetworkWorkspace 中。
-4. Intent Module 只输出业务意图，不允许生成具体设备、接口、VLAN、IP。
-5. Planning Module 输出 NetworkPlan，允许生成设备、主机、链路、VLAN、IP、路由、安全策略，但不生成具体 CLI 命令。
-6. Configuration Module 输出 ConfigSet，负责生成设备配置命令，并按 deviceConfigs 和 commandBlocks 结构化返回。
-7. Execute Module 不直接执行 Huawei CLI，而是通过 Execution Adapter 将 NetworkPlan + ConfigSet 转换为 Mininet / Ryu 可执行内容。
-8. Verification Module 根据 NetworkIntent、NetworkPlan、RuntimeState、TestResult 判断意图是否达成，输出 ValidationReport。
-9. Healing Module 第一阶段可以用假数据或规则模拟，不要求完整自愈闭环。
-10. 所有 DTO 字段参考本文档 JSON 示例，但是不必完全一致，可以加入你自动的想法。
-11. 注意：Mininet/Ryu 不能直接执行华为 CLI 命令，因此 Execute Module 不会逐行执行 ConfigSet 中的设备命令，而是根据 NetworkPlan 和 ConfigSet 中的配置意图，转换为 Mininet 拓扑脚本、Linux 主机命令、OVS/Ryu 流表规则和测试命令。
+## 1. 文档目标
 
-# 意图解析模块（Intent Module)
-## 模块描述
+本文档定义 MAC-TAV 长期业务模块设计。
 
-负责接收用户输入的自然语言网络需求，将其解析为**结构化的 NetworkIntent**。该模块重点提取业务目标、连通性要求、隔离策略、协议偏好、性能约束和验证目标等。
-对于用户明确指定的设备数量、协议类型或拓扑结构，系统将其作为约束条件保留；对于用户未明确说明的部分，模块不直接做最终网络设计，而是交由网络方案规划模块进一步推导。
-只输出业务意图，不输出具体网络设计。
+本文档只描述每个业务模块的：
 
-## 模块输入输出
-### 原始用户输入
+- 模块定位。
+- 输入。
+- 输出。
+- 核心处理内容。
+- 不做什么。
+- 上下游关系。
+
+本文档不展开 DTO 全字段、API 路径、Maven 依赖方向、Agent 初始化代码。对应内容见：
+
+- DTO 字段：`docs/04_DATA_MODELS.md`
+- API 契约：`docs/05_API_DESIGN.md`
+- Maven 边界：`docs/02_MAVEN_MODULES.md`
+- Agent 构建：`docs/09_AGENT_BUILD_GUIDE.md`
+
+## 2. 总体业务链路
+
+MAC-TAV 的长期业务链路为：
 
 ```text
-{
-  "rawText": "构建一个办公区和访客区隔离的网络，两个区域都能访问互联网，访客区不能访问服务器"
-}
-```
-### 模块输出字段（暂定）
-
-- taskId：一次完整任务的 ID
-- intentVersion：某一次意图解析结果的 ID，表示当前任务下第几版意图解析结果。
-- semanticIntentGraph：因为网络意图本质上可以理解成一个“意图图”：节点：办公区、访客区、服务器区、公网。边：办公区可以访问服务器区、访客区不能访问服务器区
-- 缺失信息 assumptions：如果用户描述不完整，可以让系统标记缺失信息。这个字段很适合前端展示：
-  ```
-  系统发现你没有指定 IP 地址规划，将默认自动规划。
-  系统发现你没有指定设备厂商，将默认生成华为风格配置。
-  ```
-### 模块输出示例
-```json
-{
-  "taskId": "task-10001",
-  "intentVersion": 1,
-  "rawText": "构建一个办公区和访客区隔离的网络，两个区域都能访问互联网，办公区可以访问服务器，访客区不能访问服务器，采用 OSPF。",
-  "semanticIntentGraph": {
-    "nodes": [
-      {
-        "id": "office",
-        "name": "办公区",
-        "type": "ZONE",
-        "description": "企业内部办公用户所在区域"
-      },
-      {
-        "id": "guest",
-        "name": "访客区",
-        "type": "ZONE",
-        "description": "访客用户所在区域"
-      },
-      {
-        "id": "server",
-        "name": "服务器区",
-        "type": "ZONE",
-        "description": "内部服务器所在区域"
-      },
-      {
-        "id": "internet",
-        "name": "公网",
-        "type": "EXTERNAL_NETWORK",
-        "description": "外部互联网"
-      }
-    ],
-    "relations": [
-      {
-        "id": "rel-001",
-        "type": "ACCESS",
-        "source": "office",
-        "target": "server",
-        "action": "ALLOW",
-        "service": "ANY",
-        "description": "办公区可以访问服务器区",
-        "explicit": true
-      },
-      {
-        "id": "rel-002",
-        "type": "ACCESS",
-        "source": "guest",
-        "target": "server",
-        "action": "DENY",
-        "service": "ANY",
-        "description": "访客区不能访问服务器区",
-        "explicit": true
-      },
-      {
-        "id": "rel-003",
-        "type": "ACCESS",
-        "source": "office",
-        "target": "internet",
-        "action": "ALLOW",
-        "service": "ANY",
-        "description": "办公区可以访问公网",
-        "explicit": true
-      },
-      {
-        "id": "rel-004",
-        "type": "ACCESS",
-        "source": "guest",
-        "target": "internet",
-        "action": "ALLOW",
-        "service": "ANY",
-        "description": "访客区可以访问公网",
-        "explicit": true
-      },
-      {
-        "id": "rel-005",
-        "type": "ISOLATION",
-        "source": "office",
-        "target": "guest",
-        "action": "DENY",
-        "service": "ANY",
-        "description": "办公区与访客区需要相互隔离",
-        "explicit": true
-      }
-    ]
-  },
-  "assumptions": [
-    {
-      "field": "deviceTopology",
-      "value": "AUTO_PLAN",
-      "reason": "用户未指定具体设备数量和连接方式，后续由 Planning Module 自动规划拓扑"
-    },
-    {
-      "field": "addressPlan",
-      "value": "AUTO_PLAN",
-      "reason": "用户未指定 IP 地址规划，后续由 Planning Module 自动分配网段和网关"
-    },
-    {
-      "field": "vendor",
-      "value": "Huawei",
-      "reason": "用户未指定设备厂商，系统默认使用 Huawei 风格配置命令"
-    }
-  ],
-  "status": "PARSED"
-}
+用户输入
+  -> Intent Module
+  -> Planning Module
+  -> Configuration Module
+  -> Execution Module
+  -> Verification Module
+  -> Healing Module
+  -> 再次进入规划 / 配置 / 执行 / 验证
 ```
 
-# 网络方案规划模块(Planning Module)
+Orchestrator 是主编排入口。Model Core 是状态中心。Web / Visualization 是交互和展示入口。
 
-## 模块描述
+标准工程调用链为：
 
-负责根据 NetworkIntent 生成可执行的网络设计方案。该模块结合用户目标、网络设计规则和实验环境约束，完成设备选型、拓扑结构设计、链路关系规划、IP 地址规划、VLAN 划分、路由策略和访问控制策略设计，输出 **NetworkPlan**。该模块可以生成多个候选方案，并给出方案选择理由。输出网络方案，不输出具体设备命令。
-## 模块输入输出
-### 模型输出字段（暂定）
-
-- taskId、intentVersion、planVersion：这个是为了追踪版本。taskId：这次完整任务。intentVersion：基于第几版意图解析结果。planVersion：这是第几版网络规划方案
-- planSummary：规划结果的简要说明，给前端展示。
-- selectedArchitecture：表示系统选择了哪种网络实现架构。常见类型可以有：
-  ```text
-  L2_SWITCHING_ONLY          纯二层交换
-  ROUTER_ON_A_STICK          单臂路由
-  L3_SWITCH_CORE             三层交换核心
-  STATIC_ROUTING             静态路由
-  OSPF_ROUTING               OSPF 路由
-  SDN_OPENFLOW               SDN / OpenFlow
-  HYBRID                     混合方案
-  ```
-- topology：这是规划模块最核心的数据。它描述真正的网络拓扑。
-- zone：这个字段把 Intent Module 里的业务对象映射成网络区域。后面 VLAN、IP、ACL 都可以基于 zone 来做。
-- addressPlan：IP 地址规划。
-### 模块输出示例
-
-```json
-{
-  "taskId": "task-10001",
-  "intentVersion": 1,
-  "planVersion": 1,
-  "planSummary": "系统规划一个基于 VLAN 隔离、单路由器三层转发、ACL 访问控制和 OSPF 路由的企业接入网络方案。",
-  "selectedArchitecture": {
-    "type": "ROUTER_ON_A_STICK",
-    "reason": "该方案适合轻量实验场景，可以用较少设备实现多区域隔离、三层互通和访问控制。"
-  },
-   "topology": {
-    "nodes": [
-      {
-        "id": "R1",
-        "name": "出口路由器",
-        "nodeType": "DEVICE",
-        "deviceType": "ROUTER",
-        "role": "GATEWAY",
-        "vendor": "Huawei"
-      },
-      {
-        "id": "SW1",
-        "name": "接入交换机1",
-        "nodeType": "DEVICE",
-        "deviceType": "SWITCH",
-        "role": "ACCESS",
-        "vendor": "Huawei"
-      },
-      {
-        "id": "SW2",
-        "name": "接入交换机2",
-        "nodeType": "DEVICE",
-        "deviceType": "SWITCH",
-        "role": "ACCESS",
-        "vendor": "Huawei"
-      },
-      {
-        "id": "office-pc-1",
-        "name": "办公区主机",
-        "nodeType": "HOST",
-        "hostType": "PC",
-        "zoneId": "office"
-      },
-      {
-        "id": "guest-pc-1",
-        "name": "访客区主机",
-        "nodeType": "HOST",
-        "hostType": "PC",
-        "zoneId": "guest"
-      },
-      {
-        "id": "server-1",
-        "name": "服务器",
-        "nodeType": "HOST",
-        "hostType": "SERVER",
-        "zoneId": "server"
-      },
-      {
-        "id": "internet",
-        "name": "公网",
-        "nodeType": "EXTERNAL_NETWORK",
-        "zoneId": "internet"
-      }
-    ],
-    "links": [
-      {
-        "id": "link-001",
-        "sourceNode": "R1",
-        "sourceInterface": "GE0/0/0",
-        "targetNode": "SW1",
-        "targetInterface": "GE0/0/1",
-        "linkType": "TRUNK"
-      },
-      {
-        "id": "link-002",
-        "sourceNode": "SW1",
-        "sourceInterface": "GE0/0/2",
-        "targetNode": "SW2",
-        "targetInterface": "GE0/0/1",
-        "linkType": "TRUNK"
-      },
-      {
-        "id": "link-003",
-        "sourceNode": "office-pc-1",
-        "sourceInterface": "eth0",
-        "targetNode": "SW1",
-        "targetInterface": "GE0/0/10",
-        "linkType": "ACCESS"
-      },
-      {
-        "id": "link-004",
-        "sourceNode": "guest-pc-1",
-        "sourceInterface": "eth0",
-        "targetNode": "SW1",
-        "targetInterface": "GE0/0/11",
-        "linkType": "ACCESS"
-      },
-      {
-        "id": "link-005",
-        "sourceNode": "server-1",
-        "sourceInterface": "eth0",
-        "targetNode": "SW2",
-        "targetInterface": "GE0/0/10",
-        "linkType": "ACCESS"
-      },
-      {
-        "id": "link-006",
-        "sourceNode": "R1",
-        "sourceInterface": "GE0/0/1",
-        "targetNode": "internet",
-        "targetInterface": "wan0",
-        "linkType": "WAN"
-      }
-    ]
-  },
-  "zones": [
-    {
-      "id": "office",
-      "name": "办公区",
-      "mappedFromIntentNode": "office",
-      "zoneType": "USER_ZONE"
-    },
-    {
-      "id": "guest",
-      "name": "访客区",
-      "mappedFromIntentNode": "guest",
-      "zoneType": "USER_ZONE"
-    },
-    {
-      "id": "server",
-      "name": "服务器区",
-      "mappedFromIntentNode": "server",
-      "zoneType": "SERVER_ZONE"
-    },
-    {
-      "id": "internet",
-      "name": "公网",
-      "mappedFromIntentNode": "internet",
-      "zoneType": "EXTERNAL_NETWORK"
-    }
-  ],
-  "addressPlan": [
-    {
-      "zoneId": "office",
-      "subnet": "192.168.10.0/24",
-      "gateway": "192.168.10.1"
-    },
-    {
-      "zoneId": "guest",
-      "subnet": "192.168.20.0/24",
-      "gateway": "192.168.20.1"
-    },
-    {
-      "zoneId": "server",
-      "subnet": "192.168.30.0/24",
-      "gateway": "192.168.30.1"
-    }
-  ],
-  "vlanPlan": [
-    {
-      "vlanId": 10,
-      "name": "OFFICE",
-      "zoneId": "office",
-      "accessPorts": [
-        {
-          "deviceId": "SW1",
-          "interface": "GE0/0/10"
-        }
-      ]
-    },
-    {
-      "vlanId": 20,
-      "name": "GUEST",
-      "zoneId": "guest",
-      "accessPorts": [
-        {
-          "deviceId": "SW1",
-          "interface": "GE0/0/11"
-        }
-      ]
-    },
-    {
-      "vlanId": 30,
-      "name": "SERVER",
-      "zoneId": "server",
-      "accessPorts": [
-        {
-          "deviceId": "SW2",
-          "interface": "GE0/0/10"
-        }
-      ]
-    }
-  ],
- "routingPlan": {
-    "protocol": "OSPF",
-    "area": "0.0.0.0",
-    "routers": [
-      {
-        "deviceId": "R1",
-        "routerId": "1.1.1.1",
-        "advertisedNetworks": [
-          "192.168.10.0/24",
-          "192.168.20.0/24",
-          "192.168.30.0/24"
-        ]
-      }
-    ],
-    "defaultRoute": {
-      "enabled": true,
-      "nextHop": "ISP"
-    }
-  },
-  "securityPolicyPlan": [
-    {
-      "id": "policy-001",
-      "name": "deny_guest_to_server",
-      "sourceZone": "guest",
-      "targetZone": "server",
-      "action": "DENY",
-      "service": "ANY",
-      "enforcementPoint": {
-        "deviceId": "R1",
-        "interface": "GE0/0/0.20",
-        "direction": "INBOUND"
-      },
-      "basedOnIntentRelation": "rel-002"
-    },
-    {
-      "id": "policy-002",
-      "name": "deny_office_guest_access",
-      "sourceZone": "office",
-      "targetZone": "guest",
-      "action": "DENY",
-      "service": "ANY",
-      "enforcementPoint": {
-        "deviceId": "R1",
-        "interface": "GE0/0/0.10",
-        "direction": "INBOUND"
-      },
-      "basedOnIntentRelation": "rel-005"
-    }
-  ],
-  "natPlan": {
-    "enabled": true,
-    
-    "insideZones": ["office", "guest"],
-    "outsideInterface": {
-      "deviceId": "R1",
-      "interface": "GE0/0/1"
-    },
-    "description": "办公区和访客区通过出口路由器访问公网。"
-  },
-  "targetEnvironment": {
-	  "vendor": "Huawei",
-	  "configStyle": "CLI",
-	  "simulationTarget": "MININET_RYU"
-	},
-  "status": "PLANNED"
-}
+```text
+Controller
+  -> TaskOrchestratorService
+  -> XxxService
+  -> XxxAgent / ExecutionAdapter
+  -> ResponseSchema / ExecutionReport
+  -> Parser
+  -> DTO
+  -> Validator
+  -> NetworkWorkspace
 ```
 
-# 统一网络模型与状态管理模块（Model-core Module）
+## 3. Intent Module
 
-## 模块描述
+### 3.1 模块定位
 
-统一网络模型与状态管理模块不负责独立生成网络方案，而是负责保存、转换、版本管理和对比系统中的意图模型、目标网络模型、配置模型、运行状态和验证结果，是整个闭环流程的数据底座。
-应该保存：
+Intent Module 负责把用户自然语言网络需求解析为业务意图模型。
+
+该模块的核心产物是 `NetworkIntent`。它表达业务对象、业务关系、用户偏好、约束和假设，不表达具体网络实现。
+
+### 3.2 输入
+
+- 用户原始输入 `rawText`。
+- 任务上下文。
+- 可选的历史澄清信息。
+- 可选的用户偏好或目标环境提示。
+
+### 3.3 输出
+
+- `NetworkIntent`
+- 意图解析阶段执行记录。
+- 意图假设和冲突提示。
+
+### 3.4 核心处理内容
+
+- 识别业务区域，例如办公区、访客区、服务器区、互联网。
+- 识别业务访问关系，例如允许访问、禁止访问、隔离、互联网访问。
+- 识别用户明确提出的约束和偏好。
+- 生成稳定的 intent node / relation id。
+- 保留无法确认的假设，供后续规划或用户澄清使用。
+- 调用 IntentAgent，执行 `ResponseSchema -> Parser -> DTO -> Validator`。
+
+### 3.5 不做什么
+
+Intent Module 不生成：
+
+- 设备。
+- 接口。
+- VLAN。
+- IP 地址。
+- 路由协议细节。
+- ACL。
+- CLI 命令。
+
+### 3.6 上下游关系
+
+上游：
+
+- Web Controller。
+- Orchestrator。
+
+下游：
+
+- Planning Module。
+- Model Core。
+- 前端意图展示。
+
+## 4. Planning Module
+
+### 4.1 模块定位
+
+Planning Module 负责把 `NetworkIntent` 转换为网络设计方案。
+
+该模块的核心产物是 `NetworkPlan`。它可以包含拓扑、区域、地址规划、VLAN 规划、路由、安全策略、NAT 和目标执行环境。
+
+### 4.2 输入
+
+- `NetworkIntent`
+- 任务上下文。
+- 目标环境偏好。
+- 可选的规划规则或模板。
+
+### 4.3 输出
+
+- `NetworkPlan`
+- 规划阶段执行记录。
+- 规划假设和约束。
+
+### 4.4 核心处理内容
+
+- 选择网络架构。
+- 设计拓扑节点和链路。
+- 规划区域和安全边界。
+- 分配地址段和 VLAN。
+- 生成路由、安全策略、NAT 等规划元素。
+- 维护规划元素和意图关系之间的追溯关系。
+- 调用 PlanningAgent 和规划工具，执行结构化输出解析与校验。
+
+### 4.5 不做什么
+
+Planning Module 不生成：
+
+- 具体 CLI 命令。
+- 设备配置文本。
+- 执行脚本。
+- 验证结论。
+
+### 4.6 上下游关系
+
+上游：
+
+- Intent Module。
+- Orchestrator。
+
+下游：
+
+- Configuration Module。
+- Execution Module。
+- Verification Module。
+- Healing Module。
+- Model Core。
+
+## 5. Configuration Module
+
+### 5.1 模块定位
+
+Configuration Module 负责把 `NetworkPlan` 转换为结构化配置集合。
+
+该模块的核心产物是 `ConfigSet`。配置必须按设备、配置块、命令、解释、回滚和追溯关系组织，不能只是一整段命令文本。
+
+### 5.2 输入
+
+- `NetworkPlan`
+- 目标环境。
+- 配置生成上下文。
+- 可选 RAG 检索结果。
+- 可选配置模板和命令知识库结果。
+
+### 5.3 输出
+
+- `ConfigSet`
+- 配置生成阶段执行记录。
+- 配置风险提示和回滚信息。
+
+### 5.4 核心处理内容
+
+- 按设备生成结构化配置。
+- 按功能拆分 commandBlocks。
+- 生成命令解释。
+- 生成 rollbackCommands 或不可回滚说明。
+- 记录 generationSources。
+- 保留 traceRefs，连接意图、规划元素和配置块。
+- 调用 ConfigurationAgent、RAG 工具和模板工具，执行解析与校验。
+
+### 5.5 不做什么
+
+Configuration Module 不做：
+
+- 直接执行配置。
+- 直接判断执行结果。
+- 直接修改 NetworkWorkspace。
+- 只返回一段无法解析的命令文本。
+
+### 5.6 上下游关系
+
+上游：
+
+- Planning Module。
+- Orchestrator。
+
+下游：
+
+- Execution Module。
+- Verification Module。
+- Healing Module。
+- Model Core。
+- 配置展示和下载接口。
+
+## 6. Execution Module
+
+### 6.1 模块定位
+
+Execution Module 负责把 `NetworkPlan + ConfigSet` 转换为受控可执行内容，并采集执行结果。
+
+该模块的核心产物是 `ExecutionReport`。它不是纯 LLM Agent，而是以 `ExecutionAdapter` 为核心的执行适配模块。
+
+### 6.2 输入
+
+- `NetworkPlan`
+- `ConfigSet`
+- 执行模式。
+- 执行环境配置。
+- 可选人工确认结果。
+
+### 6.3 输出
+
+- `ExecutionReport`
+- 执行计划。
+- 运行时状态。
+- 测试结果。
+- 错误和告警。
+
+### 6.4 核心处理内容
+
+- 根据 targetEnvironment 选择 ExecutionAdapter。
+- 生成或准备 Mininet / Ryu / Docker / DryRun / 自定义适配器内容。
+- 执行白名单内的命令或工具调用。
+- 采集节点、链路、控制器、流表和测试结果。
+- 将执行结果标准化为 `ExecutionReport`。
+- 记录执行日志和错误摘要。
+
+### 6.5 不做什么
+
+Execution Module 不做：
+
+- 直接执行 LLM 拼出来的任意 shell。
+- 直接执行 Huawei CLI。
+- 让 Controller 传入任意命令。
+- 判断业务意图是否满足。
+- 直接生成修复方案。
+
+### 6.6 上下游关系
+
+上游：
+
+- Configuration Module。
+- Orchestrator。
+- 人工确认流程。
+
+下游：
+
+- Verification Module。
+- Healing Module。
+- Model Core。
+- 前端执行状态展示。
+
+## 7. Verification Module
+
+### 7.1 模块定位
+
+Verification Module 负责判断执行结果是否满足原始业务意图。
+
+该模块的核心产物是 `ValidationReport`。规则工具负责提供可验证判断依据，LLM 负责总结、解释和组织结论。
+
+### 7.2 输入
+
+- `NetworkIntent`
+- `NetworkPlan`
+- `ConfigSet`
+- `ExecutionReport`
+- 验证规则和测试结果摘要。
+
+### 7.3 输出
+
+- `ValidationReport`
+- 验证项。
+- 验证证据。
+- 失败建议。
+
+### 7.4 核心处理内容
+
+- 将意图关系映射到测试结果。
+- 判断连通性、隔离性、安全策略、路由等是否达成。
+- 生成 overallStatus。
+- 为每个验证项记录 expected、actual、passed、severity。
+- 维护验证项到 intent / plan / config / test 的追溯关系。
+- 为失败场景提供 HealingAgent 可使用的证据。
+
+### 7.5 不做什么
+
+Verification Module 不做：
+
+- 直接修改配置。
+- 直接执行修复。
+- 重新规划网络。
+- 重新生成配置。
+
+### 7.6 上下游关系
+
+上游：
+
+- Intent Module。
+- Planning Module。
+- Configuration Module。
+- Execution Module。
+- Orchestrator。
+
+下游：
+
+- Healing Module。
+- Model Core。
+- 前端验证展示。
+
+## 8. Healing Module
+
+### 8.1 模块定位
+
+Healing Module 负责在验证失败时生成诊断和修复计划。
+
+该模块的核心产物是 `RepairPlan`。HealingAgent 是长期标准 Agent 角色，但通常在 Intent、Planning、Configuration、Execution、Verification 稳定后实现。
+
+### 8.2 输入
+
+- `ValidationReport`
+- `NetworkWorkspace`
+- 失败上下文。
+- 相关执行日志和验证证据。
+- 可选用户确认信息。
+
+### 8.3 输出
+
+- `RepairPlan`
+- `FailureAnalysis`
+- `RepairAction`
+
+### 8.4 核心处理内容
+
+- 分析失败类型。
+- 定位可能根因。
+- 关联 validationItem、intent、plan、config、execution evidence。
+- 生成修复动作，例如 REPLAN、REGENERATE_CONFIG、PATCH_CONFIG、REEXECUTE、ASK_USER、ROLLBACK。
+- 标注风险等级和是否需要人工确认。
+- 将修复建议交给 Orchestrator 决策。
+
+### 8.5 不做什么
+
+Healing Module 不做：
+
+- 不绕过 Orchestrator 修改 `NetworkWorkspace`。
+- 不直接执行修复命令。
+- 不直接应用配置。
+- 不猜测冲突意图的最终选择。
+
+### 8.6 上下游关系
+
+上游：
+
+- Verification Module。
+- Execution Module。
+- Model Core。
+- Orchestrator。
+
+下游：
+
+- Orchestrator。
+- Planning Module。
+- Configuration Module。
+- Execution Module。
+- Verification Module。
+- Model Core。
+
+## 9. Model Core
+
+### 9.1 模块定位
+
+Model Core 是任务状态和阶段产物中心。
+
+它负责管理 `NetworkWorkspace`、版本、Artifact、执行记录、状态流转和追溯关系。
+
+### 9.2 输入
+
+- Orchestrator 写入的阶段产物。
+- Agent 执行记录。
+- Execution 执行记录。
+- 用户确认或取消操作。
+
+### 9.3 输出
+
+- 当前 Workspace 视图。
+- Artifact 历史版本。
+- AgentExecutionRecord。
+- 任务状态和阶段状态。
+- 前端时间线数据。
+
+### 9.4 核心处理内容
+
+- 保存当前阶段产物。
+- 保存历史 Artifact。
+- 管理任务状态和阶段状态。
+- 记录 Agent / Tool / MCP / Execution 摘要。
+- 支撑阶段重跑、回放、回滚和自愈流程。
+
+### 9.5 不做什么
+
+Model Core 不做：
+
+- 调用大模型。
+- 生成 `NetworkPlan`。
+- 生成 `ConfigSet`。
+- 执行 Mininet / Ryu / Docker。
+- 直接执行修复决策。
+
+### 9.6 上下游关系
+
+上游：
+
+- Orchestrator。
+- Web 查询服务。
+
+下游：
+
+- Orchestrator。
+- Web / Visualization。
+- Artifact 查询。
+- Timeline 查询。
+
+## 10. Orchestrator
+
+### 10.1 模块定位
+
+Orchestrator 是主流程编排模块。
+
+它负责串联各阶段、处理异常、推进状态、写入 Workspace，并根据验证和修复结果决定下一步。
+
+### 10.2 输入
+
+- 创建任务请求。
+- 用户继续、取消、重跑、修复确认请求。
+- 当前 Workspace 状态。
+
+### 10.3 输出
+
+- 任务状态。
+- 阶段推进结果。
+- 写入 Model Core 的阶段产物。
+- 面向 Web 的流程摘要。
+
+### 10.4 核心处理内容
+
+- 创建任务。
+- 顺序调用 Intent、Planning、Configuration、Execution、Verification。
+- 在验证失败时调用 Healing。
+- 根据 RepairAction 重新进入指定阶段。
+- 捕获异常并更新任务状态。
+- 写入 AgentExecutionRecord 和 Artifact。
+
+### 10.5 不做什么
+
+Orchestrator 不做：
+
+- 构造 Prompt。
+- 直接调用 ChatModel。
+- 直接调用 ReactAgent。
+- 直接执行 shell。
+- 直接修改 DTO 内部复杂字段来代替 Parser / Validator。
+
+### 10.6 上下游关系
+
+上游：
+
+- Web Controller。
+- 定时任务或外部集成入口。
+
+下游：
+
+- 各 Agent Service。
+- Execution Service。
+- Model Core。
+- SSE / Event 推送。
+
+## 11. Web / Visualization
+
+### 11.1 模块定位
+
+Web / Visualization 是用户交互、任务控制和结果展示入口。
+
+后端 Controller 负责 HTTP API。前端负责展示意图、拓扑、配置、执行、验证、修复和时间线。
+
+### 11.2 输入
+
+- 用户自然语言需求。
+- 任务控制请求。
+- 阶段产物查询请求。
+- 修复动作确认请求。
+
+### 11.3 输出
+
+- 统一 API 响应。
+- Workspace 当前视图。
+- 阶段产物视图。
+- SSE 进度事件。
+- 前端展示数据。
+
+### 11.4 核心处理内容
+
+- Controller 接收请求和校验参数。
+- 调用 Orchestrator 或查询服务。
+- 返回统一响应。
+- 前端展示完整闭环过程。
+- 支持用户查看版本、追溯关系和修复建议。
+
+### 11.5 不做什么
+
+Web / Visualization 不做：
+
+- 业务流程编排。
+- 意图解析。
+- 网络规划。
+- 配置生成。
+- 执行适配。
+- 验证判断。
+- 修复决策。
+- 构造 Prompt。
+- 直接调用模型。
+- 直接执行 shell。
+
+### 11.6 上下游关系
+
+上游：
+
+- 用户。
+- 外部系统。
+
+下游：
+
+- Orchestrator。
+- Model Core 查询服务。
+- SSE / Event 服务。
+
+## 12. 模块协作边界
+
+长期协作规则：
+
+- Agent 模块通过 Service 暴露能力，不直接被 Controller 调用。
+- 每个 Agent 的构建方式以 `docs/09_AGENT_BUILD_GUIDE.md` 为准。
+- 每个阶段产物的数据结构以 `docs/04_DATA_MODELS.md` 为准。
+- 每个 HTTP 入口以 `docs/05_API_DESIGN.md` 为准。
+- 所有阶段产物必须进入 `NetworkWorkspace`。
+- Mock / Stub 只用于测试、降级和本地替身，不作为长期主流程。
+
+## 13. 模块间数据流
+
+核心数据流：
+
+```text
+rawText
+  -> NetworkIntent
+  -> NetworkPlan
+  -> ConfigSet
+  -> ExecutionReport
+  -> ValidationReport
+  -> RepairPlan
 ```
-1. 当前任务状态
-2. 当前使用的是哪一版 Intent / Plan / Config / Validation
-3. 各阶段产物的引用或快照
-4. 意图、规划、配置、验证之间的映射关系
-5. 运行时状态，比如仿真环境、设备状态、链路状态
-6. Agent 执行过程和状态变更记录
-7. 自愈修复历史
-```
 
-# 配置生成模块（Configuration Module）
+每个产物都应具备：
 
-## 模块描述
+- taskId。
+- 版本号。
+- 阶段状态。
+- 可追溯 id。
+- 可校验结构。
+- 可写入 Artifact。
 
-负责将 **NetworkPlan** 转换为具体设备配置命令。该模块结合 RAG 检索、配置模板和设备命令知识库，为不同设备生成对应配置，并输出 **ConfigSet**。配置结果按设备分类展示，同时保留配置解释和回滚信息，方便后续验证和自愈修复。
+## 14. 本文档与其他文档的分工
 
-## 模型输入输出
-
-### 模型输出字段
-
-- taskId：属于哪个任务
-- planVersion：基于第几版网络规划生成
-- configVersion：这是第几版配置。如果后面自愈修改配置，可以生成：`configVersion = 2`
-- generationSummary：配置生成摘要，给前端展示。
-- deviceConfigs：这是最核心的字段。这里的 `configText` 是给用户看的完整配置。`commandBlocks` 是给系统用的结构化配置块。
-- commandBlocks：不要只返回完整命令文本，最好拆成多个块。这样后面自愈时就很好定位。
-  如果你只返回：
-  ```
-  {  "R1": "一大段命令"}
-  ```
-  后面会很难做这些事：
-  ```
-  前端展示每段配置的作用
-  验证失败后定位是哪段配置有问题
-  自愈时只修改某个配置块
-  回滚某个配置块
-  追踪这段命令来自哪条用户意图
-  ```
-- endpointConfigs:因为拓扑里有主机，这些主机虽然不是路由器交换机，但在 Mininet / Linux 仿真里也需要配置 IP、网关。
-
-### 模型输出示例
-
-```json
-{
-  "taskId": "task-10001",
-  "planVersion": 1,
-  "configVersion": 1,
-  "targetEnvironment": {
-    "vendor": "Huawei",
-    "configStyle": "CLI",
-    "simulationTarget": "MININET_RYU"
-  },
-  "generationSummary": "已为 R1、SW1、SW2 生成 VLAN、接口、OSPF、ACL、NAT 以及主机地址相关配置。",
-  "deviceConfigs": [
-    {
-      "deviceId": "R1",
-      "deviceName": "出口路由器",
-      "deviceType": "ROUTER",
-      "vendor": "Huawei",
-      "configText": "interface GigabitEthernet0/0/0.10\n dot1q termination vid 10\n ip address 192.168.10.1 255.255.255.0\n arp broadcast enable\n#\ninterface GigabitEthernet0/0/0.20\n dot1q termination vid 20\n ip address 192.168.20.1 255.255.255.0\n arp broadcast enable\n#\ninterface GigabitEthernet0/0/0.30\n dot1q termination vid 30\n ip address 192.168.30.1 255.255.255.0\n arp broadcast enable\n#\nacl number 3000\n rule 5 deny ip source 192.168.20.0 0.0.0.255 destination 192.168.30.0 0.0.0.255\n rule 10 permit ip\n#\ninterface GigabitEthernet0/0/0.20\n traffic-filter inbound acl 3000\n#\nospf 1 router-id 1.1.1.1\n area 0.0.0.0\n  network 192.168.10.0 0.0.0.255\n  network 192.168.20.0 0.0.0.255\n  network 192.168.30.0 0.0.0.255",
-      "commandBlocks": [
-        {
-          "blockId": "R1-IF-001",
-          "blockType": "INTERFACE",
-          "order": 10,
-          "title": "配置 VLAN10、VLAN20、VLAN30 的三层网关子接口",
-          "commands": [
-            "interface GigabitEthernet0/0/0.10",
-            "dot1q termination vid 10",
-            "ip address 192.168.10.1 255.255.255.0",
-            "arp broadcast enable",
-            "interface GigabitEthernet0/0/0.20",
-            "dot1q termination vid 20",
-            "ip address 192.168.20.1 255.255.255.0",
-            "arp broadcast enable",
-            "interface GigabitEthernet0/0/0.30",
-            "dot1q termination vid 30",
-            "ip address 192.168.30.1 255.255.255.0",
-            "arp broadcast enable"
-          ],
-          "explanation": "为办公区、访客区和服务器区分别创建三层网关子接口，实现不同 VLAN 之间的三层转发。",
-          "rollbackCommands": [
-            "undo interface GigabitEthernet0/0/0.10",
-            "undo interface GigabitEthernet0/0/0.20",
-            "undo interface GigabitEthernet0/0/0.30"
-          ],
-          "dependsOn": [],
-          "traceRefs": {
-            "intentRelationIds": ["rel-001", "rel-002", "rel-003", "rel-004"],
-            "planElementIds": ["address-office", "address-guest", "address-server", "vlan-office", "vlan-guest", "vlan-server"]
-          }
-        },
-        {
-          "blockId": "R1-ACL-001",
-          "blockType": "ACL",
-          "order": 20,
-          "title": "禁止访客区访问服务器区",
-          "commands": [
-            "acl number 3000",
-            "rule 5 deny ip source 192.168.20.0 0.0.0.255 destination 192.168.30.0 0.0.0.255",
-            "rule 10 permit ip",
-            "interface GigabitEthernet0/0/0.20",
-            "traffic-filter inbound acl 3000"
-          ],
-          "explanation": "该配置根据安全策略 policy-001 生成，用于阻止访客区访问服务器区。",
-          "rollbackCommands": [
-            "interface GigabitEthernet0/0/0.20",
-            "undo traffic-filter inbound",
-            "undo acl number 3000"
-          ],
-          "dependsOn": ["R1-IF-001"],
-          "traceRefs": {
-            "intentRelationIds": ["rel-002"],
-            "planElementIds": ["policy-001"]
-          }
-        },
-        {
-          "blockId": "R1-OSPF-001",
-          "blockType": "ROUTING",
-          "order": 30,
-          "title": "配置 OSPF 路由协议",
-          "commands": [
-            "ospf 1 router-id 1.1.1.1",
-            "area 0.0.0.0",
-            "network 192.168.10.0 0.0.0.255",
-            "network 192.168.20.0 0.0.0.255",
-            "network 192.168.30.0 0.0.0.255"
-          ],
-          "explanation": "根据 routingPlan 生成 OSPF 配置，使各业务网段可以被路由协议识别。",
-          "rollbackCommands": [
-            "undo ospf 1"
-          ],
-          "dependsOn": ["R1-IF-001"],
-          "traceRefs": {
-            "intentRelationIds": ["rel-001", "rel-003", "rel-004"],
-            "planElementIds": ["routing-ospf-r1"]
-          }
-        }
-      ]
-    },
-    {
-      "deviceId": "SW1",
-      "deviceName": "接入交换机1",
-      "deviceType": "SWITCH",
-      "vendor": "Huawei",
-      "configText": "vlan batch 10 20 30\n#\ninterface GigabitEthernet0/0/1\n port link-type trunk\n port trunk allow-pass vlan 10 20 30\n#\ninterface GigabitEthernet0/0/2\n port link-type trunk\n port trunk allow-pass vlan 10 20 30\n#\ninterface GigabitEthernet0/0/10\n port link-type access\n port default vlan 10\n#\ninterface GigabitEthernet0/0/11\n port link-type access\n port default vlan 20",
-      "commandBlocks": [
-        {
-          "blockId": "SW1-VLAN-001",
-          "blockType": "VLAN",
-          "order": 10,
-          "title": "创建办公区、访客区和服务器区 VLAN",
-          "commands": [
-            "vlan batch 10 20 30"
-          ],
-          "explanation": "在 SW1 上创建 VLAN10、VLAN20 和 VLAN30，为不同业务区域提供二层隔离基础。",
-          "rollbackCommands": [
-            "undo vlan batch 10 20 30"
-          ],
-          "dependsOn": [],
-          "traceRefs": {
-            "intentRelationIds": ["rel-005"],
-            "planElementIds": ["vlan-office", "vlan-guest", "vlan-server"]
-          }
-        },
-        {
-          "blockId": "SW1-PORT-001",
-          "blockType": "INTERFACE",
-          "order": 20,
-          "title": "配置 SW1 上联和接入口",
-          "commands": [
-            "interface GigabitEthernet0/0/1",
-            "port link-type trunk",
-            "port trunk allow-pass vlan 10 20 30",
-            "interface GigabitEthernet0/0/2",
-            "port link-type trunk",
-            "port trunk allow-pass vlan 10 20 30",
-            "interface GigabitEthernet0/0/10",
-            "port link-type access",
-            "port default vlan 10",
-            "interface GigabitEthernet0/0/11",
-            "port link-type access",
-            "port default vlan 20"
-          ],
-          "explanation": "将上联口配置为 trunk，将办公区主机端口加入 VLAN10，将访客区主机端口加入 VLAN20。",
-          "rollbackCommands": [
-            "interface GigabitEthernet0/0/1",
-            "undo port trunk allow-pass vlan 10 20 30",
-            "interface GigabitEthernet0/0/10",
-            "undo port default vlan",
-            "interface GigabitEthernet0/0/11",
-            "undo port default vlan"
-          ],
-          "dependsOn": ["SW1-VLAN-001"],
-          "traceRefs": {
-            "intentRelationIds": ["rel-003", "rel-004", "rel-005"],
-            "planElementIds": ["link-001", "link-002", "vlan-office", "vlan-guest"]
-          }
-        }
-      ]
-    }
-  ],
-  "endpointConfigs": [
-    {
-      "nodeId": "office-pc-1",
-      "nodeType": "HOST",
-      "zoneId": "office",
-      "commands": [
-        "ip addr add 192.168.10.10/24 dev eth0",
-        "ip route add default via 192.168.10.1"
-      ],
-      "explanation": "为办公区主机配置 IP 地址和默认网关。"
-    },
-    {
-      "nodeId": "guest-pc-1",
-      "nodeType": "HOST",
-      "zoneId": "guest",
-      "commands": [
-        "ip addr add 192.168.20.10/24 dev eth0",
-        "ip route add default via 192.168.20.1"
-      ],
-      "explanation": "为访客区主机配置 IP 地址和默认网关。"
-    },
-    {
-      "nodeId": "server-1",
-      "nodeType": "HOST",
-      "zoneId": "server",
-      "commands": [
-        "ip addr add 192.168.30.10/24 dev eth0",
-        "ip route add default via 192.168.30.1"
-      ],
-      "explanation": "为服务器配置 IP 地址和默认网关。"
-    }
-  ],
-  "warnings": [
-    {
-      "level": "LOW",
-      "message": "当前配置为实验环境示例，真实设备接口名称和 NAT 出口参数需要根据实际环境调整。"
-    }
-  ],
-  "status": "GENERATED"
-}
-```
-
-# 执行与仿真适配模块（Execute Module）
-
-## 模块描述
-
-负责对接外部网络仿真或执行环境，例如 Mininet、Ryu 控制器、eNSP 或规则仿真引擎。该模块根据 NetworkPlan 创建仿真拓扑，根据 ConfigSet 下发配置或流表，并执行 ping、traceroute、iperf、流表查询等测试，最终返回 RuntimeState 和 TestResult。
-
-```
-NetworkPlan + ConfigSet
-        ↓
-执行适配器 Execution Adapter
-        ↓
-转换成 Mininet 拓扑脚本、Linux 主机命令、OVS 命令、Ryu 流表规则
-        ↓
-运行仿真环境
-        ↓
-执行 ping / traceroute / iperf / flow 查询
-        ↓
-返回 RuntimeState + TestResult
-```
-## 模块输入输出
-
-### 模块输入
-
-输入需要同时读取`NetworkPlan + ConfigSet`，这里不一定要把完整的 `NetworkPlan` 和 `ConfigSet` 都塞进来，实际代码里可以通过 `Model Core` 根据 ref 查询。
-
-### 模块输出
-
-模块输出包含三部分：
-```
-ExecutionReport
-├── ExecutionPlan
-├── RuntimeState
-└── TestResult
-```
-#### 1. ExecutionPlan：执行计划
-
-就是把 `NetworkPlan + ConfigSet` 翻译成 Mininet / Ryu 能执行的一套“执行方案”。
-#### 2. RuntimeState：运行时状态
-
-这个表示仿真环境实际运行状态。
-它不是测试结果，而是：
-> Mininet 是否启动了？Ryu 是否连接了？交换机是否连上控制器？链路是否 UP？流表是否下发成功？
-
-#### 3. TestResult：测试结果
-
-这个表示执行 `ping / traceroute / iperf / flow query` 后拿到的原始结果。
-它不要直接判断业务是否通过，可以记录基础执行状态。
-最终业务判断交给 Verification Module。
-
-## 模块流程
-
-```mermaid
-flowchart TD
-    A[读取 NetworkPlan + ConfigSet] --> B[Execution Adapter<br/>执行适配器]
-    B --> C[生成 Mininet 拓扑脚本]
-    B --> D[生成 Host IP/Route 命令]
-    B --> E[生成 Ryu Flow Rules]
-    B --> F[生成测试命令]
-
-    C --> G[启动或连接 Mininet]
-    D --> G
-    E --> H[Ryu Controller 下发流表]
-    G --> I[收集 RuntimeState]
-    H --> I
-
-    I --> J[执行 ping / traceroute / iperf]
-    J --> K[收集 TestResult]
-
-    K --> L[写入 Model Core]
-    L --> M[交给 Verification Module]
-```
-# 意图验证与评估模块（Verification Module）
-
-## 模块描述
-
-负责判断网络方案是否真正满足用户意图。该模块基于 NetworkIntent、NetworkPlan、ConfigSet 和 RuntimeState 进行静态规则验证与动态仿真验证，检查连通性、隔离性、路由可达性、策略命中情况和地址规划正确性，输出 ValidationReport。
-
-# 异常诊断与自愈优化模块（前期先不写）
-
-## 模块描述
-
-当验证失败时，该模块根据 ValidationReport 定位失败原因，判断问题属于配置错误、规划不合理、环境执行失败还是用户意图冲突，并生成 PatchPlan。系统可根据修复类型选择重新生成配置、局部修改配置、重新规划拓扑或向用户发起澄清，从而形成闭环优化。
-
-# 图形化展示与过程追踪模块
-## 模块描述
-
-负责在前端展示从意图理解、方案规划、配置生成、仿真执行、验证评估到异常修复的全过程。用户可以查看拓扑图、设备配置、验证报告、失败定位、自愈建议和 Agent 执行轨迹，从而提升系统的可解释性和易用性。
-
-# 总设计流程图
-
-```mermaid
-flowchart TD
-    A[用户输入自然语言需求] --> O[Task Orchestrator<br/>任务编排器]
-
-    O --> B[Intent Module<br/>意图理解模块]
-    B -->|输出 NetworkIntent| M[(Model Core<br/>NetworkWorkspace 状态中心)]
-
-    O --> C[Planning Module<br/>网络方案规划模块]
-    C -->|输出 NetworkPlan| M
-
-    O --> D[Configuration Module<br/>配置生成模块]
-    D -->|输出 ConfigSet| M
-
-    O --> E[Execution Module<br/>执行与仿真模块]
-    E -->|输出 RuntimeState / TestResult| M
-
-    O --> F[Verification Module<br/>意图验证模块]
-    F -->|输出 ValidationReport| M
-
-    F --> J{验证是否通过?}
-
-    J -->|通过| H[Visualization Module<br/>图形化展示最终结果]
-
-    J -->|不通过| G[Healing Module<br/>异常诊断与自愈模块]
-    G -->|输出 RepairPlan| M
-
-    G --> K{修复类型}
-
-    K -->|需求不清| B
-    K -->|需要重新规划| C
-    K -->|只需修配置| D
-    K -->|执行环境问题| E
-    K -->|无法自动修复| H
-
-    M --> H
-```
+- 本文档：业务模块定位、输入输出、核心处理内容、上下游关系。
+- `docs/02_MAVEN_MODULES.md`：Maven 模块和依赖边界。
+- `docs/04_DATA_MODELS.md`：DTO 字段、状态、版本、TraceRefs、Artifact。
+- `docs/05_API_DESIGN.md`：HTTP API 契约和 Controller 边界。
+- `docs/06_DEV_PLAN.md`：长期实现阶段和验收标准。
+- `docs/09_AGENT_BUILD_GUIDE.md`：真实 Spring AI Alibaba Agent 构建规范。

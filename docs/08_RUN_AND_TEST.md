@@ -1,174 +1,328 @@
-# 运行与测试说明
+# 运行、测试与集成验证说明
 
-本文档说明当前 Demo 项目的运行、测试和验收方式。当前仓库处于文档整理阶段时，不要求可以运行后端服务。
+本文档定义 MAC-TAV 长期运行、测试、手动集成验证和常见问题处理方式。
 
-## 1. 当前文档阶段如何验证
+本文档不写 DTO 全字段，不写 Agent 架构，不写 Maven 模块设计。对应内容见：
 
-当前任务只整理文档，不创建 Java 类、不修改 `pom.xml`、不写业务代码。
+- API 设计：`docs/05_API_DESIGN.md`
+- 测试场景：`docs/07_TEST_DATA_AND_SCENARIOS.md`
+- Agent 构建规范：`docs/09_AGENT_BUILD_GUIDE.md`
 
-文档阶段检查项：
+## 1. 文档目标
 
-```text
-docs/00_PROJECT_BRIEF.md      已保留
-docs/01_DEMO_SCOPE.md         已补齐
-docs/02_MAVEN_MODULES.md      已补齐
-docs/03_MODULE_DESIGN.md      已保留
-docs/04_DATA_MODELS.md        已补齐
-docs/05_API_DESIGN.md         已补齐
-docs/06_DEV_PLAN.md           已补齐
-docs/07_MOCK_DATA.md          已补齐
-docs/08_RUN_AND_TEST.md       已补齐
-```
+本文档只负责：
 
-## 2. Phase 1 后端构建命令
+1. 运行命令。
+2. 测试命令。
+3. 环境变量。
+4. 手动验证。
+5. 常见问题。
 
-完成 Maven 多模块骨架后，在项目根目录运行：
+## 2. 基础环境要求
 
-```bash
-mvn clean compile
-```
+| 环境 | 说明 |
+| --- | --- |
+| JDK | 版本以 `pom.xml` 为准 |
+| Maven | 用于后端多模块构建和测试 |
+| Node.js / npm | 用于前端安装、开发和构建 |
+| Docker | 用于后续 Mininet / Ryu / MySQL / Redis / Qdrant |
+| 操作系统 | Windows + Docker Desktop / WSL2 可以使用，但要注意端口、路径和文件锁 |
 
-预期结果：
+运行前 SHOULD 确认：
 
-1. 所有模块编译通过。
-2. 不出现循环依赖。
-3. 不需要真实大模型、RAG、Mininet/Ryu 环境。
+- 后端端口未被占用。
+- Docker Desktop / WSL2 可用。
+- 本地环境变量按需配置。
+- 不在日志或命令历史中暴露真实 API Key。
 
-涉及测试时再运行：
+## 3. 后端构建命令
 
-```bash
-mvn clean test
-```
-
-## 3. Phase 5 启动 Demo 服务
-
-完成 Web API 后，在项目根目录运行：
+在项目根目录运行：
 
 ```bash
-mvn -pl mac-tav-web spring-boot:run
+mvn compile
 ```
 
-如果需要同时构建依赖模块，可运行：
+运行全部测试：
+
+```bash
+mvn test
+```
+
+单模块测试示例：
+
+```bash
+mvn -pl mac-tav-intent-agent -am test
+mvn -pl mac-tav-orchestrator -am test
+mvn -pl mac-tav-web -am test
+```
+
+说明：
+
+- 如果 Windows 文件锁导致 `mvn clean` 失败，不要反复 clean。
+- 可以先运行 `mvn compile` 或 `mvn test`。
+- 清理 `target` 前 SHOULD 关闭正在运行的 Java 进程和 IDE 占用。
+
+## 4. 后端启动方式
+
+可选启动方式：
+
+1. 通过 IDEA 启动 `MacTavApplication`。
+2. 使用 Maven 启动 Web 模块：
 
 ```bash
 mvn -pl mac-tav-web -am spring-boot:run
 ```
 
-默认访问地址：
+Codex 执行要求：
 
-```text
-http://localhost:8080
-```
+- 不要在 Codex 中裸跑长期占用前台的 `spring-boot:run`。
+- 如果 Codex 需要验证启动，只允许短时间观察日志。
+- 看到 `Started MacTavApplication` 后应停止进程。
+- 不要让启动进程长期卡住。
 
-## 4. API 测试
+## 5. 前端运行方式
 
-### 4.1 运行完整 Demo 流程
-
-```bash
-curl -X POST http://localhost:8080/api/demo/tasks \
-  -H "Content-Type: application/json" \
-  -d "{\"rawText\":\"构建一个办公区和访客区隔离的网络，两个区域都能访问互联网，办公区可以访问服务器，访客区不能访问服务器，采用 OSPF。\"}"
-```
-
-预期返回：
-
-1. `NetworkTask`
-2. `NetworkIntent`
-3. `NetworkPlan`
-4. `ConfigSet`
-5. `ExecutionReport`
-6. `ValidationReport`
-7. `AgentStepLog` 列表
-
-### 4.2 查询任务
+进入前端目录：
 
 ```bash
-curl http://localhost:8080/api/tasks/task-10001
+cd mac-tav-frontend
 ```
 
-预期返回完整 `NetworkWorkspace`。
-
-### 4.3 查询阶段产物
+安装依赖：
 
 ```bash
-curl http://localhost:8080/api/tasks/task-10001/intent
-curl http://localhost:8080/api/tasks/task-10001/plan
-curl http://localhost:8080/api/tasks/task-10001/config
-curl http://localhost:8080/api/tasks/task-10001/execution
-curl http://localhost:8080/api/tasks/task-10001/validation
-curl http://localhost:8080/api/tasks/task-10001/logs
+npm install
 ```
 
-## 5. 单元测试建议
+开发运行：
 
-### 5.1 DTO 测试
+```bash
+npm run dev
+```
 
-重点检查：
+构建：
 
-1. DTO 可以正常序列化为 JSON。
-2. DTO 可以从 JSON 反序列化。
-3. 字段命名符合文档约定。
+```bash
+npm run build
+```
 
-### 5.2 Model Core 测试
+说明：
 
-重点检查：
+- 不要在 Codex 中长期挂起 `npm run dev`。
+- Vite proxy 或 `VITE_API_BASE_URL` SHOULD 指向后端。
+- 前端构建失败时先检查 Node.js 版本和依赖安装日志。
 
-1. 创建任务。
-2. 保存每个阶段产物。
-3. 查询完整 Workspace。
-4. 追加 Agent 日志。
-5. 查询不存在的任务时返回明确错误。
+## 6. 环境变量配置
 
-### 5.3 Mock Agent 测试
+常用环境变量：
 
-重点检查：
+| 环境变量 | 说明 |
+| --- | --- |
+| `AI_DASHSCOPE_API_KEY` | DashScope API Key |
+| `ALI_API_KEY` | 兼容可选 Key |
+| `DASHSCOPE_CHAT_MODEL` | DashScope ChatModel 名称 |
+| `SERVER_PORT` | 后端端口 |
+| `VITE_API_BASE_URL` | 前端访问后端的基础地址 |
 
-1. Intent Agent 不生成设备、接口、VLAN、IP。
-2. Planning Agent 不生成 CLI 命令。
-3. Configuration Agent 输出 `deviceConfigs` 和 `commandBlocks`。
-4. Execution Module 不直接执行 Huawei CLI，必须通过 Execution Adapter 转换为 DryRun / Mininet / Ryu 可执行内容。
-5. Verification Agent 根据 Mock 测试结果生成正确报告。
+要求：
 
-### 5.4 Orchestrator 测试
+- API Key 不写入 `application.yml`。
+- API Key 不提交仓库。
+- 日志不打印完整 API Key。
+- 单元测试不依赖真实 API Key。
 
-重点检查：
+## 7. Agent 单元测试规则
 
-1. 阶段调用顺序正确。
-2. 每个阶段产物都写入 Model Core。
-3. 任一阶段失败时任务状态可标记为 `ERROR`。
-4. 成功场景最终状态为 `PASSED`。
+Agent 单元测试 MUST：
 
-### 5.5 Web API 测试
+- 使用 Stub ChatModel / Fake ReactAgent。
+- 使用 Mock Tool。
+- 测试 Prompt 文件是否存在。
+- 测试 `ResponseSchema -> DTO` 转换。
+- 测试 Validator。
+- 测试 Tool 异常转换。
+- 测试 Agent 输出越界字段被拒绝。
 
-重点检查：
+Agent 单元测试不得调用真实外部模型 API。
 
-1. `POST /api/demo/tasks` 返回完整 Workspace。
-2. `GET /api/tasks/{taskId}` 能查询任务。
-3. 阶段产物接口返回正确类型。
-4. 错误任务 ID 返回 `TASK_NOT_FOUND`。
+## 8. API 测试方式
 
-## 6. Demo 验收清单
+长期 API 前缀为 `/api/v1`。
 
-运行完整 Demo 后，检查：
+常用接口：
 
-1. 页面或 API 能看到原始输入。
-2. 意图图包含办公区、访客区、服务器区、公网。
-3. 规划结果包含 R1、SW1、SW2、三台主机和公网。
-4. 地址规划包含 `192.168.10.0/24`、`192.168.20.0/24`、`192.168.30.0/24`。
-5. VLAN 规划包含 10、20、30。
-6. 配置结果按 R1、SW1、SW2 分设备展示。
-7. 配置结果包含 ACL、OSPF、VLAN、接口配置块。
-8. 执行结果明确标记为 Mock / DryRun。
-9. 验证报告显示访客区访问服务器被阻断。
-10. 验证报告整体状态为 `PASSED`。
+- `POST /api/v1/tasks`
+- `GET /api/v1/tasks/{taskId}/workspace`
+- `GET /api/v1/tasks/{taskId}/intent`
+- `GET /api/v1/tasks/{taskId}/plan`
+- `GET /api/v1/tasks/{taskId}/config`
+- `GET /api/v1/tasks/{taskId}/execution`
+- `GET /api/v1/tasks/{taskId}/validation`
+- `GET /api/v1/tasks/{taskId}/repair`
+- `GET /api/v1/tasks/{taskId}/events`
 
-## 7. 当前阶段 TODO
+具体 API 以 `docs/05_API_DESIGN.md` 为准。
 
-1. 创建 Maven 多模块骨架。
-2. 实现共享 DTO。
-3. 实现 `mac-tav-agent-core` 通用 Agent 抽象。
-4. 实现 Model Core 内存状态中心。
-5. 实现 Mock Agent。
-6. 实现 Orchestrator。
-7. 实现 Web API。
-8. 后续再考虑前端展示、持久化、真实大模型、RAG、Mininet/Ryu。
+创建任务示例：
+
+```bash
+curl -X POST http://localhost:8080/api/v1/tasks ^
+  -H "Content-Type: application/json" ^
+  -d "{\"rawText\":\"构建办公区和访客区隔离网络，办公区可访问服务器，访客区不可访问服务器。\",\"runImmediately\":true}"
+```
+
+查询 Workspace 示例：
+
+```bash
+curl http://localhost:8080/api/v1/tasks/{taskId}/workspace
+```
+
+## 9. SSE 验证方式
+
+使用 curl：
+
+```bash
+curl -N http://localhost:8080/api/v1/tasks/{taskId}/events
+```
+
+或使用浏览器 `EventSource`。
+
+SSE 约束：
+
+- 只推送进度事件和摘要。
+- 不推送 API Key、完整模型请求、完整异常堆栈。
+- 前端断线后通过 workspace / timeline 接口恢复状态。
+
+## 10. 手动真实模型验证
+
+手动验证真实 DashScope 前 MUST 设置：
+
+- `AI_DASHSCOPE_API_KEY`
+
+手动验证 SHOULD 记录：
+
+- 输入。
+- 输出摘要。
+- 错误码。
+- 模型调用耗时。
+- Validator 结果。
+
+检查重点：
+
+- IntentAgent 输出的 `NetworkIntent` 不包含设备、接口、VLAN、IP、CLI。
+- PlanningAgent 输出的 `NetworkPlan` 不包含 CLI。
+- ConfigurationAgent 输出的 `ConfigSet` 包含 commandBlocks、traceRefs、rollbackCommands。
+- VerificationAgent 输出的 `ValidationReport` 不直接修改配置。
+- HealingAgent 输出的 `RepairPlan` 不直接执行修复。
+
+## 11. Mininet / Ryu 手动验证
+
+ExecutionAdapter 接入后再启用 Mininet / Ryu 验证。
+
+验证前 SHOULD 检查：
+
+- Docker / WSL2 环境。
+- Mininet 是否可启动。
+- Ryu controller 是否监听正确端口。
+- 拓扑脚本是否来自 ExecutionAdapter。
+- 命令是否经过白名单或安全校验。
+
+验证内容：
+
+- Ryu 连接状态。
+- Mininet 拓扑状态。
+- ping / traceroute / iperf 结果。
+- 流表状态。
+- cleanup 是否执行。
+
+失败结果 MUST 进入 `ExecutionReport`，不能只打印在控制台。
+
+## 12. 常见问题
+
+### 12.1 端口 8080 被占用
+
+处理方式：
+
+- 修改 `SERVER_PORT`。
+- 或停止占用端口的本地进程。
+
+### 12.2 spring-boot:run 长期运行
+
+`spring-boot:run` 前台长期运行是正常服务状态，不等于卡死。Codex 验证时不应让它长期挂起。
+
+### 12.3 Windows 文件锁导致 mvn clean 失败
+
+处理方式：
+
+- 关闭正在运行的 Java 进程。
+- 关闭占用 target 的 IDE 或测试进程。
+- 优先运行 `mvn compile` 或 `mvn test`。
+
+### 12.4 API Key 未配置
+
+现象：
+
+- 真实模型调用失败。
+- 报鉴权错误或配置缺失。
+
+处理方式：
+
+- 检查 `AI_DASHSCOPE_API_KEY`。
+- 确认未把 Key 写入仓库。
+
+### 12.5 DashScope 调用超时
+
+处理方式：
+
+- 检查网络。
+- 检查模型名称。
+- 检查调用限流。
+- 查看脱敏后的 Agent 日志。
+
+### 12.6 npm 依赖安装失败
+
+处理方式：
+
+- 检查 Node.js / npm 版本。
+- 清理本地 npm 缓存。
+- 检查代理和 registry 配置。
+
+### 12.7 Docker / WSL2 环境未启动
+
+处理方式：
+
+- 启动 Docker Desktop。
+- 检查 WSL2 状态。
+- 确认容器网络可用。
+
+### 12.8 Mininet / Ryu 连接失败
+
+处理方式：
+
+- 检查 Ryu 监听端口。
+- 检查 Mininet controller 配置。
+- 检查防火墙和容器网络。
+- 将失败写入 `ExecutionReport`。
+
+## 13. 长期验收清单
+
+长期验收 SHOULD 包括：
+
+- 真实 IntentAgent 可以生成 `NetworkIntent`。
+- PlanningAgent 可以生成 `NetworkPlan`。
+- ConfigurationAgent 可以生成结构化 `ConfigSet`。
+- ExecutionAdapter 可以输出 `ExecutionReport`。
+- VerificationAgent 可以输出 `ValidationReport`。
+- HealingAgent 可以输出 `RepairPlan`。
+- Workspace 可以保存全流程产物。
+- 前端可以展示意图、拓扑、配置、执行、验证、修复。
+- 测试不泄漏 API Key。
+- 执行命令受 Adapter 控制。
+
+## 14. 本文档与其他文档的分工
+
+- 本文档：运行、测试、手动验证、常见问题。
+- `docs/05_API_DESIGN.md`：API 契约。
+- `docs/07_TEST_DATA_AND_SCENARIOS.md`：测试场景与样例数据。
+- `docs/09_AGENT_BUILD_GUIDE.md`：Agent 构建规范。
