@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.5.14</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>com.yali</groupId>
+    <artifactId>network-intent-agent-system</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <name>network-intent-agent-system</name>
+    <description>Multi-Agent Collaborative Translation And Verification demo</description>
+
+    <modules>
+        <module>mac-tav-common</module>
+        <module>mac-tav-model</module>
+        <module>mac-tav-agent-core</module>
+        <module>mac-tav-model-core</module>
+        <module>mac-tav-intent-agent</module>
+        <module>mac-tav-planning-agent</module>
+        <module>mac-tav-configuration-agent</module>
+        <module>mac-tav-execution</module>
+        <module>mac-tav-verification-agent</module>
+        <module>mac-tav-orchestrator</module>
+        <module>mac-tav-web</module>
+    </modules>
+
+    <properties>
+        <java.version>17</java.version>
+        <maven.compiler.release>17</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <spring-boot.run.skip>true</spring-boot.run.skip>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>com.yali</groupId>
+                <artifactId>mac-tav-common</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.yali</groupId>
+                <artifactId>mac-tav-model</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.yali</groupId>
+                <artifactId>mac-tav-agent-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.yali</groupId>
+                <artifactId>mac-tav-model-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.yali</groupId>
+                <artifactId>mac-tav-intent-agent</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.yali</groupId>
+                <artifactId>mac-tav-planning-agent</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.yali</groupId>
+                <artifactId>mac-tav-configuration-agent</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.yali</groupId>
+                <artifactId>mac-tav-execution</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.yali</groupId>
+                <artifactId>mac-tav-verification-agent</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.yali</groupId>
+                <artifactId>mac-tav-orchestrator</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+</project>
