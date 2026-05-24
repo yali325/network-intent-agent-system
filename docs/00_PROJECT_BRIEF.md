@@ -8,7 +8,8 @@ MAC-TAV：Multi-Agent Collaborative Translation and Validation for Network Inten
 
 ## 2. 项目一句话简介
 
-MAC-TAV 将用户的自然语言网络需求转化为结构化网络意图、网络规划、配置集合、执行报告、验证报告和修复计划，并通过 NetworkWorkspace 保存全流程状态和追溯关系。
+MAC-TAV 是一个基于多智能体协同的网络意图翻译与闭环验证系统，
+能够将用户的自然语言网络需求逐步转化为可规划、可配置、可执行、可验证、可修复的网络方案。
 
 ## 3. 项目长期定位
 
@@ -20,7 +21,7 @@ MAC-TAV 是一个面向网络意图翻译、配置生成、执行适配、验证
 意图 -> 规划 -> 配置 -> 执行 -> 验证 -> 诊断/修复 -> 再验证
 ```
 
-长期实现应以真实 Spring AI Alibaba Agent 为核心，通过 instruction、methodTools、hooks、outputType、RAG、MCP、Skills、A2A 和 ExecutionAdapter 组合完成多阶段协作。
+长期实现应以最终 A2A 多 Agent 服务化架构为标准形态，以真实 Spring AI Alibaba Agent 为核心，通过 instruction、methodTools、hooks、outputType、RAG、MCP、Skills、A2A 和 ExecutionAdapter 等组合完成多阶段协作。当前本地聚合只能作为过渡开发方式，不作为项目长期定位。
 
 ## 4. 赛题背景与技术趋势
 
@@ -113,13 +114,32 @@ MAC-TAV 主要解决以下痛点：
 系统长期由以下层次组成：
 
 - Web / Visualization：用户输入、任务控制、结果展示。
-- Orchestrator：主流程编排和异常收敛。
-- Agent Modules：Intent、Planning、Configuration、Verification、Healing。
+- Orchestrator：唯一主编排入口，负责确定性流程编排、状态推进、Workspace 写入、Artifact 版本管理、异常收敛、阶段重跑和修复闭环。
+- RemoteAgentTool / A2A Client：Orchestrator 侧远程调用适配能力，负责 Nacos 查询、Agent Card 解析、A2A 调用、远程异常处理和协议适配。
+- Agent Modules：Intent、Planning、Configuration、Verification、Healing 等专业 Agent 负责阶段能力，作为独立 Spring Boot 服务启动，注册到 Nacos，发布 Agent Card，并通过 A2A 被 Orchestrator 调用。
 - Execution Module：ExecutionAdapter 和受控执行环境适配。
 - Agent Core：AgentUtils、上下文、Prompt、Hooks、Tool / MCP / Skill / A2A 抽象。
 - Model Core：NetworkWorkspace、Artifact、版本、日志、追溯关系。
 - Model：跨模块 DTO。
 - Common：公共异常、枚举、结果、常量和工具。
+
+长期标准调用链为：
+
+```text
+Controller / API
+  -> Orchestrator
+  -> RemoteAgentTool / A2A Client
+  -> Nacos Agent Discovery
+  -> Agent Card
+  -> 专业 Agent A2A Service
+  -> XxxAgent
+  -> ResponseSchema
+  -> Parser
+  -> DTO
+  -> Validator
+  -> Orchestrator
+  -> Model Core / NetworkWorkspace / Artifact
+```
 
 详细 Maven 模块和依赖边界见 `docs/02_MAVEN_MODULES.md`。
 
@@ -146,7 +166,7 @@ MAC-TAV 的设计重点是阶段清晰、产物结构化、执行受控、验证
 4. 执行受控：通过 ExecutionAdapter 接入 Mininet、Ryu、Docker 或自定义环境。
 5. 验证闭环：执行结果由 VerificationAgent 解释并形成 ValidationReport。
 6. 修复闭环：验证失败后由 HealingAgent 输出 RepairPlan。
-7. 工具增强：RAG、MCP、A2A、Skills 在边界内增强 Agent 能力。
+7. 服务化协作：A2A、Nacos、Agent Card 是长期标准协作链路的一部分；RAG、MCP、Skills 在边界内增强 Agent 能力。
 
 ## 13. 长期技术路线
 
@@ -206,7 +226,7 @@ MAC-TAV 的设计重点是阶段清晰、产物结构化、执行受控、验证
 
 ## 15. 数据与状态管理思路
 
-MAC-TAV 的数据底座是 `mac-tav-model` 和 `mac-tav-model-core`。
+MAC-TAV 的数据底座是 `mac-tav-model` 和 `mac-tav-model-core`。系统通过统一的工作空间模型 NetworkWorkspace 保存任务状态、阶段产物、版本历史、执行记录和追溯关系。
 
 核心阶段产物包括：
 
@@ -263,7 +283,7 @@ MAC-TAV 解决的是：
 2. 再逐个实现 Intent、Planning、Configuration、Verification、Healing。
 3. ExecutionAdapter 与 Mininet / Ryu 能力按执行阶段接入。
 4. 持久化、异步执行、SSE 和前端体验逐步增强。
-5. MCP、A2A、Skills 按真实需求接入，不一次性生成大量空壳。
+5. 将本地直接调用逐步迁移到 Orchestrator 侧 RemoteAgentTool / A2A Client 调用，完成专业 Agent 独立启动、Nacos 注册和 Agent Card 发布；MCP、Skills 按真实需求接入，不一次性生成大量空壳。
 
 ## 18. 面向 Codex 的长期开发理解要求
 

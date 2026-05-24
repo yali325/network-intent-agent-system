@@ -7,5 +7,7 @@ public enum WorkflowStage {
     PLANNING,
     CONFIGURATION,
     EXECUTION,
-    VERIFICATION
+    VERIFICATION,
+    HEALING,
+    FINISHED
 }

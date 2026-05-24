@@ -19,20 +19,22 @@
 长期实施必须遵守：
 
 1. 先稳定架构和 Agent Core，再逐个实现真实 Agent。
-2. 不一次性实现所有 Agent、MCP、A2A、Skills。
-3. 每个阶段必须保持主调用链稳定：
+2. 不一次性实现所有 Agent、MCP、A2A、Skills 空壳。
+3. 长期标准架构只有最终 A2A 多 Agent 服务化形态，主调用链必须逐步收敛为：
 
 ```text
-Controller -> Orchestrator -> Service -> Agent -> ResponseSchema -> Parser -> DTO -> Validator -> Workspace
+Controller / API -> Orchestrator -> RemoteAgentTool / A2A Client -> Nacos -> Agent Card -> 专业 Agent A2A Service -> XxxAgent -> ResponseSchema -> Parser -> DTO -> Validator -> Orchestrator -> Model Core / NetworkWorkspace / Artifact
 ```
 
-4. 所有真实 Agent 必须遵守 `docs/09_AGENT_BUILD_GUIDE.md`。
-5. 所有阶段产物必须进入 `NetworkWorkspace`。
-6. Execution 能力必须通过 `ExecutionAdapter` 接入。
-7. API Key 不允许硬编码。
-8. 单元测试不真实调用外部模型 API。
-9. Orchestrator 不构造 Prompt，不直接调用模型。
-10. Controller 不直接调用具体 Agent、`ChatModel`、`ReactAgent` 或外部执行命令。
+4. 当前过渡实现中，可以临时使用 `Controller -> Orchestrator -> Service -> Agent` 的本地直接调用链，用于早期联调和无 Nacos / A2A 环境下验证流程，但不作为长期验收标准。
+5. 所有真实 Agent 必须遵守 `docs/09_AGENT_BUILD_GUIDE.md`。
+6. 所有阶段产物必须进入 `NetworkWorkspace`。
+7. Execution 能力必须通过 `ExecutionAdapter` 和白名单 Adapter 接入。
+8. API Key 不允许硬编码。
+9. 单元测试不真实调用外部模型 API。
+10. Orchestrator 不构造 Prompt，不直接调用模型。
+11. Controller 不直接调用具体 Agent、`ChatModel`、`ReactAgent` 或外部执行命令。
+12. A2A / Nacos / Agent Card 是长期标准架构落地内容，不只是附加增强；MCP / Skills 按真实需求渐进接入。
 
 ## 3. Phase 0：长期文档体系统一
 
@@ -370,37 +372,41 @@ Controller -> Orchestrator -> Service -> Agent -> ResponseSchema -> Parser -> DT
 
 依赖阶段产物 API、Workspace API 和核心 DTO 契约。可与 Phase 8 并行推进。
 
-## 13. Phase 10：A2A / MCP / Skills 增强
+## 13. Phase 10：A2A / Nacos / Agent Card 服务化收敛与 MCP / Skills 增强
 
 ### 目标
 
-增强多智能体协作与外部工具调用能力。
+将当前过渡实现逐步收敛到长期标准 A2A 多 Agent 服务化架构，并按需增强外部工具调用能力。
 
 ### 做什么
 
-1. 按需接入 MCP。
-2. 按需接入 A2A。
-3. 按需引入 Skills。
-4. `RemoteAgentTool` 封装远程 Agent 调用。
-5. 支持 Agent 间受控协作。
+1. 将 Orchestrator 本地直接调用逐步替换为 RemoteAgentTool / A2A Client 调用。
+2. 启动专业 Agent 独立 Spring Boot 服务。
+3. 接入 Nacos 服务发现和 Agent Card 发布。
+4. 通过 A2A 调用 Intent、Planning、Configuration、Verification、Healing 等专业 Agent。
+5. A2A 调用失败转换为统一错误，并由 Orchestrator 负责异常收敛。
+6. 按需接入 MCP 和 Skills，不一次性生成空壳。
 
 ### 不做什么
 
-1. 不一次性生成所有 MCP / Skill / A2A 空壳。
+1. 不一次性生成所有 MCP / Skill / A2A / Nacos / Agent Card 空壳。
 2. 不破坏现有 Service / DTO 边界。
 3. 不让 Agent 直接共享内部状态。
-4. 不让 MCP 绕过 Model Core 直接修改 Workspace。
+4. 不让 Agent、MCP 或 A2A 调用绕过 Model Core 直接修改 Workspace。
+5. 不让 RemoteAgentTool / A2A Client 承担业务编排职责。
 
 ### 验收标准
 
-1. A2A / MCP / Skills 不破坏 Orchestrator 主流程。
-2. 状态仍由 `NetworkWorkspace` 维护。
-3. 工具调用有日志和错误处理。
-4. 远程 Agent 调用仍遵守标准输入输出 DTO 契约。
+1. 专业 Agent 可独立启动、注册 Nacos、发布 Agent Card。
+2. Orchestrator 可通过 RemoteAgentTool / A2A Client 调用远程专业 Agent。
+3. A2A 调用失败可转换为统一错误。
+4. 状态仍由 `NetworkWorkspace` 维护。
+5. 远程 Agent 调用仍遵守标准输入输出 DTO 契约。
+6. 本地直接调用链不再作为长期验收标准。
 
 ### 依赖前置
 
-依赖 Phase 1 的 Agent Core。推荐在核心 Agent、Execution、Verification、Healing 稳定后再扩展。
+依赖核心 Agent、ExecutionAdapter、Verification、Healing 和 Orchestrator 主流程稳定。按任务范围渐进落地，不一次性生成所有 A2A / Nacos / Agent Card 空壳。
 
 ## 14. 阶段依赖关系
 
@@ -412,7 +418,7 @@ Controller -> Orchestrator -> Service -> Agent -> ResponseSchema -> Parser -> DT
 4. `ConfigurationAgent` 和 `ExecutionAdapter` 是 `VerificationAgent` 的前置。
 5. `VerificationAgent` 是 `HealingAgent` 的前置。
 6. 持久化、SSE、前端增强可以和 Agent 能力并行推进，但不能改变核心 DTO 契约。
-7. A2A / MCP / Skills 是增强能力，不应早于核心 Agent 链路稳定。
+7. A2A / Nacos / Agent Card 是长期标准架构落地内容，应在核心 Agent 链路稳定后收敛；MCP / Skills 是增强能力。
 
 推荐主线顺序：
 
@@ -420,7 +426,7 @@ Controller -> Orchestrator -> Service -> Agent -> ResponseSchema -> Parser -> DT
 Phase 0 -> Phase 1 -> Phase 2 -> Phase 3 -> Phase 4 -> Phase 5 -> Phase 6 -> Phase 7
 ```
 
-增强能力可按需并行：
+服务化收敛和增强能力可按需推进：
 
 ```text
 Phase 8 / Phase 9 / Phase 10

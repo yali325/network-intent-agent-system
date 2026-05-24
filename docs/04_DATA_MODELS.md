@@ -46,14 +46,14 @@ ID 约束：
 
 阶段产物保留独立版本字段：
 
-| 阶段产物 | 版本字段 |
-| --- | --- |
-| `NetworkIntent` | `intentVersion` |
-| `NetworkPlan` | `planVersion` |
-| `ConfigSet` | `configVersion` |
-| `ExecutionReport` | `executionVersion` |
+| 阶段产物               | 版本字段                |
+| ------------------ | ------------------- |
+| `NetworkIntent`    | `intentVersion`     |
+| `NetworkPlan`      | `planVersion`       |
+| `ConfigSet`        | `configVersion`     |
+| `ExecutionReport`  | `executionVersion`  |
 | `ValidationReport` | `validationVersion` |
-| `RepairPlan` | `repairVersion` |
+| `RepairPlan`       | `repairVersion`     |
 
 版本约束：
 
@@ -66,14 +66,13 @@ ID 约束：
 
 长期模型建议统一使用以下时间字段：
 
-| 字段 | 说明 |
-| --- | --- |
-| `createdAt` | 对象创建时间 |
-| `updatedAt` | 对象最后更新时间 |
-| `startedAt` | 阶段或执行开始时间 |
-| `finishedAt` | 阶段或执行结束时间 |
+| 字段           | 说明        |
+| ------------ | --------- |
+| `createTime`  | 对象创建时间    |
+| `updateTime`  | 对象最后更新时间  |
+| `startTime`  | 阶段或执行开始时间 |
 
-字段类型可以使用 `String` 或 `LocalDateTime`，最终以代码实现统一。
+字段类型可以使用 `LocalDateTime`，最终以代码实现统一。
 
 ### 2.4 状态枚举约定
 
@@ -88,7 +87,6 @@ CREATED
 RUNNING
 WAITING_USER
 COMPLETED
-FAILED
 ERROR
 CANCELLED
 ```
@@ -170,15 +168,15 @@ FAILED
 
 长期字段：
 
-| 字段 | 类型 | 说明 |
-| --- | --- | --- |
-| `intentNodeIds` | `List<String>` | 关联的意图节点 |
+| 字段                  | 类型             | 说明      |
+| ------------------- | -------------- | ------- |
+| `intentNodeIds`     | `List<String>` | 关联的意图节点 |
 | `intentRelationIds` | `List<String>` | 关联的意图关系 |
-| `planElementIds` | `List<String>` | 关联的规划元素 |
-| `configBlockIds` | `List<String>` | 关联的配置块 |
-| `testIds` | `List<String>` | 关联的执行测试 |
-| `validationItemIds` | `List<String>` | 关联的验证项 |
-| `repairActionIds` | `List<String>` | 关联的修复动作 |
+| `planElementIds`    | `List<String>` | 关联的规划元素 |
+| `configBlockIds`    | `List<String>` | 关联的配置块  |
+| `testIds`           | `List<String>` | 关联的执行测试 |
+| `validationItemIds` | `List<String>` | 关联的验证项  |
+| `repairActionIds`   | `List<String>` | 关联的修复动作 |
 
 要求：
 
@@ -193,17 +191,16 @@ FAILED
 
 `NetworkTask` 表示一次用户提交的网络意图任务。
 
-| 字段 | 类型 | 说明 |
-| --- | --- | --- |
-| `taskId` | `String` | 任务 ID |
-| `rawText` | `String` | 用户原始输入 |
-| `taskStatus` | `TaskStatus` | 任务总状态 |
-| `currentStage` | `WorkflowStage` | 当前流程阶段 |
-| `createdAt` | `String / LocalDateTime` | 创建时间 |
-| `updatedAt` | `String / LocalDateTime` | 更新时间 |
-| `createdBy` | `String` | 创建人，可选 |
-| `source` | `String` | 任务来源，可选，例如 `WEB` / `API` / `SCHEDULED` |
-| `description` | `String` | 任务描述，可选 |
+| 字段             | 类型              | 说明      |
+| -------------- | --------------- | ------- |
+| `taskId`       | `String`        | 任务 ID   |
+| `rawText`      | `String`        | 用户原始输入  |
+| `taskStatus`   | `TaskStatus`    | 任务总状态   |
+| `currentStage` | `WorkflowStage` | 当前流程阶段  |
+| `createTime`   | LocalDateTime`  | 创建时间    |
+| `updateTime`   | LocalDateTime`  | 更新时间    |
+| `createdBy`    | `String`        | 创建人，可选  |
+| `description`  | `String`        | 任务描述，可选 |
 
 ### 3.2 `NetworkWorkspace`
 
@@ -251,7 +248,7 @@ FAILED
 | `payloadType` | `String` | 产物载荷类型，例如 DTO 类名或逻辑类型 |
 | `payload` | `Object / JsonNode / String` | 产物快照或引用 |
 | `summary` | `String` | 产物摘要 |
-| `createdAt` | `String / LocalDateTime` | 创建时间 |
+| `createTime` | `String / LocalDateTime` | 创建时间 |
 | `createdBy` | `String` | 创建来源，例如 Agent、用户或系统 |
 | `traceRefs` | `TraceRefs` | 追溯关系 |
 
@@ -282,7 +279,7 @@ REPAIR_PLAN
 | `toolCallSummaries` | `List<String>` | Tool 调用摘要 |
 | `mcpCallSummaries` | `List<String>` | MCP 调用摘要 |
 | `modelCallCount` | `Integer` | 模型调用次数 |
-| `startedAt` | `String / LocalDateTime` | 开始时间 |
+| `startTime` | `String / LocalDateTime` | 开始时间 |
 | `finishedAt` | `String / LocalDateTime` | 结束时间 |
 | `errorCode` | `String` | 错误码，可选 |
 | `errorMessage` | `String` | 错误信息，可选 |
@@ -307,7 +304,7 @@ REPAIR_PLAN
 | `fromArtifactId` | `String` | 原产物 ID，可选 |
 | `toArtifactId` | `String` | 新产物 ID，可选 |
 | `reason` | `String` | 变化原因 |
-| `createdAt` | `String / LocalDateTime` | 创建时间 |
+| `createTime` | `String / LocalDateTime` | 创建时间 |
 | `createdBy` | `String` | 创建来源 |
 
 ## 4. `NetworkIntent`
@@ -332,7 +329,7 @@ REPAIR_PLAN
 | `preferences` | `List<IntentPreference>` | 用户偏好，例如协议、风格、目标环境倾向 |
 | `stageStatus` | `StageStatus` | 阶段状态 |
 | `traceId` | `String` | 调用链追踪 ID |
-| `createdAt` | `String / LocalDateTime` | 创建时间 |
+| `createTime` | `String / LocalDateTime` | 创建时间 |
 
 ### 4.1 `SemanticIntentGraph`
 
@@ -443,7 +440,7 @@ ROUTING_REQUIREMENT
 | `planConstraints` | `List<PlanConstraint>` | 规划约束 |
 | `traceRefs` | `TraceRefs` | 追溯关系 |
 | `stageStatus` | `StageStatus` | 阶段状态 |
-| `createdAt` | `String / LocalDateTime` | 创建时间 |
+| `createTime` | `String / LocalDateTime` | 创建时间 |
 
 要求：
 
@@ -647,7 +644,7 @@ CUSTOM_ADAPTER
 | `warnings` | `List<ConfigWarning>` | 配置警告 |
 | `traceRefs` | `TraceRefs` | 整体追溯关系 |
 | `stageStatus` | `StageStatus` | 阶段状态 |
-| `createdAt` | `String / LocalDateTime` | 创建时间 |
+| `createTime` | `String / LocalDateTime` | 创建时间 |
 
 ### 6.1 `GenerationSource`
 
@@ -770,7 +767,7 @@ MANUAL_OVERRIDE
 | `errors` | `List<ExecutionError>` | 执行错误 |
 | `warnings` | `List<String>` | 执行警告 |
 | `stageStatus` | `StageStatus` | 阶段状态 |
-| `startedAt` | `String / LocalDateTime` | 开始时间 |
+| `startTime` | `String / LocalDateTime` | 开始时间 |
 | `finishedAt` | `String / LocalDateTime` | 结束时间 |
 
 `executionMode` 可包含：
@@ -903,7 +900,7 @@ CUSTOM_ADAPTER
 | `evidences` | `List<ValidationEvidence>` | 验证证据 |
 | `suggestions` | `List<String>` | 建议 |
 | `stageStatus` | `StageStatus` | 阶段状态 |
-| `createdAt` | `String / LocalDateTime` | 创建时间 |
+| `createTime` | `String / LocalDateTime` | 创建时间 |
 
 ### 8.1 `ValidationItem`
 
@@ -958,7 +955,7 @@ CUSTOM_ADAPTER
 | `actions` | `List<RepairAction>` | 修复动作 |
 | `requiresUserConfirmation` | `Boolean` | 是否需要用户确认 |
 | `stageStatus` | `StageStatus` | 阶段状态 |
-| `createdAt` | `String / LocalDateTime` | 创建时间 |
+| `createTime` | `String / LocalDateTime` | 创建时间 |
 
 ### 9.1 `FailureAnalysis`
 

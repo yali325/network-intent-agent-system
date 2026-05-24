@@ -1,0 +1,1 @@
+core prompt fixture

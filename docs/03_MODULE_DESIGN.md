@@ -35,9 +35,28 @@ MAC-TAV 的长期业务链路为：
   -> 再次进入规划 / 配置 / 执行 / 验证
 ```
 
-Orchestrator 是主编排入口。Model Core 是状态中心。Web / Visualization 是交互和展示入口。
+Orchestrator 是唯一主编排入口和确定性工程流程控制入口。RemoteAgentTool / A2A Client 是 Orchestrator 侧远程 Agent 调用工具或客户端。Model Core 是状态中心。Web 是交互和展示入口。
 
-标准工程调用链为：
+长期标准调用链为：
+
+```text
+Controller / API
+  -> Orchestrator
+  -> RemoteAgentTool / A2A Client
+  -> Nacos Agent Discovery
+  -> Agent Card
+  -> 专业 Agent A2A Service
+  -> XxxAgent
+  -> Spring AI Alibaba Agent / Tools / MCP / Skills
+  -> ResponseSchema
+  -> Parser
+  -> DTO
+  -> Validator
+  -> Orchestrator
+  -> Model Core / NetworkWorkspace / Artifact
+```
+
+当前过渡开发方式下，可以临时使用本地直接调用链：
 
 ```text
 Controller
@@ -48,8 +67,12 @@ Controller
   -> Parser
   -> DTO
   -> Validator
-  -> NetworkWorkspace
+  -> Orchestrator / Model Core 写入 NetworkWorkspace
 ```
+
+该链路只用于单进程联调、早期验证和无 Nacos / A2A 环境下的开发调试，不放在长期主调用链。
+
+Orchestrator 负责确定性流程编排，决定当前阶段调用哪个专业 Agent，传递阶段输入和 Workspace 摘要，并接收专业 Agent 返回的阶段 DTO 或标准失败结果。RemoteAgentTool / A2A Client 默认放在 `mac-tav-orchestrator` 中，作为 Orchestrator 调用远程专业 Agent 的客户端适配能力，只负责从 Nacos 查询 Agent Card、通过 A2A 调用远程专业 Agent、处理远程调用异常和协议适配，不承担业务编排职责，不写 Workspace，不管理任务状态。Orchestrator 仍负责 Workspace 写入、Artifact 版本管理、任务状态推进、阶段产物追溯、异常收敛、阶段重跑和修复闭环。
 
 ## 3. Intent Module
 
@@ -79,7 +102,7 @@ Intent Module 负责把用户自然语言网络需求解析为业务意图模型
 - 识别用户明确提出的约束和偏好。
 - 生成稳定的 intent node / relation id。
 - 保留无法确认的假设，供后续规划或用户澄清使用。
-- 调用 IntentAgent，执行 `ResponseSchema -> Parser -> DTO -> Validator`。
+- 调用 IntentAgent，先获得模型结构化输出 `IntentResponseSchema`，再由 `IntentResponseParser` 转换为 `NetworkIntent`，最后通过 `IntentOutputValidator` 校验后交回 Orchestrator，由 Orchestrator / Model Core 写入 NetworkWorkspace。
 
 ### 3.5 不做什么
 
@@ -449,31 +472,36 @@ Model Core 不做：
 
 ### 10.1 模块定位
 
-Orchestrator 是主流程编排模块。
+Orchestrator 是确定性工程流程控制模块。
 
-它负责串联各阶段、处理异常、推进状态、写入 Workspace，并根据验证和修复结果决定下一步。
+它负责串联各阶段、处理异常、推进状态、写入 Workspace、管理 Artifact 版本和追溯关系，并根据验证和修复结果决定下一步。Orchestrator 不是大模型 Agent，不构造 Prompt，不直接调用大模型。
 
 ### 10.2 输入
 
 - 创建任务请求。
 - 用户继续、取消、重跑、修复确认请求。
 - 当前 Workspace 状态。
+- RemoteAgentTool / A2A Client 返回的远程调用结果，以及专业 Agent 返回的阶段 DTO 或标准失败结果。
 
 ### 10.3 输出
 
 - 任务状态。
 - 阶段推进结果。
 - 写入 Model Core 的阶段产物。
+- Artifact 版本和追溯关系。
 - 面向 Web 的流程摘要。
 
 ### 10.4 核心处理内容
 
 - 创建任务。
-- 顺序调用 Intent、Planning、Configuration、Execution、Verification。
-- 在验证失败时调用 Healing。
+- 推进 Intent、Planning、Configuration、Execution、Verification 阶段。
+- 当前过渡开发方式下，可以临时调用各 `XxxService` / `XxxAgent`。
+- 长期标准架构下通过 RemoteAgentTool / A2A Client 调用远程专业 Agent。
+- 在验证失败时进入 Healing 流程。
 - 根据 RepairAction 重新进入指定阶段。
 - 捕获异常并更新任务状态。
-- 写入 AgentExecutionRecord 和 Artifact。
+- 写入 `NetworkWorkspace`、AgentExecutionRecord 和 Artifact。
+- 管理阶段产物版本、追溯关系、阶段重跑和修复闭环。
 
 ### 10.5 不做什么
 
@@ -484,6 +512,7 @@ Orchestrator 不做：
 - 直接调用 ReactAgent。
 - 直接执行 shell。
 - 直接修改 DTO 内部复杂字段来代替 Parser / Validator。
+- 绕过 RemoteAgentTool / A2A Client 直接处理远程协议细节。
 
 ### 10.6 上下游关系
 
@@ -494,12 +523,12 @@ Orchestrator 不做：
 
 下游：
 
-- 各 Agent Service。
-- Execution Service。
+- RemoteAgentTool / A2A Client。长期标准 A2A 多 Agent 服务化架构使用。
+- 各 Agent Service。仅当前过渡开发方式使用。
 - Model Core。
 - SSE / Event 推送。
 
-## 11. Web / Visualization
+## 11. Web
 
 ### 11.1 模块定位
 
@@ -562,11 +591,15 @@ Web / Visualization 不做：
 
 长期协作规则：
 
-- Agent 模块通过 Service 暴露能力，不直接被 Controller 调用。
+- 专业 Agent 长期通过 A2A Service 暴露能力，不直接被 Controller 调用；当前过渡开发方式下可临时通过 Service 暴露本地能力。
+- 当前过渡开发方式下，Orchestrator 可以临时本地调用 `XxxService` / `XxxAgent`，但这不作为长期主调用链。
+- 长期标准架构下，Orchestrator 通过 RemoteAgentTool / A2A Client 查询 Nacos、读取 Agent Card，并通过 A2A 调用专业 Agent。RemoteAgentTool / A2A Client 默认放在 `mac-tav-orchestrator` 中，作为 Orchestrator 调用远程专业 Agent 的客户端适配能力，不承担业务编排职责，不写 Workspace，不管理任务状态。
+- 专业 Agent 返回已解析、已校验的阶段 DTO 或标准失败结果，不返回模型原始字符串给 Orchestrator。
 - 每个 Agent 的构建方式以 `docs/09_AGENT_BUILD_GUIDE.md` 为准。
 - 每个阶段产物的数据结构以 `docs/04_DATA_MODELS.md` 为准。
 - 每个 HTTP 入口以 `docs/05_API_DESIGN.md` 为准。
-- 所有阶段产物必须进入 `NetworkWorkspace`。
+- 所有阶段产物必须由 Orchestrator / Model Core 写入 `NetworkWorkspace`。
+- Agent、Tool、MCP、A2A 调用不得直接篡改 `NetworkWorkspace`。
 - Mock / Stub 只用于测试、降级和本地替身，不作为长期主流程。
 
 ## 13. 模块间数据流

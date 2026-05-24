@@ -4,13 +4,11 @@
 
 本文档定义 MAC-TAV 的长期能力范围和边界。
 
-本文档只回答：
-
 - MAC-TAV 应该覆盖哪些能力。
 - 哪些能力不属于本项目。
 - 真实执行必须遵守哪些安全边界。
 - 哪些动作必须经过人工确认。
-- Mock / Stub 在长期项目中的位置。
+- Mock 在长期项目中的位置。
 
 本文档不展开 Maven 模块依赖、DTO 字段、API 细节、Agent 初始化代码。对应内容分别见：
 
@@ -57,9 +55,19 @@ MAC-TAV 的长期能力范围是网络意图到闭环验证的工程系统。
 
 - RAG 支撑配置知识检索。
 - MCP 对接外部工具或执行环境。
-- A2A 支撑 Agent 间受控协作。
+- A2A 是长期远程 Agent 协作通道，由 Orchestrator 通过 RemoteAgentTool / A2A Client 使用，不替代 Orchestrator。
 - Skills 封装可复用网络能力。
 - MySQL / Redis / Qdrant 支撑持久化、实时进度和向量检索。
+
+
+长期架构边界 MUST 保持：
+
+- 不引入额外的管理型大模型 Agent 作为主编排者、智能决策者或跨 Agent 协作者。
+- Orchestrator 是唯一主编排入口，决定当前阶段调用哪个专业 Agent。
+- 专业 Agent 不直接共享内部状态，不直接编排其他 Agent。
+- 专业 Agent 不直接写 Workspace，不推进任务状态，不管理 Artifact 版本。
+- 专业 Agent 之间不通过 Maven 直接依赖彼此实现类。
+- 专业 Agent 必须执行 `ResponseSchema -> Parser -> DTO -> Validator` 后返回阶段 DTO 或标准失败结果。
 
 ## 4. 不属于本项目的能力
 
@@ -72,6 +80,8 @@ MAC-TAV 的长期能力范围是网络意图到闭环验证的工程系统。
 - 单纯聊天机器人。
 - 只生成配置文本、没有验证闭环的配置工具。
 - 替代专业网络工程师做所有架构决策。
+- 管理型大模型 Agent 取代 Orchestrator 成为主编排入口。
+- 专业 Agent 绕过 Orchestrator 直接写 Workspace、推进任务状态或编排其他 Agent。
 
 这些能力 MAY 在未来作为外部系统集成，但不得改变 MAC-TAV 的主职责边界。
 
@@ -127,11 +137,11 @@ ExecutionAdapter SHOULD 支持：
 
 HealingAgent 只能输出 `RepairPlan`。它不得直接修改 `NetworkWorkspace`，不得直接执行修复命令。Orchestrator 根据 RepairAction 决定重新进入规划、配置、执行、验证或用户澄清阶段。
 
-## 8. Mock / Stub 边界
+## 8. Mock 边界
 
-Mock / Stub 不是长期主流程。
+Mock 不是长期主流程。
 
-Mock / Stub MAY 用于：
+Mock MAY 用于：
 
 - 单元测试。
 - 离线测试。
@@ -139,7 +149,7 @@ Mock / Stub MAY 用于：
 - 本地开发替身。
 - 外部依赖不可用时的降级。
 
-Mock / Stub 不得成为真实业务能力的替代说明。真实 Agent、RAG、ExecutionAdapter、Verification、Healing 的长期实现仍以专题文档为准。
+Mock  不得成为真实业务能力的替代说明。真实 Agent、RAG、ExecutionAdapter、Verification、Healing 的长期实现仍以专题文档为准。
 
 ## 9. 与其他文档的分工
 

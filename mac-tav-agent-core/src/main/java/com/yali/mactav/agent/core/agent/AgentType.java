@@ -5,5 +5,6 @@ public enum AgentType {
     PLANNING,
     CONFIGURATION,
     EXECUTION,
-    VERIFICATION
+    VERIFICATION,
+    HEALING
 }

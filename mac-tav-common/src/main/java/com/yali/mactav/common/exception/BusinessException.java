@@ -8,7 +8,12 @@ public class BusinessException extends RuntimeException {
 
     public BusinessException(ErrorCode errorCode, String message) {
         super(message);
-        this.errorCode = errorCode;
+        this.errorCode = errorCode == null ? ErrorCode.INTERNAL_ERROR : errorCode;
+    }
+
+    public BusinessException(ErrorCode errorCode, String message, Throwable cause) {
+        super(message, cause);
+        this.errorCode = errorCode == null ? ErrorCode.INTERNAL_ERROR : errorCode;
     }
 
     public ErrorCode getErrorCode() {
