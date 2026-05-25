@@ -8,10 +8,12 @@
         <groupId>com.yali</groupId>
         <artifactId>network-intent-agent-system</artifactId>
         <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
     </parent>
 
     <artifactId>mac-tav-model</artifactId>
     <packaging>jar</packaging>
+
     <name>mac-tav-model</name>
 
     <dependencies>

@@ -6,11 +6,14 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 public class PortRef {
 
     private String deviceId;
+
     private String interfaceName;
+
+    private String description;
 }

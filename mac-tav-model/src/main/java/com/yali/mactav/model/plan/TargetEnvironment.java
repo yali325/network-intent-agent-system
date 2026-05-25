@@ -6,12 +6,16 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 public class TargetEnvironment {
 
     private String vendor;
+
     private String configStyle;
+
     private String simulationTarget;
+
+    private String adapterType;
 }

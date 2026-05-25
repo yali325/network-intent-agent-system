@@ -18,13 +18,18 @@
 - API 路径。路径以 `docs/05_API_DESIGN.md` 为准。
 - Agent 构建规范。规范以 `docs/09_AGENT_BUILD_GUIDE.md` 为准。
 - 运行和测试命令。命令以 `docs/08_RUN_AND_TEST.md` 为准。
+- Maven 依赖。依赖边界以 `docs/02_MAVEN_MODULES.md` 为准。
 
 ## 2. 样例数据使用原则
 
 - 样例数据 MUST 可追溯。
 - 样例数据 SHOULD 覆盖成功、失败、异常和修复。
 - 样例数据不代表真实生产环境。
-- Mock / Stub 数据只用于单元测试、离线测试、失败分支验证和回归测试。
+- 样例 JSON / 固定测试数据只用于前后端联调、Parser / Validator 离线测试、失败分支验证和回归测试。
+- 本文档中的 Mock 仅指 Mock JSON / 固定测试数据。
+- 本文档不要求生成 Mock Agent、Mock Tool、Fake Agent、Fake ReactAgent 或本地 Agent Bean 替身。
+- 样例数据不得替代真实 Agent + Nacos + A2A 主链路验收。
+- 样例数据只用于固定输入、固定期望输出、非法输出和失败场景回归。
 - 不要把样例数据当成真实 Agent 输出的唯一模板。
 - Markdown 中只保留摘要和关键片段。
 - 大段 JSON SHOULD 放入 `docs/test-data/scenarios/`。
@@ -34,25 +39,57 @@
 建议目录：
 
 ```text
-docs/test-data/
-└── scenarios
-    ├── enterprise-office-guest-success
-    │   ├── input.txt
-    │   ├── expected-intent.summary.md
-    │   ├── expected-plan.summary.md
-    │   ├── expected-config.summary.md
-    │   ├── expected-execution.summary.md
-    │   └── expected-validation.summary.md
-    ├── guest-to-server-unexpected-pass
-    ├── routing-missing-failure
-    ├── acl-direction-error
-    ├── intent-conflict
-    └── execution-environment-error
+docs/test-data/scenarios/{scenarioId}/
+├── input.txt
+├── expected-intent.json
+├── expected-plan.json
+├── expected-config.json
+├── expected-execution.json
+├── expected-validation.json
+├── expected-repair.json
+├── expected-artifacts.json
+├── expected-workspace-events.json
+├── expected-agent-execution-records.json
+├── expected-trace-refs.json
+└── README.md
 ```
 
-本次只定义目录规范。后续需要完整 JSON 时再逐步添加。
+说明：
 
-## 4. 标准成功场景
+- Markdown 只保留摘要和解释。
+- JSON 用于 Parser / Validator / API / 前端联调回归。
+- 不要求所有场景一开始都写完整 JSON，可按阶段逐步补齐。
+
+建议先维护以下场景目录：
+
+- `enterprise-office-guest-success`
+- `guest-to-server-unexpected-pass`
+- `routing-missing-failure`
+- `acl-direction-error`
+- `intent-conflict`
+- `execution-environment-error`
+
+### 3.1 A2A / Nacos 集成验证样例数据
+
+这些不是 Mock Agent，而是服务化调用链的样例请求 / 响应数据。
+
+建议样例文件：
+
+- `agent-card-intent.sample.json`
+- `a2a-intent-request.sample.json`
+- `a2a-intent-response.sample.json`
+- `agent-execution-record.sample.json`
+- `workspace-event-agent-called.sample.json`
+
+检查目标：
+
+- Agent Card 包含 `agentName`、`capabilities`、`inputContract`、`outputContract`、`serviceEndpoint`、`version`、`healthStatus`。
+- A2A 请求包含 `taskId`、`sourceAgent`、`targetAgent`、`stage`、`artifactVersion`、`payload`。
+- A2A 响应能进入 `ResponseSchema -> Parser -> DTO -> Validator`。
+- 远程调用摘要能进入 `AgentExecutionRecord` / `WorkspaceEvent`。
+- A2A 失败能映射为 `A2A_CALL_FAILED` 或 `AGENT_CARD_NOT_FOUND` 等错误码。
+
+## 4. 固定主场景：办公区 / 访客区 / 服务器区访问控制
 
 ### 4.1 场景标识
 
@@ -63,8 +100,9 @@ docs/test-data/
 ### 4.2 输入摘要
 
 ```text
-构建一个办公区和访客区隔离的网络，两个区域都能访问互联网，
-办公区可以访问服务器，访客区不能访问服务器，采用 OSPF。
+构建一个办公区和访客区隔离的网络，
+办公区可以访问服务器，访客区不能访问服务器，办公区与访客区互相隔离，采用 OSPF。
+可选扩展：办公区和访客区都能访问互联网。
 ```
 
 ### 4.3 涉及对象
@@ -72,26 +110,26 @@ docs/test-data/
 - office
 - guest
 - server
-- internet
+- internet，可选扩展
 
 ### 4.4 核心意图关系
 
 - office -> server：allow
 - guest -> server：deny
-- office -> internet：allow
-- guest -> internet：allow
 - office <-> guest：deny
+- office -> internet：allow，可选
+- guest -> internet：allow，可选
 
 ### 4.5 期望 NetworkIntent 摘要
 
-- 包含 office、guest、server、internet 等业务对象。
+- 包含 office、guest、server 等业务对象，可包含 internet 扩展对象。
 - 包含允许和禁止访问关系。
 - 不包含设备、接口、VLAN、IP、CLI。
 - relation id 稳定，可被规划、配置、验证引用。
 
 ### 4.6 期望 NetworkPlan 摘要
 
-- 包含办公区、访客区、服务器区和公网出口。
+- 包含办公区、访客区、服务器区，可按扩展需要包含公网出口。
 - 包含拓扑、地址规划、VLAN 规划、OSPF、ACL / 安全策略规划。
 - 不包含具体 CLI。
 - 规划元素可追溯到 intent relation。
@@ -105,9 +143,9 @@ docs/test-data/
 
 ### 4.8 期望 ExecutionReport 摘要
 
-- executionMode 可为 `DRY_RUN` 或 `MININET_RYU`。
+- 长期主验收 `executionMode` SHOULD 为 `MININET_RYU`。如 Mininet / Ryu 暂不可用，可使用结构校验模式生成样例 `ExecutionReport`，但不得作为最终执行验收替代。
 - 包含 executionPlan、runtimeState、testResult。
-- 测试结果覆盖 office/server、guest/server、office/internet、guest/internet、office/guest。
+- 测试结果覆盖 office/server、guest/server、office/guest，可扩展覆盖 office/internet、guest/internet。
 
 ### 4.9 期望 ValidationReport 摘要
 
@@ -290,6 +328,36 @@ HealingAgent SHOULD 生成 `RepairPlan`，建议检查：
 - VerificationOutputValidator 拒绝。
 - 修复建议必须进入 HealingAgent / RepairPlan。
 
+### 10.5 HealingAgent 越权输出
+
+非法行为：
+
+- 直接声明已修改 Workspace。
+- 直接声明已执行修复命令。
+- 输出未审批的高风险修复动作并要求立即执行。
+- 输出任意 shell。
+
+期望结果：
+
+- HealingOutputValidator 拒绝。
+- 错误归类为 `AGENT_OUTPUT_INVALID`。
+- 修复动作必须交给 Orchestrator / ExecutionAdapter 控制。
+
+### 10.6 A2A 返回结构不合法
+
+非法行为：
+
+- 缺 `taskId`。
+- 缺 `stage`。
+- `payload` 不是目标 `ResponseSchema`。
+- `targetAgentName` 与 Agent Card 不匹配。
+
+期望结果：
+
+- 不写入 Workspace。
+- 错误归类为 `AGENT_SCHEMA_INVALID` 或 `A2A_CALL_FAILED`。
+- Orchestrator 记录失败摘要。
+
 ## 11. 回归测试数据要求
 
 每个场景 SHOULD 包含：
@@ -299,6 +367,12 @@ HealingAgent SHOULD 生成 `RepairPlan`，建议检查：
 - expectedArtifacts 摘要。
 - expectedStatus。
 - expectedTraceRefs。
+- expectedVersions。
+- expectedCurrentArtifactRefs。
+- expectedWorkspaceEvents。
+- expectedAgentExecutionRecords。
+- expectedA2aCallSummary，适用于 A2A 集成验证。
+- expectedApprovalStatus，适用于人工确认和修复场景。
 - expectedErrorCode，适用于失败场景。
 - expectedRepairAction，适用于修复场景。
 
@@ -311,3 +385,4 @@ HealingAgent SHOULD 生成 `RepairPlan`，建议检查：
 - `docs/05_API_DESIGN.md`：API 路径。
 - `docs/08_RUN_AND_TEST.md`：运行和测试命令。
 - `docs/09_AGENT_BUILD_GUIDE.md`：Agent 构建规范。
+- `docs/02_MAVEN_MODULES.md`：Maven 依赖边界。

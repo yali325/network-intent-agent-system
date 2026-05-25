@@ -1,34 +1,40 @@
 package com.yali.mactav.modelcore.service;
 
-import com.yali.mactav.common.enums.TaskStatus;
-import com.yali.mactav.common.enums.WorkflowStage;
-import com.yali.mactav.model.config.ConfigSet;
-import com.yali.mactav.model.execution.ExecutionReport;
-import com.yali.mactav.model.intent.NetworkIntent;
-import com.yali.mactav.model.plan.NetworkPlan;
-import com.yali.mactav.model.verification.ValidationReport;
-import com.yali.mactav.model.workspace.AgentStepLog;
+import com.yali.mactav.model.enums.ArtifactType;
+import com.yali.mactav.model.enums.TaskStatus;
+import com.yali.mactav.model.enums.WorkflowStage;
+import com.yali.mactav.model.task.NetworkTask;
+import com.yali.mactav.model.workspace.NetworkArtifact;
 import com.yali.mactav.model.workspace.NetworkWorkspace;
+import com.yali.mactav.model.workspace.TraceRefs;
+import java.util.Optional;
 
+/**
+ * Model Core boundary for workspace state, stage versions, and current artifact references.
+ *
+ * <p>Implementations manage state only. They must not call LLMs, generate
+ * business artifacts, execute simulations, or own orchestration policy.</p>
+ */
 public interface NetworkWorkspaceService {
 
-    NetworkWorkspace createTask(String rawText);
+    NetworkWorkspace createWorkspace(NetworkTask task);
 
-    NetworkWorkspace getWorkspace(String taskId);
+    Optional<NetworkWorkspace> findWorkspace(String taskId);
 
-    NetworkWorkspace saveIntent(String taskId, NetworkIntent intent);
+    NetworkWorkspace getWorkspaceOrThrow(String taskId);
 
-    NetworkWorkspace savePlan(String taskId, NetworkPlan plan);
-
-    NetworkWorkspace saveConfigSet(String taskId, ConfigSet configSet);
-
-    NetworkWorkspace saveExecutionReport(String taskId, ExecutionReport executionReport);
-
-    NetworkWorkspace saveValidationReport(String taskId, ValidationReport validationReport);
-
-    NetworkWorkspace appendAgentLog(String taskId, AgentStepLog log);
+    NetworkWorkspace updateTaskStage(String taskId, WorkflowStage stage);
 
     NetworkWorkspace updateTaskStatus(String taskId, TaskStatus status);
 
-    NetworkWorkspace updateCurrentStage(String taskId, WorkflowStage stage);
+    NetworkWorkspace saveArtifact(String taskId, NetworkArtifact artifact);
+
+    NetworkArtifact saveStageArtifact(
+            String taskId,
+            ArtifactType artifactType,
+            WorkflowStage stage,
+            Object payloadDto,
+            String payloadSummary,
+            String createdBy,
+            TraceRefs traceRefs);
 }

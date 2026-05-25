@@ -6,11 +6,14 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 public class ConfigWarning {
 
     private String level;
+
     private String message;
+
+    private String relatedBlockId;
 }

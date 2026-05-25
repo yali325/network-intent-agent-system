@@ -41,7 +41,7 @@ network-intent-agent-system
 └── mac-tav-web
 ```
 
-这些 Maven 模块首先服务于长期标准 A2A 多 Agent 服务化架构。当前代码形态仍然可以临时作为 Maven 多模块单体聚合运行，用于过渡期联调和调试；长期标准形态应支持专业 Agent 模块独立启动、注册 Nacos、发布 Agent Card，并通过 A2A 被 Orchestrator 调用。
+这些 Maven 模块服务于长期标准 A2A 多 Agent 服务化架构。长期标准形态应支持专业 Agent 模块独立启动、注册 Nacos、发布 Agent Card，并通过 A2A 被 Orchestrator 调用。
 
 
 ---
@@ -50,8 +50,8 @@ network-intent-agent-system
 
 | 模块                            | 类型                       | 长期职责                                                                                                                          | 不应该做什么                                                                 |
 | ----------------------------- | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| `mac-tav-common`              | 公共基础模块                   | 放公共枚举、异常、统一响应、工具、常量。                                                                                                          | 不放业务流程、不放 Agent 逻辑、不放 Spring AI provider 绑定。                           |
-| `mac-tav-model`               | 共享数据模型模块                 | 放 `NetworkIntent`、`NetworkPlan`、`ConfigSet`、`ExecutionReport`、`ValidationReport`、`RepairPlan`、`NetworkWorkspace` 等 DTO / 值对象。 | 不依赖 Web、Orchestrator、Agent 实现、Spring AI Alibaba 类型。                    |
+| `mac-tav-common`              | 公共基础模块                   | 放公共异常、统一响应、通用错误码、工具、常量。                                                                                                      | 不放业务流程、不放 Agent 逻辑、不放 Spring AI provider 绑定。                           |
+| `mac-tav-model`               | 共享数据模型模块                 | 放 `NetworkIntent`、`NetworkPlan`、`ConfigSet`、`ExecutionReport`、`ValidationReport`、`RepairPlan`、`NetworkWorkspace` 等 DTO / 值对象和领域模型枚举。 | 不依赖 Web、Orchestrator、Agent 实现、Spring AI Alibaba 类型。                    |
 | `mac-tav-agent-core`          | Agent 公共能力模块             | 放通用 Agent 初始化、`AgentUtils`、Prompt 加载、公共 hooks、ResponseSchema 调用封装、通用 Tool / MCP / Skill / A2A 抽象。                             | 不放具体业务 Agent 的 Prompt 和业务逻辑，不放 Orchestrator 侧远程调用实现，不强绑定具体模型 provider。 |
 | `mac-tav-model-core`          | 状态中心模块                   | 放 `NetworkWorkspace` 管理、任务状态、版本、阶段产物、执行日志、追溯关系。                                                                               | 不调用大模型，不生成规划，不生成配置，不执行仿真。                                              |
 | `mac-tav-intent-agent`        | 真实 Agent 模块              | 输入自然语言和任务上下文，输出 `NetworkIntent`。                                                                                              | 不生成设备、接口、VLAN、IP、CLI。                                                  |
@@ -61,33 +61,45 @@ network-intent-agent-system
 | `mac-tav-verification-agent`  | 真实 Agent 模块              | 输入 `NetworkIntent`、`NetworkPlan`、`ConfigSet`、`ExecutionReport`，输出 `ValidationReport`，可调用验证规则工具和结果解释工具。                        | 不直接修改配置。                                                               |
 | `mac-tav-healing-agent`       | 真实 Agent 模块              | 输入 `ValidationReport`、`NetworkWorkspace`、失败上下文，输出 `RepairPlan`，可调用诊断工具、策略分析工具、修复建议工具。                                         | 不绕过 Orchestrator 直接修改 Workspace，不直接执行修复命令。                             |
 | `mac-tav-orchestrator`        | 流程编排模块                   | 串联 Intent、Planning、Configuration、Execution、Verification、Healing；负责阶段推进、异常收敛、产物写入 Model Core。                                  | 不构造 Prompt，不直接调用 `ChatModel` / `ReactAgent`。                           |
-| `mac-tav-web`                 | Web / Visualization 启动模块 | 负责对外 HTTP API、前端交互、SSE、鉴权和任务入口；当前过渡开发阶段可临时作为本地聚合启动入口。                                                                         | 不写业务流程，不直接调用 Agent，不直接调用模型；不作为长期 Agent 聚合中心。                           |
+| `mac-tav-web`                 | Web / Visualization 启动模块 | 负责对外 HTTP API、前端交互、SSE、鉴权和任务入口。                                                                         | 不写业务流程，不直接调用 Agent，不直接调用模型；不作为 Agent 聚合中心。                           |
 
 ---
 
 ## 4. Maven 依赖方向
 
-模块依赖必须保持单向。推荐依赖方向如下：
+模块依赖必须保持单向、清晰、最小化。
+
+长期标准 A2A 多 Agent 服务化架构下，Orchestrator 不通过 Maven 直接依赖任何具体专业 Agent 模块。Orchestrator 只依赖远程调用适配能力，通过 RemoteAgentTool / A2A Client 查询 Nacos、读取 Agent Card，并通过 A2A 调用远程专业 Agent。
+
+推荐依赖方向如下：
 
 ```text
-mac-tav-common
-  ↑
-mac-tav-model
-  ↑
-mac-tav-agent-core
-  ↑
-具体 Agent 模块
-
-mac-tav-common + mac-tav-model
-  ↑
-mac-tav-model-core
-
-mac-tav-common + mac-tav-model
-  ↑
-mac-tav-execution
+mac-tav-common  
+↑  
+mac-tav-model  
+↑  
+mac-tav-agent-core  
+↑  
+具体 Agent 模块  
+  
+mac-tav-common + mac-tav-model  
+↑  
+mac-tav-model-core  
+  
+mac-tav-common + mac-tav-model  
+↑  
+mac-tav-execution  
+  
+mac-tav-common + mac-tav-model + mac-tav-model-core + mac-tav-execution  
+↑  
+mac-tav-orchestrator  
+  
+mac-tav-common + mac-tav-model + mac-tav-orchestrator  
+↑  
+mac-tav-web
 ```
 
-长期标准 A2A 多 Agent 服务化架构下，Orchestrator 不应通过 Maven 直接依赖专业 Agent 实现类。Orchestrator 使用 RemoteAgentTool / A2A Client 作为远程 Agent 调用工具或客户端，负责发现 Agent Card、执行 A2A 调用和处理远程异常，但不承担业务编排职责，不写 Workspace，不管理任务状态。
+Orchestrator 的远程 Agent 调用链为：
 
 ```text
 mac-tav-orchestrator
@@ -97,92 +109,142 @@ mac-tav-orchestrator
   -> 专业 Agent A2A Service
 ```
 
-当前过渡开发方式下，可以由 Orchestrator 直接依赖本地 Agent 模块完成单进程联调：
-
-```text
-mac-tav-model-core + 各 Agent 模块 + mac-tav-execution
-  ↑
-mac-tav-orchestrator
-  ↑
-mac-tav-web
-```
-
-该方式只用于早期验证和无 Nacos / A2A 环境下的开发调试，不作为长期标准调用方式。
-
 明确规则：
 
-1. `mac-tav-common` 不依赖任何业务模块。
-2. `mac-tav-model` 只能依赖 `mac-tav-common`。
-3. `mac-tav-agent-core` 可以依赖 `mac-tav-common` 和 `mac-tav-model`。
-4. 具体 Agent 模块可以依赖 `mac-tav-agent-core`、`mac-tav-model`、`mac-tav-common`。
-5. 具体 Agent 模块不得依赖 `mac-tav-web`。
-6. 具体 Agent 模块不得依赖 `mac-tav-orchestrator`。
-7. 具体 Agent 模块不得依赖其他具体 Agent 模块。
-8. 具体 Agent 模块不得直接写 Workspace，不得绕过 Parser / Validator。
-9. `mac-tav-model-core` 只依赖 `mac-tav-model` 和 `mac-tav-common`。
-10. `mac-tav-execution` 可以依赖 `mac-tav-model` 和 `mac-tav-common`；如需复用 Agent 通用抽象，可以依赖 `mac-tav-agent-core`，但不要依赖具体 Agent 模块。
-11. `mac-tav-orchestrator` 在长期标准架构下通过 RemoteAgentTool / A2A Client 调用远程专业 Agent，不直接依赖专业 Agent 实现类。
-12. 当前过渡开发方式下，`mac-tav-orchestrator` 可以临时依赖 Model Core、各 Agent 模块和 Execution 模块用于本地联调。
-13. RemoteAgentTool / A2A Client 默认放在 `mac-tav-orchestrator` 中，作为 Orchestrator 调用远程专业 Agent 的客户端适配能力；不作为新的业务编排模块，不写 Workspace，不管理任务状态。
-14. `mac-tav-agent-core` 只保留通用 Agent 初始化、上下文、Prompt、Hook、Tool/MCP/Skill/A2A 抽象，不放置面向 Orchestrator 的远程调用实现。
-15. `mac-tav-web` 可以依赖 Orchestrator、Model、Common。
-16. Model Core 不得依赖任何 Agent 模块。
-17. Web 不得直接依赖具体 Agent 模块，正常应通过 Orchestrator 间接调用。
-18. Agent 通信通过 A2A / Agent Card / RemoteAgentTool / A2A Client / 约定协议完成，不通过 Maven 直接依赖彼此实现类。
-19. 禁止 Maven 循环依赖。
+- `mac-tav-common` 不依赖任何业务模块。
+- `mac-tav-model` 只能依赖 `mac-tav-common`。
+- `mac-tav-agent-core` 可以依赖 `mac-tav-common`、`mac-tav-model` 和必要的 Spring AI / Spring AI Alibaba Agent Framework 基础 API。
+- 具体 Agent 模块可以依赖 `mac-tav-agent-core`、`mac-tav-model`、`mac-tav-common`。
+- 具体 Agent 模块不得依赖 `mac-tav-web`。
+- 具体 Agent 模块不得依赖 `mac-tav-orchestrator`。
+- 具体 Agent 模块不得依赖其他具体 Agent 模块。
+- 具体 Agent 模块不得依赖 `mac-tav-model-core`。
+- `mac-tav-model-core` 只依赖 `mac-tav-model`、`mac-tav-common` 和后续持久化所需依赖。
+- `mac-tav-execution` 可以依赖 `mac-tav-model`、`mac-tav-common`；如需复用 Tool / MCP / Skill 抽象，可以依赖 `mac-tav-agent-core`，但不得依赖具体 Agent 模块。
+- `mac-tav-orchestrator` 可以依赖 `mac-tav-model-core` 和 `mac-tav-execution`，但不得依赖具体 Agent 模块。
+- `mac-tav-orchestrator` 中的 RemoteAgentTool / A2A Client 只负责远程 Agent 发现、调用和协议适配，不承担业务编排职责。
+- `mac-tav-web` 可以依赖 `mac-tav-orchestrator`、`mac-tav-model`、`mac-tav-common`，不得依赖具体 Agent 模块。
+- Agent 通信通过 A2A / Agent Card / Nacos / RemoteAgentTool / A2A Client 完成，不通过 Maven 直接依赖彼此实现类。
+- 禁止 Maven 循环依赖。
 
-## 5. Spring Boot 启动模块规则
+## 5. Spring Boot 启动与服务注册规则
 
-### 5.1 长期标准服务化架构
+本节只定义哪些 Maven 模块可以作为 Spring Boot 应用启动，以及启动后的服务化职责。模块依赖方向以第 4 节为准，不在本节重复。
 
-长期标准架构是最终 A2A 多 Agent 服务化架构。专业 Agent 模块可以作为独立 Spring Boot 服务启动，并注册到 Nacos。Agent 模块拥有启动类和配置文件不等于架构污染。
+### 5.1 可启动模块
 
-Agent 模块可以包含：
+长期标准 A2A 多 Agent 服务化架构下，以下模块可以作为独立 Spring Boot 应用启动：
 
-1. Spring Boot 启动类。
-2. `application.yml`。
-3. A2A Server / Client 配置。
-4. Nacos 注册配置。
-5. Agent Card 配置。
+| 模块                            | 是否可启动 | 启动职责                                                         |
+| ----------------------------- | ----- | ------------------------------------------------------------ |
+| `mac-tav-web`                 | 是     | 提供 Web / API / SSE / 前端交互入口，内嵌 Orchestrator 主流程入口。           |
+| `mac-tav-intent-agent`        | 是     | 启动 IntentAgent 服务，注册 Nacos，发布 Agent Card，提供 A2A 调用能力。        |
+| `mac-tav-planning-agent`      | 是     | 启动 PlanningAgent 服务，注册 Nacos，发布 Agent Card，提供 A2A 调用能力。      |
+| `mac-tav-configuration-agent` | 是     | 启动 ConfigurationAgent 服务，注册 Nacos，发布 Agent Card，提供 A2A 调用能力。 |
+| `mac-tav-verification-agent`  | 是     | 启动 VerificationAgent 服务，注册 Nacos，发布 Agent Card，提供 A2A 调用能力。  |
+| `mac-tav-healing-agent`       | 是     | 启动 HealingAgent 服务，注册 Nacos，发布 Agent Card，提供 A2A 调用能力。       |
 
-边界规则：
+### 5.2 非独立启动模块
 
-1. Agent 模块仍然不得依赖 `mac-tav-web`。
-2. Agent 模块仍然不得依赖 `mac-tav-orchestrator`。
-3. Agent 模块仍然不得依赖其他具体 Agent 模块。
-4. Agent 模块不得直接写 Workspace。
-5. Agent 模块不得绕过 Parser / Validator。
-6. 共享 DTO 仍然通过 `mac-tav-model`。
-7. 公共异常、枚举、统一响应仍然通过 `mac-tav-common`。
-8. Agent 通信通过 A2A / Agent Card / RemoteAgentTool / A2A Client / 约定协议，而不是 Maven 直接依赖。
-9. Orchestrator 通过 RemoteAgentTool / A2A Client 查询 Nacos、读取 Agent Card，并通过 A2A 调用专业 Agent；RemoteAgentTool / A2A Client 不承担业务编排职责。
-10. 状态、阶段产物、版本和追溯关系仍由 Orchestrator / Model Core / NetworkWorkspace 统一管理。
+以下模块默认不作为独立 Spring Boot 应用启动：
 
-### 5.2 当前过渡启动方式
+| 模块                     | 原因                                           |
+| ---------------------- | -------------------------------------------- |
+| `mac-tav-common`       | 公共基础库。                                       |
+| `mac-tav-model`        | 共享 DTO / 值对象库。                               |
+| `mac-tav-agent-core`   | Agent 公共能力库。                                 |
+| `mac-tav-model-core`   | 状态中心库，由 Web / Orchestrator 所在进程使用。           |
+| `mac-tav-orchestrator` | 编排库，由 `mac-tav-web` 依赖并调用，不单独暴露服务。           |
+| `mac-tav-execution`    | 执行适配库，默认由 Orchestrator 调用；后续如需独立执行服务，必须另行设计。 |
 
-当前开发阶段，为了降低联调成本，`mac-tav-web` 可以临时作为 Web 聚合启动模块。这只是过渡开发方式，不是长期架构目标。
+### 5.3 启动边界
 
-过渡规则：
+- `mac-tav-web` 是唯一面向前端和外部调用方的业务 HTTP API 入口。
+- 专业 Agent 服务可以拥有自己的 Spring Boot 启动类、`application.yml`、Nacos 注册配置、Agent Card 配置和 A2A Service 配置。
+- 专业 Agent 服务不得提供面向前端的业务 Controller。
+- 专业 Agent 服务只暴露 A2A 框架所需的内部远程调用能力，不进入 `/api/v1` 公共业务 API。
+- `mac-tav-web` 不扫描、不聚合、不直接装配具体 Agent Bean。
+- `mac-tav-web` 通过 Orchestrator 触发流程，Orchestrator 通过 RemoteAgentTool / A2A Client 调用远程专业 Agent。
 
-1. `mac-tav-web` 放启动类、Controller、Web 配置和接口 VO。
-2. Controller 只放在 `mac-tav-web`。
-3. 其他 Agent 模块可以临时作为普通 Maven jar 模块提供 Spring Bean。
-4. Agent Bean 可以由 `mac-tav-web` 启动后扫描、装配和调用。
-5. Orchestrator 可以临时本地调用各 `XxxService` / `XxxAgent`。
-6. Controller 不直接调用 Agent，仍然通过 Orchestrator 间接调用。
-7. 后续落地应逐步迁移到 `Orchestrator -> RemoteAgentTool / A2A Client -> Nacos -> Agent Card -> 专业 Agent A2A Service` 的标准链路。
+## 6. POM 与依赖管理规则
 
-## 6. Spring AI Alibaba 依赖放置边界
+本文档只规定 Maven 依赖管理方式和依赖归属，不展开具体 Agent 初始化、Prompt、Tool、MCP、Skills、A2A 代码细节。
 
-本文档只定义 Maven 依赖边界，不展开 Agent 代码细节。
+### 6.1 总体原则
+
+MAC-TAV 使用父工程统一管理版本，子模块按需引入依赖。
+
+父工程 `pom.xml` 负责：
+
+1. 作为 Maven 聚合工程，使用 `<packaging>pom</packaging>`。
+2. 维护 `<modules>`。
+3. 统一管理 Java、Spring Boot、Spring Cloud、Spring Cloud Alibaba、Spring AI、Spring AI Alibaba、Nacos、MySQL、Redis、Qdrant、测试框架等版本。
+4. 通过 `<dependencyManagement>` 管理三方依赖和项目内部模块依赖版本。
+5. 通过 `<pluginManagement>` 管理 Maven 插件版本。
+
+父工程 `pom.xml` 不负责：
+
+1. 不作为 Spring Boot 启动应用。
+2. 不放业务代码。
+3. 不在父工程 `<dependencies>` 中统一引入 Web、Agent、数据库、Redis、Qdrant、模型 provider starter 等具体业务依赖。
+4. 不让所有子模块被动继承自己并不需要的依赖。
+
+子模块 `pom.xml` 负责：
+
+1. 只在 `<dependencies>` 中声明当前模块实际需要的依赖。
+2. 依赖版本由父工程 `<dependencyManagement>` 统一管理，子模块一般不写 `<version>`。
+3. 不为了省事把所有依赖都加到每个模块。
+4. 不为了减少配置而依赖不稳定的传递依赖。
+5. 测试依赖使用 `test` scope。
+6. 可选能力依赖只在真正需要的模块中声明。
+
+### 6.2 父工程 dependencyManagement 示例
+
+父工程可以统一管理所有常用依赖版本，包括业务相关依赖版本：
+
+```xml
+<dependencyManagement>
+    <dependencies>
+        <!-- Spring Boot / Spring Cloud / Spring AI / Spring AI Alibaba BOM -->
+
+        <!-- Web 相关依赖版本 -->
+        <!-- Agent Framework 相关依赖版本 -->
+        <!-- Nacos / A2A 相关依赖版本 -->
+        <!-- MySQL / Redis / Qdrant 相关依赖版本 -->
+        <!-- 测试框架相关依赖版本 -->
+
+        <!-- 项目内部模块版本 -->
+        <dependency>
+            <groupId>com.yali</groupId>
+            <artifactId>mac-tav-model</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.yali</groupId>
+            <artifactId>mac-tav-common</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+    </dependencies>
+</dependencyManagement>
+```
+
+注意：
+
+- 放在 `<dependencyManagement>` 中只是管理版本。
+- 不会自动把这些依赖加入所有子模块。
+- 子模块需要使用时，仍然要在自己的 `<dependencies>` 中声明。
+
+### 6.3 传递依赖使用原则
+
+允许合理使用 Maven 传递依赖，但不得滥用。
 
 规则：
 
-1. Spring AI Alibaba Agent Framework 相关基础依赖可以由 `mac-tav-agent-core` 或具体 Agent 模块使用，具体以代码实际需要为准。
-2. 具体模型 provider starter，例如 DashScope provider，不建议放在 `mac-tav-common` 或 `mac-tav-model`。
-3. 具体 Agent 模块可以依赖 Spring AI Alibaba Agent Framework。
-4. 当前过渡开发方式下，具体 provider 的自动装配可以临时由 `mac-tav-web` 承载；长期标准 A2A 服务化架构下，应由对应的专业 Agent 服务自身承载。
-5. 具体 Agent 初始化、Prompt、methodTools、hooks、outputType 规范不写在本文档，统一引用 `docs/09_AGENT_BUILD_GUIDE.md`。
+1. 如果当前模块源码直接 import 某个第三方类，当前模块 SHOULD 显式声明该依赖。
+2. 如果当前模块只使用另一个模块封装后的能力，不直接接触底层三方类，可以依赖该模块提供的传递依赖。
+3. 不要为了“少写依赖”而依赖偶然传递进来的三方 jar。
+4. 不要把某个模块变成“依赖大礼包”，让其他模块通过它间接拿所有依赖。
+5. 模块依赖关系必须服务职责边界，而不是为了省 pom 配置。
 
 ---
 
@@ -309,60 +371,26 @@ com.yali.mactav.web
 
 ---
 
-## 9. 父 pom 与子模块 pom 规则
+## 9. A2A 多 Agent 服务化与 Maven 边界
 
-### 父 `pom.xml`
+Maven 模块用于定义代码边界和依赖边界，不等于所有模块都必须成为独立微服务。
 
-父 `pom.xml` 负责：
-
-1. 管理 Java 版本。
-2. 管理 Spring Boot 版本。
-3. 管理 Spring AI / Spring AI Alibaba 版本。
-4. 管理公共 `dependencyManagement`。
-5. 管理 `modules`。
-
-父 `pom.xml` 不写业务依赖，不作为可启动应用。
-
-### 子模块 `pom.xml`
-
-子模块 `pom.xml` 规则：
-
-1. 只声明自己需要的依赖。
-2. 不为了省事把所有依赖都加到每个模块。
-3. Agent 模块才引入 Agent 相关依赖。
-4. Web 模块引入 Spring Boot Web 启动依赖。
-5. Model 模块保持轻量。
-6. Common 模块保持轻量。
-7. Execution 模块引入执行适配需要的依赖。
-8. Model Core 模块引入持久化相关依赖。
-
----
-
-## 10. 最终 A2A 多 Agent 服务演进边界
-
-当前 Maven 模块首先用于代码边界和依赖边界，不天然等于微服务。
-
-当前过渡开发方式可以继续用于快速联调和单进程调试，但不作为长期标准架构。
-
-长期标准 A2A 多 Agent 服务化架构应优先以模块边界为拆分依据，使 Intent、Planning、Configuration、Verification、Healing 等专业 Agent 能够独立启动、注册 Nacos、发布 Agent Card，并通过 A2A 被 Orchestrator 调用。
-
-拆分后仍应保持 DTO 契约和 `NetworkWorkspace` 状态中心一致。
-
-A2A / Nacos / `RemoteAgentTool` / Agent Card 是最终协作架构的一部分，但不改变 Maven 依赖底线：Agent 模块之间不要通过 Maven 直接依赖彼此实现类，状态也不要由 Agent 服务直接写入 Workspace。
-
-## 11. 禁止事项
-
-以下禁止事项只覆盖 Maven 模块和依赖边界：
-
-1. 不要把所有业务逻辑写进 `mac-tav-web`。
-2. 不要让 Agent 模块依赖 `mac-tav-web`。
-3. 不要让 Agent 模块依赖 `mac-tav-orchestrator`。
-4. 不要让 `mac-tav-model-core` 依赖任何 Agent 模块。
-5. 不要让 `mac-tav-model` 依赖 Spring AI Alibaba、Web、Orchestrator、Model Core 或具体 Agent。
-6. 不要把 provider starter、数据库、Redis、Qdrant 依赖放进 `mac-tav-model`。
-7. 不要因为 Agent 模块拥有启动类或 `application.yml` 就引入 Web、Orchestrator 或其他具体 Agent 依赖；长期标准 A2A 服务化架构下这些启动配置是允许的。
-8. 不要让 Execution Module 绕过 adapter 依赖具体 Agent。
-9. 不要出现 Maven 循环依赖。
-10. 不要在本文档重复大段 Agent 实现细节，Agent 细节归 `docs/09_AGENT_BUILD_GUIDE.md`。
+长期标准运行形态中：  
+  
+1. `mac-tav-web` 是 Web / API / SSE 入口。  
+2. `mac-tav-orchestrator` 是编排库，由 `mac-tav-web` 依赖使用，不单独作为服务启动。  
+3. Intent、Planning、Configuration、Verification、Healing 等专业 Agent 模块应支持独立 Spring Boot 服务启动。  
+4. 专业 Agent 服务启动后注册到 Nacos，发布 Agent Card，并通过 A2A 被 Orchestrator 调用。  
+5. `mac-tav-execution` 默认是执行适配模块，由 Orchestrator 调用；如未来需要拆为独立执行服务，必须单独设计服务边界和安全边界。  
+6. `mac-tav-model` 和 `mac-tav-common` 只作为共享库，不作为服务启动。  
+7. `mac-tav-model-core` 是状态中心模块，默认由 Web / Orchestrator 所在应用使用；如未来拆为独立状态服务，需要单独设计 API 和事务边界。  
+  
+A2A / Nacos / Agent Card 不改变 Maven 依赖底线：  
+  
+- Agent 模块之间不通过 Maven 直接依赖彼此实现类。  
+- Orchestrator 不通过 Maven 直接依赖具体 Agent 实现类。  
+- Agent 服务不直接写 Workspace。  
+- 状态、版本、阶段产物和追溯关系仍由 Orchestrator / Model Core 统一管理。  
+- 共享契约通过 `mac-tav-model` 和稳定请求 / 响应 DTO 维护。
 
 ---

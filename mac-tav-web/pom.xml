@@ -8,15 +8,13 @@
         <groupId>com.yali</groupId>
         <artifactId>network-intent-agent-system</artifactId>
         <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
     </parent>
 
     <artifactId>mac-tav-web</artifactId>
     <packaging>jar</packaging>
-    <name>mac-tav-web</name>
 
-    <properties>
-        <spring-boot.run.skip>false</spring-boot.run.skip>
-    </properties>
+    <name>mac-tav-web</name>
 
     <dependencies>
         <dependency>
@@ -32,25 +30,8 @@
             <artifactId>mac-tav-orchestrator</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.yali</groupId>
-            <artifactId>mac-tav-model-core</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.alibaba.cloud.ai</groupId>
-            <artifactId>spring-ai-alibaba-starter-dashscope</artifactId>
-        </dependency>
-        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-validation</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-test</artifactId>
-            <scope>test</scope>
         </dependency>
     </dependencies>
 

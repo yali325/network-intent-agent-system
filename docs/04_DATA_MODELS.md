@@ -6,8 +6,8 @@
 
 约定：
 
-1. 所有共享 DTO 应放在 `mac-tav-model`。
-2. 公共枚举、异常、统一响应应放在 `mac-tav-common`。
+1. 所有共享 DTO 和领域模型枚举应放在 `mac-tav-model`。
+2. 公共异常、统一响应、通用错误码、通用工具和常量应放在 `mac-tav-common`。
 3. 本文档只描述字段和数据关系，不描述 Agent 代码实现细节。
 4. 每个阶段产物必须可序列化、可追踪、可校验、可进入 `NetworkWorkspace`。
 5. 模型字段应服务于长期闭环：意图解析、网络规划、配置生成、执行适配、验证评估、异常诊断与修复。
@@ -71,12 +71,20 @@ ID 约束：
 | `createTime`  | 对象创建时间    |
 | `updateTime`  | 对象最后更新时间  |
 | `startTime`  | 阶段或执行开始时间 |
+| `finishTime` | 阶段或执行结束时间 |
 
-字段类型可以使用 `LocalDateTime`，最终以代码实现统一。
+Java DTO 内部时间字段统一使用 `LocalDateTime`。
+对外 API 序列化格式由 Web 层统一配置，核心 DTO 不在字段类型中混用字符串时间。
 
 ### 2.4 状态枚举约定
 
 状态必须拆分，不要混用任务状态、流程阶段、阶段执行状态、产物状态、验证结论和修复状态。
+
+枚举归属约定：
+
+1. 公共异常、统一响应、通用错误码、通用工具和常量放在 `mac-tav-common`。
+2. 领域模型枚举放在 `mac-tav-model`。
+3. 领域模型枚举包括 `TaskStatus`、`WorkflowStage`、`StageStatus`、`ArtifactStatus`、`ArtifactType`、`ValidationStatus`、`RepairStatus` 等。
 
 #### `TaskStatus`
 
@@ -89,6 +97,7 @@ WAITING_USER
 COMPLETED
 ERROR
 CANCELLED
+ARCHIVED
 ```
 
 #### `WorkflowStage`
@@ -197,8 +206,8 @@ FAILED
 | `rawText`      | `String`        | 用户原始输入  |
 | `taskStatus`   | `TaskStatus`    | 任务总状态   |
 | `currentStage` | `WorkflowStage` | 当前流程阶段  |
-| `createTime`   | LocalDateTime`  | 创建时间    |
-| `updateTime`   | LocalDateTime`  | 更新时间    |
+| `createTime`   | `LocalDateTime` | 创建时间    |
+| `updateTime`   | `LocalDateTime` | 更新时间    |
 | `createdBy`    | `String`        | 创建人，可选  |
 | `description`  | `String`        | 任务描述，可选 |
 
@@ -215,23 +224,27 @@ FAILED
 | `currentExecutionVersion` | `Integer` | 当前执行版本 |
 | `currentValidationVersion` | `Integer` | 当前验证版本 |
 | `currentRepairVersion` | `Integer` | 当前修复版本 |
+| `currentArtifactRefs` | `Map<ArtifactType, String>` | 当前各阶段 artifactId 引用 |
 | `currentIntent` | `NetworkIntent` | 当前意图产物 |
 | `currentPlan` | `NetworkPlan` | 当前规划产物 |
 | `currentConfigSet` | `ConfigSet` | 当前配置产物 |
 | `currentExecutionReport` | `ExecutionReport` | 当前执行产物 |
 | `currentValidationReport` | `ValidationReport` | 当前验证产物 |
 | `currentRepairPlan` | `RepairPlan` | 当前修复计划 |
-| `artifacts` | `List<NetworkArtifact>` | 全部阶段产物引用或快照 |
+| `artifacts` | `List<NetworkArtifact>` | 全部阶段产物记录或引用 |
 | `agentExecutionRecords` | `List<AgentExecutionRecord>` | Agent / 模块执行记录 |
+| `events` | `List<WorkspaceEvent>` | 事件历史和前端 timeline 数据来源 |
 | `changeHistory` | `List<WorkspaceChangeRecord>` | 重试、修复、人工确认等变化记录 |
-| `workspaceStatus` | `TaskStatus / String` | Workspace 当前状态 |
+| `workspaceStatus` | `TaskStatus` | Workspace 当前状态 |
 
 说明：
 
-1. `currentXxx` 用于前端快速展示当前结果。
-2. `artifacts` 用于保存所有版本产物。
-3. `agentExecutionRecords` 用于记录每个 Agent 的执行过程。
-4. `changeHistory` 用于记录自愈、重试、人工确认等变化。
+1. `currentXxx` 用于当前视图快速展示，不承担完整历史持久化职责。
+2. 长期持久化可使用统一的 `currentArtifactRefs`，也可等价拆分为 `currentIntentArtifactId`、`currentPlanArtifactId`、`currentConfigArtifactId`、`currentExecutionArtifactId`、`currentValidationArtifactId`、`currentRepairArtifactId`。
+3. 完整历史 payload 由 `NetworkArtifact` 管理，`NetworkWorkspace` 只保留当前视图和引用关系。
+4. `agentExecutionRecords` 用于记录每个 Agent 的执行过程。
+5. `events` 用于支撑 SSE、Event history 和前端 timeline。
+6. `changeHistory` 用于记录自愈、重试、人工确认等变化。
 
 ### 3.3 `NetworkArtifact`
 
@@ -246,11 +259,17 @@ FAILED
 | `stage` | `WorkflowStage` | 所属阶段 |
 | `status` | `ArtifactStatus` | 产物状态 |
 | `payloadType` | `String` | 产物载荷类型，例如 DTO 类名或逻辑类型 |
-| `payload` | `Object / JsonNode / String` | 产物快照或引用 |
-| `summary` | `String` | 产物摘要 |
-| `createTime` | `String / LocalDateTime` | 创建时间 |
+| `payloadJson` | `String` | 序列化后的产物 JSON 或引用描述 |
+| `payloadSummary` | `String` | 产物摘要 |
+| `createTime` | `LocalDateTime` | 创建时间 |
 | `createdBy` | `String` | 创建来源，例如 Agent、用户或系统 |
 | `traceRefs` | `TraceRefs` | 追溯关系 |
+
+说明：
+
+1. `NetworkArtifact` 不使用宽泛的 `payload` 字段作为长期契约。
+2. 内存实现可临时保存 `payloadObject` 以便本地调试，但长期契约以 `payloadJson` 和 artifact 引用为准。
+3. `payloadSummary` 用于列表、timeline 和审计摘要，不替代完整 payload。
 
 `ArtifactType` 至少包括：
 
@@ -271,24 +290,32 @@ REPAIR_PLAN
 | --- | --- | --- |
 | `recordId` | `String` | 执行记录 ID |
 | `taskId` | `String` | 任务 ID |
+| `traceId` | `String` | 调用链追踪 ID |
 | `agentName` | `String` | Agent 或模块名称 |
+| `targetAgentName` | `String` | 远程目标 Agent 名称，可选 |
+| `remoteCallType` | `String` | 调用类型，例如 `LOCAL`、`A2A`、`REMOTE_TOOL` |
+| `agentCardVersion` | `String` | 远程 Agent Card 版本，可选 |
 | `stage` | `WorkflowStage` | 所属阶段 |
 | `stageStatus` | `StageStatus` | 阶段执行状态 |
 | `inputArtifactIds` | `List<String>` | 输入产物 ID |
 | `outputArtifactIds` | `List<String>` | 输出产物 ID |
 | `toolCallSummaries` | `List<String>` | Tool 调用摘要 |
 | `mcpCallSummaries` | `List<String>` | MCP 调用摘要 |
+| `a2aCallSummaries` | `List<String>` | A2A / 远程调用摘要 |
 | `modelCallCount` | `Integer` | 模型调用次数 |
-| `startTime` | `String / LocalDateTime` | 开始时间 |
-| `finishedAt` | `String / LocalDateTime` | 结束时间 |
+| `startTime` | `LocalDateTime` | 开始时间 |
+| `finishTime` | `LocalDateTime` | 结束时间 |
+| `durationMs` | `Long` | 执行耗时毫秒数 |
+| `inputSummary` | `String` | 输入摘要 |
+| `outputSummary` | `String` | 输出摘要 |
 | `errorCode` | `String` | 错误码，可选 |
 | `errorMessage` | `String` | 错误信息，可选 |
 | `message` | `String` | 展示文本或摘要 |
 
 安全约束：
 
-1. 不保存 API Key。
-2. 不保存完整敏感请求头。
+1. 不保存完整敏感模型请求。
+2. 不保存 API Key、请求头和外部凭据。
 3. raw model output 如需保存，应脱敏并可配置。
 
 ### 3.5 `WorkspaceChangeRecord`
@@ -304,8 +331,27 @@ REPAIR_PLAN
 | `fromArtifactId` | `String` | 原产物 ID，可选 |
 | `toArtifactId` | `String` | 新产物 ID，可选 |
 | `reason` | `String` | 变化原因 |
-| `createTime` | `String / LocalDateTime` | 创建时间 |
+| `createTime` | `LocalDateTime` | 创建时间 |
 | `createdBy` | `String` | 创建来源 |
+
+### 3.6 `WorkspaceEvent`
+
+`WorkspaceEvent` 用于支撑 SSE、Event history 和前端 timeline，是过程事件的轻量记录。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `eventId` | `String` | 事件 ID |
+| `taskId` | `String` | 任务 ID |
+| `eventType` | `String` | 事件类型 |
+| `stage` | `WorkflowStage` | 相关阶段 |
+| `eventTime` | `LocalDateTime` | 事件时间 |
+| `severity` | `String` | 严重程度，例如 `INFO`、`WARN`、`ERROR` |
+| `title` | `String` | 事件标题 |
+| `message` | `String` | 事件摘要 |
+| `relatedArtifactId` | `String` | 相关产物 ID，可选 |
+| `relatedRecordId` | `String` | 相关执行记录 ID，可选 |
+| `traceId` | `String` | 调用链追踪 ID，可选 |
+| `payloadSummary` | `String` | 事件载荷摘要 |
 
 ## 4. `NetworkIntent`
 
@@ -329,7 +375,7 @@ REPAIR_PLAN
 | `preferences` | `List<IntentPreference>` | 用户偏好，例如协议、风格、目标环境倾向 |
 | `stageStatus` | `StageStatus` | 阶段状态 |
 | `traceId` | `String` | 调用链追踪 ID |
-| `createTime` | `String / LocalDateTime` | 创建时间 |
+| `createTime` | `LocalDateTime` | 创建时间 |
 
 ### 4.1 `SemanticIntentGraph`
 
@@ -440,7 +486,7 @@ ROUTING_REQUIREMENT
 | `planConstraints` | `List<PlanConstraint>` | 规划约束 |
 | `traceRefs` | `TraceRefs` | 追溯关系 |
 | `stageStatus` | `StageStatus` | 阶段状态 |
-| `createTime` | `String / LocalDateTime` | 创建时间 |
+| `createTime` | `LocalDateTime` | 创建时间 |
 
 要求：
 
@@ -644,7 +690,7 @@ CUSTOM_ADAPTER
 | `warnings` | `List<ConfigWarning>` | 配置警告 |
 | `traceRefs` | `TraceRefs` | 整体追溯关系 |
 | `stageStatus` | `StageStatus` | 阶段状态 |
-| `createTime` | `String / LocalDateTime` | 创建时间 |
+| `createTime` | `LocalDateTime` | 创建时间 |
 
 ### 6.1 `GenerationSource`
 
@@ -698,17 +744,9 @@ MANUAL_OVERRIDE
 
 ### 6.4 `TraceRefs`
 
-| 字段 | 类型 | 说明 |
-| --- | --- | --- |
-| `intentNodeIds` | `List<String>` | 关联的意图节点 |
-| `intentRelationIds` | `List<String>` | 关联的意图关系 |
-| `planElementIds` | `List<String>` | 关联的规划元素 |
-| `configBlockIds` | `List<String>` | 关联的配置块 |
-| `testIds` | `List<String>` | 关联的执行测试 |
-| `validationItemIds` | `List<String>` | 关联的验证项 |
-| `repairActionIds` | `List<String>` | 关联的修复动作 |
+`TraceRefs` 字段统一引用第 2.5 节的完整定义，本节不重复定义字段。
 
-不要求所有列表都必填，但关键配置块必须具备可解释来源。
+配置块不要求填满 `TraceRefs` 的所有列表，但关键配置块必须具备可解释来源。
 
 ### 6.5 `EndpointConfig`
 
@@ -750,7 +788,7 @@ MANUAL_OVERRIDE
 
 `ExecutionReport` 是 Execution Module 输出的执行适配与测试结果。
 
-`ExecutionReport` 支持 DryRun、Mininet/Ryu、真实设备适配等多种执行模式。
+`ExecutionReport` 支持结构校验模式、Mininet/Ryu、真实设备适配等多种执行模式。结构校验模式用于验证 `NetworkPlan + ConfigSet -> ExecutionReport` 的转换链路，不得作为最终执行验收替代。
 
 字段：
 
@@ -767,8 +805,8 @@ MANUAL_OVERRIDE
 | `errors` | `List<ExecutionError>` | 执行错误 |
 | `warnings` | `List<String>` | 执行警告 |
 | `stageStatus` | `StageStatus` | 阶段状态 |
-| `startTime` | `String / LocalDateTime` | 开始时间 |
-| `finishedAt` | `String / LocalDateTime` | 结束时间 |
+| `startTime` | `LocalDateTime` | 开始时间 |
+| `finishTime` | `LocalDateTime` | 结束时间 |
 
 `executionMode` 可包含：
 
@@ -835,7 +873,7 @@ CUSTOM_ADAPTER
 | `links` | `List<RuntimeLinkState>` | 链路状态 |
 | `controllerState` | `Map<String, Object>` | 控制器状态 |
 | `flowState` | `Map<String, Object>` | 流表状态 |
-| `rawLogs` | `List<String>` | 原始日志 |
+| `rawLogs` | `List<String>` | 脱敏、截断后的原始日志 |
 
 ### 7.6 `RuntimeNodeState`
 
@@ -863,12 +901,13 @@ CUSTOM_ADAPTER
 | `connectivityTests` | `List<ConnectivityTestResult>` | 连通性测试结果 |
 | `policyTests` | `List<PolicyTestResult>` | 策略测试结果 |
 | `performanceTests` | `List<PerformanceTestResult>` | 性能测试结果 |
-| `rawLogs` | `List<String>` | 原始日志 |
+| `rawLogs` | `List<String>` | 脱敏、截断后的原始日志 |
 
 说明：
 
 1. `TestResult` 只记录执行结果。
 2. 是否满足意图由 `VerificationAgent` 判断。
+3. `rawLogs` 必须脱敏、截断，不得包含 API Key、请求头、外部凭据、敏感环境变量或可直接复用的危险命令上下文。
 
 ### 7.9 `ExecutionError`
 
@@ -900,7 +939,7 @@ CUSTOM_ADAPTER
 | `evidences` | `List<ValidationEvidence>` | 验证证据 |
 | `suggestions` | `List<String>` | 建议 |
 | `stageStatus` | `StageStatus` | 阶段状态 |
-| `createTime` | `String / LocalDateTime` | 创建时间 |
+| `createTime` | `LocalDateTime` | 创建时间 |
 
 ### 8.1 `ValidationItem`
 
@@ -930,7 +969,8 @@ CUSTOM_ADAPTER
 | `evidenceType` | `String` | 证据类型 |
 | `source` | `String` | 证据来源 |
 | `rawValue` | `String` | 原始值 |
-| `normalizedValue` | `String / Object` | 归一化值 |
+| `normalizedValue` | `String` | 归一化值 |
+| `metadata` | `Map<String, Object>` | 扩展结构化信息，可选 |
 | `relatedTestId` | `String` | 关联测试 ID |
 | `relatedRuntimeObjectId` | `String` | 关联运行时对象 ID |
 
@@ -955,7 +995,7 @@ CUSTOM_ADAPTER
 | `actions` | `List<RepairAction>` | 修复动作 |
 | `requiresUserConfirmation` | `Boolean` | 是否需要用户确认 |
 | `stageStatus` | `StageStatus` | 阶段状态 |
-| `createTime` | `String / LocalDateTime` | 创建时间 |
+| `createTime` | `LocalDateTime` | 创建时间 |
 
 ### 9.1 `FailureAnalysis`
 
@@ -994,7 +1034,16 @@ INSUFFICIENT_INFORMATION
 | `inputArtifactIds` | `List<String>` | 输入产物 ID |
 | `expectedOutputArtifactType` | `ArtifactType` | 预期输出产物类型 |
 | `riskLevel` | `String` | 风险等级 |
+| `riskReason` | `String` | 风险原因 |
 | `requiresApproval` | `Boolean` | 是否需要审批 |
+| `approvalStatus` | `String` | 审批状态，例如 `PENDING`、`APPROVED`、`REJECTED`、`NOT_REQUIRED` |
+| `approvedBy` | `String` | 审批人，可选 |
+| `approvedAt` | `LocalDateTime` | 审批时间，可选 |
+| `rejectedBy` | `String` | 驳回人，可选 |
+| `rejectedAt` | `LocalDateTime` | 驳回时间，可选 |
+| `approvalComment` | `String` | 审批或驳回说明，可选 |
+| `appliedAt` | `LocalDateTime` | 动作实际应用时间，可选 |
+| `traceRefs` | `TraceRefs` | 追溯关系 |
 | `status` | `RepairStatus` | 修复动作状态 |
 
 `actionType` 可包含：
@@ -1017,6 +1066,7 @@ ROLLBACK
 ## 10. 前端展示辅助模型
 
 可以保留轻量展示模型，但不要和核心 DTO 混淆。
+展示模型优先放在 `mac-tav-web` 的 `vo` / `view` 包，或由前端转换生成，不要污染核心阶段 DTO。
 
 可选模型：
 
@@ -1027,7 +1077,7 @@ ROLLBACK
 
 说明：
 
-1. 前端展示模型可以由后端 VO 或前端转换生成。
+1. 前端展示模型只服务展示聚合和交互体验，不作为核心阶段产物契约。
 2. 不要让前端展示模型污染核心阶段 DTO。
 3. 前端页面布局和交互设计不在本文档定义。
 

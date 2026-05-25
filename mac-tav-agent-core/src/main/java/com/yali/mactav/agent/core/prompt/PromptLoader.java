@@ -6,41 +6,31 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
-public final class PromptLoader {
+/**
+ * Classpath prompt loader for agent instruction markdown files.
+ *
+ * <p>Prompt content belongs in resources, not Java constants. This loader is
+ * generic agent-core infrastructure and does not own business prompt text.</p>
+ */
+public class PromptLoader {
 
-    private static final String CLASSPATH_PREFIX = "classpath:";
-
-    private PromptLoader() {
-    }
-
-    public static String load(String path) {
-        String resourcePath = normalize(path);
-        ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-        InputStream inputStream = classLoader == null ? null : classLoader.getResourceAsStream(resourcePath);
-        if (inputStream == null) {
-            inputStream = PromptLoader.class.getClassLoader().getResourceAsStream(resourcePath);
-        }
-        if (inputStream == null) {
-            throw new BusinessException(ErrorCode.PIPELINE_FAILED, "Prompt instruction not found: " + path);
-        }
-        try (InputStream stream = inputStream) {
-            return new String(stream.readAllBytes(), StandardCharsets.UTF_8);
-        } catch (IOException ex) {
-            throw new BusinessException(ErrorCode.PIPELINE_FAILED, "Prompt instruction load failed: " + path, ex);
-        }
-    }
-
-    private static String normalize(String path) {
+    public String loadFromClasspath(String path) {
         if (path == null || path.isBlank()) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST, "Prompt instruction path must not be blank");
+            throw new BusinessException(ErrorCode.PROMPT_NOT_FOUND, "Prompt path must not be blank");
         }
-        String normalized = path.trim();
-        if (normalized.startsWith(CLASSPATH_PREFIX)) {
-            normalized = normalized.substring(CLASSPATH_PREFIX.length());
+
+        ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+        if (classLoader == null) {
+            classLoader = PromptLoader.class.getClassLoader();
         }
-        while (normalized.startsWith("/")) {
-            normalized = normalized.substring(1);
+        try (InputStream inputStream = classLoader.getResourceAsStream(path)) {
+            if (inputStream == null) {
+                throw new BusinessException(ErrorCode.PROMPT_NOT_FOUND, "Prompt resource not found: " + path);
+            }
+            return new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
         }
-        return normalized;
+        catch (IOException ex) {
+            throw new BusinessException(ErrorCode.PROMPT_LOAD_FAILED, "Failed to load prompt resource: " + path, ex);
+        }
     }
 }

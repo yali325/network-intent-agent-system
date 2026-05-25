@@ -41,7 +41,6 @@ MAC-TAV 是“基于多智能体协同的网络意图翻译与闭环验证系统
 Agent 实现细节以 `docs/09_AGENT_BUILD_GUIDE.md` 为准。Maven 模块和依赖边界以 `docs/02_MAVEN_MODULES.md` 为准。DTO 字段以 `docs/04_DATA_MODELS.md` 为准。API 路径以 `docs/05_API_DESIGN.md` 为准。
 
 ## 3. Maven 与包名总规则
-
 长期标准模块：
 
 1. `mac-tav-common`
@@ -62,48 +61,35 @@ MUST 遵守：
 - 包名统一使用 `com.yali.mactav`。
 - Agent Core 根包统一为 `com.yali.mactav.agent.core`。
 - `mac-tav-agent-core` 只保留通用 Agent 初始化、Prompt、Hook、Tool/MCP/Skill/A2A 抽象，不放 Orchestrator 侧 `RemoteAgentTool / A2A Client` 实现。
-- `mac-tav-web` 是 Web/API 入口，不是长期 Agent 聚合中心；当前过渡开发阶段可以临时作为本地聚合启动入口。
+- `mac-tav-web` 只负责 Web / API / SSE / 前端交互入口，不作为 Agent 聚合中心，不扫描或直接装配具体 Agent Bean。
+- `mac-tav-web` 通过 `mac-tav-orchestrator` 触发工作流；Orchestrator 通过 RemoteAgentTool / A2A Client 调用注册在 Nacos 中的专业 Agent。
 - Controller 只放在 `mac-tav-web`；Agent 服务可暴露 A2A 协议入口，但不得放面向业务 HTTP API 的 Controller。
 - Agent 模块不写业务 Controller。
-- 长期标准 A2A 多 Agent 服务化架构下，专业 Agent 模块可以拥有自己的 Spring Boot 启动类、`application.yml`、A2A 配置、Nacos 注册配置和 Agent Card 配置；这些启动配置不视为污染 Agent 模块。
+- 长期标准 A2A 多 Agent 服务化架构下，专业 Agent 模块可以拥有自己的 Spring Boot 启动类、`application.yml`、A2A 配置、Nacos 注册配置和 Agent Card 配置。
 - Agent 模块不得依赖 `mac-tav-web`、`mac-tav-orchestrator` 或其他具体 Agent 模块。
 - Model Core 不依赖任何 Agent 模块。
 - 禁止 Maven 循环依赖。
 
-## 4. 长期标准架构与当前过渡开发方式
+## 4. 长期标准架构
 
-### 4.1 长期标准架构
+MAC-TAV 的唯一主线架构是最终 A2A 多 Agent 服务化架构。
 
-MAC-TAV 的长期标准架构只有最终 A2A 多 Agent 服务化架构。Orchestrator 是唯一主编排入口，负责确定性工程流程控制；专业 Agent 作为独立 Spring Boot 服务启动，注册到 Nacos，发布 Agent Card，并通过 A2A 被 Orchestrator 调用。
+Orchestrator 是唯一主编排入口，负责确定性工程流程控制、任务状态推进、Workspace 写入、Artifact 版本管理、异常收敛、阶段重跑和修复闭环。
 
-长期标准特征：
+专业 Agent 作为独立 Spring Boot 服务启动，注册到 Nacos，发布 Agent Card，并通过 A2A 被 Orchestrator 调用。
 
-- Orchestrator 是唯一主编排入口，负责任务状态推进、Workspace 写入、Artifact 版本管理、异常收敛、阶段重跑和修复闭环。
-- Orchestrator 负责决定当前阶段应该调用哪个专业 Agent。
-- Orchestrator 负责传递阶段输入和 Workspace 摘要。
-- Orchestrator 负责接收专业 Agent 返回的阶段 DTO 或标准失败结果。
+MUST 遵守：
+
+- `mac-tav-web` 只负责 Web / API / SSE / 前端交互入口。
+- `mac-tav-web` 不扫描、不聚合、不直接调用具体 Agent Bean。
 - Orchestrator 不构造 Prompt，不直接调用 `ChatModel` / `ChatClient` / `ReactAgent`。
 - Orchestrator 通过 RemoteAgentTool / A2A Client 调用远程专业 Agent。
-- RemoteAgentTool / A2A Client 默认放在 `mac-tav-orchestrator` 中，作为 Orchestrator 调用远程专业 Agent 的客户端适配能力。
-- RemoteAgentTool / A2A Client 负责 Nacos 查询、Agent Card 解析、A2A 协议调用、远程异常处理和协议适配。
+- RemoteAgentTool / A2A Client 默认放在 `mac-tav-orchestrator` 中，只负责 Nacos 查询、Agent Card 解析、A2A 调用、远程异常处理和协议适配。
 - RemoteAgentTool / A2A Client 不承担业务编排职责，不写 Workspace，不管理任务状态。
-- 专业 Agent 模块可以拥有启动类、`application.yml`、A2A / Nacos / Agent Card 配置。
 - 专业 Agent 只负责自己的阶段能力，返回已解析、已校验的阶段 DTO 或标准失败结果。
 - 专业 Agent 不直接修改 NetworkWorkspace，不推进任务状态，不管理 Artifact 版本。
 - 专业 Agent 必须执行 `ResponseSchema -> Parser -> DTO -> Validator`。
 - Model Core 负责 Workspace、任务状态、版本、日志和追溯关系等工程状态管理。
-
-### 4.2 当前过渡开发方式
-
-当前开发阶段，为了降低联调成本，`mac-tav-web` 可以临时作为本地聚合启动入口。这只是过渡开发方式，不是长期架构目标。
-
-过渡说明：
-
-- Controller 仍只放在 `mac-tav-web`。
-- `mac-tav-web` 可以临时扫描本地 Agent Bean。
-- Orchestrator 可以临时本地调用各 `XxxService` / `XxxAgent`。
-- 这种方式只用于单进程联调、早期验证和无 Nacos / A2A 环境下的开发调试。
-- 后续落地应逐步迁移到 `Orchestrator -> RemoteAgentTool / A2A Client -> Nacos -> Agent Card -> 专业 Agent A2A Service` 的标准链路。
 
 ## 5. 核心调用链
 
@@ -126,30 +112,14 @@ Controller / API
   -> Model Core / NetworkWorkspace / Artifact
 ```
 
-当前过渡开发方式下，可以临时使用本地聚合调用链：
-
-```text
-Controller
-  -> TaskOrchestratorService
-  -> XxxService
-  -> XxxAgent
-  -> Spring AI Alibaba Agent / Tools / MCP / Skills
-  -> ResponseSchema
-  -> Parser
-  -> DTO
-  -> Validator
-  -> Orchestrator / Model Core 写入 NetworkWorkspace
-```
-
-该链路只用于早期联调和无 Nacos / A2A 环境下的开发调试，不作为长期验收标准。
-
 禁止事项：
 
 - Controller 不直接调用 `ChatModel` / `ChatClient` / `ReactAgent`。
 - Controller 不构造 Prompt。
+- Controller 不直接调用具体 Agent。
 - Orchestrator 不构造 Prompt。
 - Orchestrator 不直接调用大模型。
-- Orchestrator 可以决定当前阶段调用哪个专业 Agent，但远程协议细节通过 RemoteAgentTool / A2A Client 封装。
+- Orchestrator 不通过 Maven 直接依赖具体 Agent 实现类。
 - DTO 不依赖 Spring AI Alibaba 类型。
 - Model Core 不调用大模型。
 - Tool 不直接写 `NetworkWorkspace`。
@@ -192,8 +162,8 @@ Controller
 
 ## 8. Model Core 与数据模型总规则
 
-- 共享 DTO 放在 `mac-tav-model`。
-- 公共枚举、异常、统一响应放在 `mac-tav-common`。
+- 共享 DTO 和领域模型枚举放在 `mac-tav-model`。
+- 公共异常、统一响应、通用错误码、通用工具和常量放在 `mac-tav-common`。
 - `NetworkIntent`、`NetworkPlan`、`ConfigSet`、`ExecutionReport`、`ValidationReport`、`RepairPlan` 是核心阶段产物。
 - 所有阶段产物 MUST 写入 `NetworkWorkspace`。
 - Model Core 只负责任务状态、版本、阶段产物、执行日志和追溯关系。
@@ -205,7 +175,8 @@ Controller
 
 - `mac-tav-execution` 以 `ExecutionAdapter` 为核心。
 - Execute Module 不是纯 LLM Agent。
-- Execute Module 负责把 `NetworkPlan + ConfigSet` 转换为 Mininet / Ryu / Docker / DryRun / 自定义适配器可执行内容。
+- ExecutionAdapter 长期主验收面向 Mininet / Ryu 或其他真实受控执行适配器；如 Mininet / Ryu 暂不可用，可提供结构校验模式验证 `NetworkPlan + ConfigSet -> ExecutionReport` 的转换链路，但不得作为最终执行验收替代。
+- Execute Module 负责把 `NetworkPlan + ConfigSet` 转换为 Mininet / Ryu / Docker / 自定义适配器可执行内容。
 - 不允许直接执行 Huawei CLI。
 - 不允许执行 LLM 拼出来的任意 shell。
 - Mininet、Ryu、Docker、Shell 调用 MUST 通过 Tool / Adapter 白名单封装。
@@ -222,11 +193,12 @@ Controller
 
 ## 11. 构建与测试要求
 
+- 在每个生成的类的上面加上注解，标识这个类的作用是用来干什么的。
 - 修改后至少运行 `mvn compile`。
 - 涉及测试时运行 `mvn test` 或指定模块测试。
 - 如果 Windows 文件锁导致 `mvn clean` 失败，可以说明原因，不要反复 clean。
 - 不要在 Codex 中裸跑长期占用前台的 `spring-boot:run` 或 `npm run dev`。
-- Agent 单元测试 MUST 使用 Stub ChatModel / Fake ReactAgent / Mock Tool，不调用真实 API。
+- 自动化测试不调用真实外部模型 API；Parser / Validator 可使用固定样例 JSON；Tool / MCP / A2A 异常分支可使用测试夹具；不得用 Stub ChatModel、Fake ReactAgent、Mock Tool、Mock Agent 或测试 Agent Bean 替代真实业务主链路。
 
 ## 12. 完成任务后必须汇报
 
@@ -234,7 +206,6 @@ Controller
 
 - 修改了哪些文件。
 - 新增了哪些类或文档。
-- 是否遵守 `docs/09_AGENT_BUILD_GUIDE.md`。
 - 如何运行。
 - 如何测试。
 - 测试结果。

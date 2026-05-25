@@ -20,21 +20,23 @@
 
 1. 先稳定架构和 Agent Core，再逐个实现真实 Agent。
 2. 不一次性实现所有 Agent、MCP、A2A、Skills 空壳。
-3. 长期标准架构只有最终 A2A 多 Agent 服务化形态，主调用链必须逐步收敛为：
+3. 长期标准架构只有最终 A2A 多 Agent 服务化形态，主调用链必须保持为：
 
 ```text
 Controller / API -> Orchestrator -> RemoteAgentTool / A2A Client -> Nacos -> Agent Card -> 专业 Agent A2A Service -> XxxAgent -> ResponseSchema -> Parser -> DTO -> Validator -> Orchestrator -> Model Core / NetworkWorkspace / Artifact
 ```
 
-4. 当前过渡实现中，可以临时使用 `Controller -> Orchestrator -> Service -> Agent` 的本地直接调用链，用于早期联调和无 Nacos / A2A 环境下验证流程，但不作为长期验收标准。
-5. 所有真实 Agent 必须遵守 `docs/09_AGENT_BUILD_GUIDE.md`。
-6. 所有阶段产物必须进入 `NetworkWorkspace`。
-7. Execution 能力必须通过 `ExecutionAdapter` 和白名单 Adapter 接入。
-8. API Key 不允许硬编码。
-9. 单元测试不真实调用外部模型 API。
-10. Orchestrator 不构造 Prompt，不直接调用模型。
-11. Controller 不直接调用具体 Agent、`ChatModel`、`ReactAgent` 或外部执行命令。
-12. A2A / Nacos / Agent Card 是长期标准架构落地内容，不只是附加增强；MCP / Skills 按真实需求渐进接入。
+4. 所有真实 Agent 必须遵守 `docs/09_AGENT_BUILD_GUIDE.md`。
+5. 所有阶段产物必须进入 `NetworkWorkspace`。
+6. Execution 能力必须通过 `ExecutionAdapter` 和白名单 Adapter 接入。
+7. API Key 不允许硬编码。
+8. 单元测试不真实调用外部模型 API。
+9. Orchestrator 不构造 Prompt，不直接调用模型。
+10. Controller 不直接调用具体 Agent、`ChatModel`、`ReactAgent` 或外部执行命令。
+11. A2A / Nacos / Agent Card 是主线基础能力；MCP / Skills 按真实需求渐进接入。
+12. 业务主链路不使用 Mock Agent / Mock Tool。
+13. Mock JSON / 样例数据只用于前后端联调、回归测试、离线测试，归 `docs/07_TEST_DATA_AND_SCENARIOS.md` 管。
+14. 正常业务代码必须面向真实 Agent、真实 Tool、Nacos 和 A2A。
 
 ## 3. Phase 0：长期文档体系统一
 
@@ -59,7 +61,7 @@ Controller / API -> Orchestrator -> RemoteAgentTool / A2A Client -> Nacos -> Age
 
 ### 验收标准
 
-1. 文档中不再把本地替身或降级实现作为长期主流程。
+1. 文档中不再把替身或降级实现作为长期主流程。
 2. 各文档职责不重复。
 3. `AGENTS.md` 与 `docs/09_AGENT_BUILD_GUIDE.md` 对齐。
 4. 长期模块、DTO、API、Agent 构建规范之间没有明显冲突。
@@ -82,7 +84,7 @@ Controller / API -> Orchestrator -> RemoteAgentTool / A2A Client -> Nacos -> Age
 4. 实现 `AgentRunContext`。
 5. 实现公共 hooks，例如 `AgentLogHook`、`TraceHook`、`ErrorHandlingHook`。
 6. 定义 Agent 调用异常和统一错误转换。
-7. 准备 Stub `ChatModel` / Fake Agent 测试工具。
+7. 定义 Parser / Validator 的基础约定和固定样例 JSON 测试方式。
 
 ### 不做什么
 
@@ -90,6 +92,10 @@ Controller / API -> Orchestrator -> RemoteAgentTool / A2A Client -> Nacos -> Age
 2. 不接 MCP / A2A / Skills 全量空壳。
 3. 不让 Orchestrator 直接调用模型。
 4. 不在具体 Agent 模块重复写 `ReactAgent.builder` 初始化逻辑。
+5. 不生成 Fake Agent。
+6. 不生成 Mock Tool 主流程。
+7. 不使用假 Agent 替代真实 Spring AI Alibaba Agent。
+8. Agent Core 只提供真实 Agent 共用基础能力。
 
 ### 验收标准
 
@@ -97,12 +103,45 @@ Controller / API -> Orchestrator -> RemoteAgentTool / A2A Client -> Nacos -> Age
 2. 所有 Agent 不需要重复写 `ReactAgent.builder` 初始化逻辑。
 3. Prompt 加载、结构化调用、异常转换具备可测试封装。
 4. 单元测试不调用真实外部模型 API。
+5. Parser / Validator 可使用固定样例 JSON 做离线回归测试。
 
 ### 依赖前置
 
 依赖 Phase 0 的长期文档规范，尤其是 `docs/09_AGENT_BUILD_GUIDE.md`。
 
-## 5. Phase 2：真实 IntentAgent
+## 5. Phase 2：A2A / Nacos / Agent Card 最小服务化链路
+
+### 目标
+
+建立 Orchestrator 调用独立专业 Agent 服务的最小服务化基础链路。
+
+### 做什么
+
+1. 定义 Agent Card 最小字段和发布方式。
+2. 定义专业 Agent 独立启动、Nacos 注册和 A2A Service 暴露的最小约定。
+3. 实现 Orchestrator 侧 RemoteAgentTool / A2A Client 的最小调用封装。
+4. 定义 A2A 调用失败的统一错误转换。
+5. 保持远程返回结果仍进入 Parser / DTO / Validator。
+
+### 不做什么
+
+1. 不一次性生成所有 Agent 的服务化空壳。
+2. 不生成 Fake Agent。
+3. 不用 Mock Tool 或 Mock Agent 验证业务主链路。
+4. 不让 RemoteAgentTool / A2A Client 承担业务编排职责。
+
+### 验收标准
+
+1. Orchestrator 可以通过 Nacos 发现专业 Agent Card。
+2. Orchestrator 可以通过 A2A Client 调用专业 Agent 的标准入口。
+3. A2A 调用失败可转换为统一错误。
+4. 状态仍由 Orchestrator / Model Core 写入 `NetworkWorkspace`。
+
+### 依赖前置
+
+依赖 Phase 1 的 Agent Core 基础设施。
+
+## 6. Phase 3：真实 IntentAgent
 
 ### 目标
 
@@ -117,7 +156,7 @@ Controller / API -> Orchestrator -> RemoteAgentTool / A2A Client -> Nacos -> Age
 5. 实现 `IntentOutputValidator`。
 6. 实现 `IntentAgent`，注入 `ChatModel`，使用 `AgentUtils.reactAgentBuilder`。
 7. `IntentAgent` 输出 `NetworkIntent`。
-8. 与 Orchestrator 对接。
+8. 以 Nacos / Agent Card / A2A 方式对接 Orchestrator。
 
 ### 不做什么
 
@@ -132,13 +171,13 @@ Controller / API -> Orchestrator -> RemoteAgentTool / A2A Client -> Nacos -> Age
 2. `NetworkIntent` 通过 Validator。
 3. `IntentAgent` 不越界生成规划或配置。
 4. `ResponseSchema -> Parser -> DTO -> Validator -> Workspace` 链路完整。
-5. 相关测试通过。
+5. 远程调用链路可记录 traceId 和 Agent 执行摘要。
 
 ### 依赖前置
 
-依赖 Phase 1 的 Agent Core 基础设施。
+依赖 Phase 1 和 Phase 2。
 
-## 6. Phase 3：真实 PlanningAgent
+## 7. Phase 4：真实 PlanningAgent
 
 ### 目标
 
@@ -152,7 +191,7 @@ Controller / API -> Orchestrator -> RemoteAgentTool / A2A Client -> Nacos -> Age
 4. 实现 `PlanningResponseParser`。
 5. 实现 `PlanningOutputValidator`。
 6. 输出 `NetworkPlan`。
-7. 将规划产物写入 `NetworkWorkspace`。
+7. 以 A2A 方式向 Orchestrator 返回规划产物。
 
 ### 不做什么
 
@@ -170,9 +209,9 @@ Controller / API -> Orchestrator -> RemoteAgentTool / A2A Client -> Nacos -> Age
 
 ### 依赖前置
 
-依赖 Phase 2 的 `NetworkIntent` 产物和 Phase 1 的 Agent Core。
+依赖 Phase 3 的 `NetworkIntent` 产物。
 
-## 7. Phase 4：真实 ConfigurationAgent + RAG / Template Tools
+## 8. Phase 5：真实 ConfigurationAgent + RAG / Template Tools
 
 ### 目标
 
@@ -185,8 +224,11 @@ Controller / API -> Orchestrator -> RemoteAgentTool / A2A Client -> Nacos -> Age
 3. 实现配置模板工具。
 4. 实现命令知识库检索工具。
 5. 接入 RAG。
-6. 输出 `ConfigSet`。
-7. 保留 `commandBlocks`、`traceRefs`、`rollbackCommands`。
+6. 按需引入向量数据库能力。
+7. 输出 `ConfigSet`。
+8. 保留 `commandBlocks`、`traceRefs`、`rollbackCommands`。
+
+说明：构造 `ConfigurationAgent` 时可以同步引入 RAG、命令知识库检索工具和向量数据库能力。
 
 ### 不做什么
 
@@ -204,13 +246,13 @@ Controller / API -> Orchestrator -> RemoteAgentTool / A2A Client -> Nacos -> Age
 
 ### 依赖前置
 
-依赖 Phase 3 的 `NetworkPlan`，以及 Phase 1 的 Agent Core。
+依赖 Phase 4 的 `NetworkPlan`。
 
-## 8. Phase 5：ExecutionAdapter + Mininet / Ryu
+## 9. Phase 6：ExecutionAdapter + Mininet / Ryu
 
 ### 目标
 
-实现受控执行适配，将 `NetworkPlan + ConfigSet` 转换为可执行环境内容。
+实现受控执行适配，将 `NetworkPlan + ConfigSet` 转换为 Mininet / Ryu 可执行环境内容。
 
 ### 做什么
 
@@ -235,12 +277,13 @@ Controller / API -> Orchestrator -> RemoteAgentTool / A2A Client -> Nacos -> Age
 2. 所有执行命令经过白名单或安全校验。
 3. 测试结果可被 `VerificationAgent` 使用。
 4. 执行失败时能输出结构化错误和可追溯信息。
+5. 如 Mininet / Ryu 暂不可用，可以提供结构校验模式验证 `NetworkPlan + ConfigSet -> ExecutionReport` 的转换链路，但不得作为最终执行验收替代。
 
 ### 依赖前置
 
-依赖 Phase 3 的 `NetworkPlan` 和 Phase 4 的 `ConfigSet`。
+依赖 Phase 4 的 `NetworkPlan` 和 Phase 5 的 `ConfigSet`。
 
-## 9. Phase 6：真实 VerificationAgent
+## 10. Phase 7：真实 VerificationAgent
 
 ### 目标
 
@@ -253,7 +296,7 @@ Controller / API -> Orchestrator -> RemoteAgentTool / A2A Client -> Nacos -> Age
 3. 实现连通性、隔离性、安全策略验证工具。
 4. 输出 `ValidationReport`。
 5. 失败时生成可用于 Healing 的证据和建议。
-6. 将验证报告写入 `NetworkWorkspace`。
+6. 以 A2A 方式向 Orchestrator 返回验证报告。
 
 ### 不做什么
 
@@ -271,9 +314,9 @@ Controller / API -> Orchestrator -> RemoteAgentTool / A2A Client -> Nacos -> Age
 
 ### 依赖前置
 
-依赖 Phase 2 的 `NetworkIntent`、Phase 3 的 `NetworkPlan`、Phase 4 的 `ConfigSet` 和 Phase 5 的 `ExecutionReport`。
+依赖 Phase 3 的 `NetworkIntent`、Phase 4 的 `NetworkPlan`、Phase 5 的 `ConfigSet` 和 Phase 6 的 `ExecutionReport`。
 
-## 10. Phase 7：HealingAgent + 自愈闭环
+## 11. Phase 8：真实 HealingAgent
 
 ### 目标
 
@@ -286,7 +329,7 @@ Controller / API -> Orchestrator -> RemoteAgentTool / A2A Client -> Nacos -> Age
 3. 实现 `FailureAnalysis`。
 4. 实现 `RepairPlan` 和 `RepairAction`。
 5. 支持 `REPLAN`、`REGENERATE_CONFIG`、`PATCH_CONFIG`、`REEXECUTE`、`ASK_USER`、`ROLLBACK` 等动作。
-6. Orchestrator 根据 `RepairAction` 重新进入对应阶段。
+6. 以 A2A 方式向 Orchestrator 返回修复计划。
 7. 修复动作和新产物写入 `NetworkWorkspace`。
 
 ### 不做什么
@@ -305,9 +348,9 @@ Controller / API -> Orchestrator -> RemoteAgentTool / A2A Client -> Nacos -> Age
 
 ### 依赖前置
 
-依赖 Phase 6 的 `ValidationReport` 和完整 `NetworkWorkspace`。
+依赖 Phase 7 的 `ValidationReport` 和完整 `NetworkWorkspace`。
 
-## 11. Phase 8：持久化、异步任务和 SSE
+## 12. Phase 9：持久化、异步任务和 SSE
 
 ### 目标
 
@@ -337,9 +380,9 @@ Controller / API -> Orchestrator -> RemoteAgentTool / A2A Client -> Nacos -> Age
 
 ### 依赖前置
 
-可与 Phase 2 到 Phase 7 并行推进，但不得改变核心 DTO 契约和主调用链。
+可与 Agent 能力并行推进，但不得改变核心 DTO 契约和主调用链。
 
-## 12. Phase 9：前端可视化和用户体验增强
+## 13. Phase 10：前端可视化和用户体验增强
 
 ### 目标
 
@@ -370,66 +413,30 @@ Controller / API -> Orchestrator -> RemoteAgentTool / A2A Client -> Nacos -> Age
 
 ### 依赖前置
 
-依赖阶段产物 API、Workspace API 和核心 DTO 契约。可与 Phase 8 并行推进。
-
-## 13. Phase 10：A2A / Nacos / Agent Card 服务化收敛与 MCP / Skills 增强
-
-### 目标
-
-将当前过渡实现逐步收敛到长期标准 A2A 多 Agent 服务化架构，并按需增强外部工具调用能力。
-
-### 做什么
-
-1. 将 Orchestrator 本地直接调用逐步替换为 RemoteAgentTool / A2A Client 调用。
-2. 启动专业 Agent 独立 Spring Boot 服务。
-3. 接入 Nacos 服务发现和 Agent Card 发布。
-4. 通过 A2A 调用 Intent、Planning、Configuration、Verification、Healing 等专业 Agent。
-5. A2A 调用失败转换为统一错误，并由 Orchestrator 负责异常收敛。
-6. 按需接入 MCP 和 Skills，不一次性生成空壳。
-
-### 不做什么
-
-1. 不一次性生成所有 MCP / Skill / A2A / Nacos / Agent Card 空壳。
-2. 不破坏现有 Service / DTO 边界。
-3. 不让 Agent 直接共享内部状态。
-4. 不让 Agent、MCP 或 A2A 调用绕过 Model Core 直接修改 Workspace。
-5. 不让 RemoteAgentTool / A2A Client 承担业务编排职责。
-
-### 验收标准
-
-1. 专业 Agent 可独立启动、注册 Nacos、发布 Agent Card。
-2. Orchestrator 可通过 RemoteAgentTool / A2A Client 调用远程专业 Agent。
-3. A2A 调用失败可转换为统一错误。
-4. 状态仍由 `NetworkWorkspace` 维护。
-5. 远程 Agent 调用仍遵守标准输入输出 DTO 契约。
-6. 本地直接调用链不再作为长期验收标准。
-
-### 依赖前置
-
-依赖核心 Agent、ExecutionAdapter、Verification、Healing 和 Orchestrator 主流程稳定。按任务范围渐进落地，不一次性生成所有 A2A / Nacos / Agent Card 空壳。
+依赖阶段产物 API、Workspace API 和核心 DTO 契约。可与 Phase 9 并行推进。
 
 ## 14. 阶段依赖关系
 
 阶段依赖关系：
 
 1. Phase 1 是所有真实 Agent 的前置。
-2. `IntentAgent` 是后续 `PlanningAgent` 的前置。
-3. `PlanningAgent` 是 `ConfigurationAgent` 和 `ExecutionAdapter` 的前置。
-4. `ConfigurationAgent` 和 `ExecutionAdapter` 是 `VerificationAgent` 的前置。
-5. `VerificationAgent` 是 `HealingAgent` 的前置。
-6. 持久化、SSE、前端增强可以和 Agent 能力并行推进，但不能改变核心 DTO 契约。
-7. A2A / Nacos / Agent Card 是长期标准架构落地内容，应在核心 Agent 链路稳定后收敛；MCP / Skills 是增强能力。
+2. Phase 2 是真实 Agent 服务化调用的前置。
+3. `IntentAgent` 是后续 `PlanningAgent` 的前置。
+4. `PlanningAgent` 是 `ConfigurationAgent` 和 `ExecutionAdapter` 的前置。
+5. `ConfigurationAgent` 和 `ExecutionAdapter` 是 `VerificationAgent` 的前置。
+6. `VerificationAgent` 是 `HealingAgent` 的前置。
+7. 持久化、SSE、前端增强可以和 Agent 能力并行推进，但不能改变核心 DTO 契约。
 
 推荐主线顺序：
 
 ```text
-Phase 0 -> Phase 1 -> Phase 2 -> Phase 3 -> Phase 4 -> Phase 5 -> Phase 6 -> Phase 7
+Phase 0 -> Phase 1 -> Phase 2 -> Phase 3 -> Phase 4 -> Phase 5 -> Phase 6 -> Phase 7 -> Phase 8
 ```
 
-服务化收敛和增强能力可按需推进：
+增强能力可按需推进：
 
 ```text
-Phase 8 / Phase 9 / Phase 10
+Phase 9 / Phase 10
 ```
 
 ## 15. 本文档与其他文档的分工

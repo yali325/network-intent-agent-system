@@ -56,22 +56,6 @@ Controller / API
   -> Model Core / NetworkWorkspace / Artifact
 ```
 
-当前过渡开发方式下，可以临时使用本地直接调用链：
-
-```text
-Controller
-  -> TaskOrchestratorService
-  -> XxxService
-  -> XxxAgent / ExecutionAdapter
-  -> ResponseSchema / ExecutionReport
-  -> Parser
-  -> DTO
-  -> Validator
-  -> Orchestrator / Model Core 写入 NetworkWorkspace
-```
-
-该链路只用于单进程联调、早期验证和无 Nacos / A2A 环境下的开发调试，不放在长期主调用链。
-
 Orchestrator 负责确定性流程编排，决定当前阶段调用哪个专业 Agent，传递阶段输入和 Workspace 摘要，并接收专业 Agent 返回的阶段 DTO 或标准失败结果。RemoteAgentTool / A2A Client 默认放在 `mac-tav-orchestrator` 中，作为 Orchestrator 调用远程专业 Agent 的客户端适配能力，只负责从 Nacos 查询 Agent Card、通过 A2A 调用远程专业 Agent、处理远程调用异常和协议适配，不承担业务编排职责，不写 Workspace，不管理任务状态。Orchestrator 仍负责 Workspace 写入、Artifact 版本管理、任务状态推进、阶段产物追溯、异常收敛、阶段重跑和修复闭环。
 
 ## 3. Intent Module
@@ -119,9 +103,8 @@ Intent Module 不生成：
 ### 3.6 上下游关系
 
 上游：
-
-- Web Controller。
 - Orchestrator。
+- RemoteAgentTool / A2A Client 传入的阶段请求。
 
 下游：
 
@@ -267,7 +250,7 @@ Execution Module 负责把 `NetworkPlan + ConfigSet` 转换为受控可执行内
 ### 6.4 核心处理内容
 
 - 根据 targetEnvironment 选择 ExecutionAdapter。
-- 生成或准备 Mininet / Ryu / Docker / DryRun / 自定义适配器内容。
+- 生成或准备 Mininet / Ryu / Docker / 自定义适配器内容；如执行环境暂不可用，可提供结构校验模式验证转换链路，但不得作为最终执行验收替代。
 - 执行白名单内的命令或工具调用。
 - 采集节点、链路、控制器、流表和测试结果。
 - 将执行结果标准化为 `ExecutionReport`。
@@ -493,14 +476,13 @@ Orchestrator 是确定性工程流程控制模块。
 
 ### 10.4 核心处理内容
 
-- 创建任务。
-- 推进 Intent、Planning、Configuration、Execution、Verification 阶段。
-- 当前过渡开发方式下，可以临时调用各 `XxxService` / `XxxAgent`。
-- 长期标准架构下通过 RemoteAgentTool / A2A Client 调用远程专业 Agent。
+- 推进 Intent、Planning、Configuration、Execution、Verification、Healing 阶段。
+- 通过 RemoteAgentTool / A2A Client 调用远程专业 Agent。
+- 调用 Execution Module 完成受控执行适配。
 - 在验证失败时进入 Healing 流程。
 - 根据 RepairAction 重新进入指定阶段。
 - 捕获异常并更新任务状态。
-- 写入 `NetworkWorkspace`、AgentExecutionRecord 和 Artifact。
+- 写入 NetworkWorkspace、AgentExecutionRecord 和 Artifact。
 - 管理阶段产物版本、追溯关系、阶段重跑和修复闭环。
 
 ### 10.5 不做什么
@@ -523,10 +505,10 @@ Orchestrator 不做：
 
 下游：
 
-- RemoteAgentTool / A2A Client。长期标准 A2A 多 Agent 服务化架构使用。
-- 各 Agent Service。仅当前过渡开发方式使用。
+- RemoteAgentTool / A2A Client。
+- Execution Module。
 - Model Core。
-- SSE / Event 推送。
+- SSE / Event 推送。****
 
 ## 11. Web
 
@@ -591,16 +573,15 @@ Web / Visualization 不做：
 
 长期协作规则：
 
-- 专业 Agent 长期通过 A2A Service 暴露能力，不直接被 Controller 调用；当前过渡开发方式下可临时通过 Service 暴露本地能力。
-- 当前过渡开发方式下，Orchestrator 可以临时本地调用 `XxxService` / `XxxAgent`，但这不作为长期主调用链。
-- 长期标准架构下，Orchestrator 通过 RemoteAgentTool / A2A Client 查询 Nacos、读取 Agent Card，并通过 A2A 调用专业 Agent。RemoteAgentTool / A2A Client 默认放在 `mac-tav-orchestrator` 中，作为 Orchestrator 调用远程专业 Agent 的客户端适配能力，不承担业务编排职责，不写 Workspace，不管理任务状态。
-- 专业 Agent 返回已解析、已校验的阶段 DTO 或标准失败结果，不返回模型原始字符串给 Orchestrator。
-- 每个 Agent 的构建方式以 `docs/09_AGENT_BUILD_GUIDE.md` 为准。
-- 每个阶段产物的数据结构以 `docs/04_DATA_MODELS.md` 为准。
-- 每个 HTTP 入口以 `docs/05_API_DESIGN.md` 为准。
-- 所有阶段产物必须由 Orchestrator / Model Core 写入 `NetworkWorkspace`。
-- Agent、Tool、MCP、A2A 调用不得直接篡改 `NetworkWorkspace`。
-- Mock / Stub 只用于测试、降级和本地替身，不作为长期主流程。
+- Controller 只调用 Orchestrator 或查询服务，不直接调用专业 Agent。
+- Orchestrator 是唯一主编排入口。
+- Orchestrator 通过 RemoteAgentTool / A2A Client 查询 Nacos、读取 Agent Card，并通过 A2A 调用专业 Agent。
+- RemoteAgentTool / A2A Client 只负责远程发现、调用、异常转换和协议适配，不承担业务编排职责。
+- 专业 Agent 只返回已解析、已校验的阶段 DTO 或标准失败结果。
+- 专业 Agent 不直接写 NetworkWorkspace，不推进任务状态，不管理 Artifact 版本。
+- Execution Module 通过 ExecutionAdapter 输出 ExecutionReport，不作为纯 LLM Agent。
+- 所有阶段产物由 Orchestrator / Model Core 写入 NetworkWorkspace。
+- 样例 JSON / 固定测试数据只用于前后端联调、Parser / Validator 离线测试、失败分支验证和回归测试，不作为真实业务主链路替身。
 
 ## 13. 模块间数据流
 

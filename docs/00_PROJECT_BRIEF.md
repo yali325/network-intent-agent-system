@@ -12,7 +12,6 @@ MAC-TAV 是一个基于多智能体协同的网络意图翻译与闭环验证系
 能够将用户的自然语言网络需求逐步转化为可规划、可配置、可执行、可验证、可修复的网络方案。
 
 ## 3. 项目长期定位
-
 MAC-TAV 是一个面向网络意图翻译、配置生成、执行适配、验证评估和自愈修复的长期工程系统。
 
 它不是单纯的配置生成器，也不是只回答网络问题的聊天机器人。系统必须形成完整闭环：
@@ -21,7 +20,10 @@ MAC-TAV 是一个面向网络意图翻译、配置生成、执行适配、验证
 意图 -> 规划 -> 配置 -> 执行 -> 验证 -> 诊断/修复 -> 再验证
 ```
 
-长期实现应以最终 A2A 多 Agent 服务化架构为标准形态，以真实 Spring AI Alibaba Agent 为核心，通过 instruction、methodTools、hooks、outputType、RAG、MCP、Skills、A2A 和 ExecutionAdapter 等组合完成多阶段协作。当前本地聚合只能作为过渡开发方式，不作为项目长期定位。
+长期实现应以最终 A2A 多 Agent 服务化架构为标准形态。
+Intent、Planning、Configuration、Verification、Healing 等专业 Agent 作为独立 Spring Boot 服务启动，注册到 Nacos，发布 Agent Card，并通过 A2A 被 Orchestrator 调用。
+
+系统通过结构化阶段产物、受控工具调用、RAG / MCP / Skills 增强能力、ExecutionAdapter 执行适配和 NetworkWorkspace 状态管理，完成意图解析、网络规划、配置生成、受控执行、验证评估和失败修复闭环。
 
 ## 4. 赛题背景与技术趋势
 
@@ -220,7 +222,7 @@ MAC-TAV 的设计重点是阶段清晰、产物结构化、执行受控、验证
 
 负责管理任务状态、版本、阶段产物、执行日志、追溯关系和修复历史。它不调用大模型，不生成规划，不生成配置，不执行仿真。
 
-### 14.8 Visualization / Frontend
+### 14.8 Frontend
 
 负责展示意图、拓扑、配置块、执行状态、验证报告、失败原因、修复建议和 Agent 执行轨迹。
 
@@ -279,11 +281,11 @@ MAC-TAV 解决的是：
 
 本文档只保留高层顺序：
 
-1. 先稳定 Agent Core。
-2. 再逐个实现 Intent、Planning、Configuration、Verification、Healing。
-3. ExecutionAdapter 与 Mininet / Ryu 能力按执行阶段接入。
-4. 持久化、异步执行、SSE 和前端体验逐步增强。
-5. 将本地直接调用逐步迁移到 Orchestrator 侧 RemoteAgentTool / A2A Client 调用，完成专业 Agent 独立启动、Nacos 注册和 Agent Card 发布；MCP、Skills 按真实需求接入，不一次性生成大量空壳。
+1. 先稳定 Agent Core，包括 AgentUtils、Prompt 加载、hooks、结构化调用、异常封装和 Parser / Validator 离线测试样例组织。
+2. 搭建长期 A2A 服务化基础，包括专业 Agent 独立启动、Nacos 注册、Agent Card 发布、RemoteAgentTool / A2A Client 调用链。
+3. 按阶段逐个实现真实 Agent：Intent、Planning、Configuration、Verification、Healing。
+4. 按执行阶段接入 ExecutionAdapter，并逐步支持结构校验模式、Mininet / Ryu 等受控执行环境；结构校验模式不得替代最终执行验收。
+5. 持久化、异步执行、SSE、前端体验、RAG、MCP、Skills 按真实需求逐步增强。
 
 ## 18. 面向 Codex 的长期开发理解要求
 
@@ -293,7 +295,7 @@ Codex 开发本项目时必须理解：
 - Controller 不直接调用 `ChatModel` / `ChatClient`。
 - Orchestrator 不直接构造 Prompt。
 - 每个 Agent 在自己的 Maven 模块中实现。
-- 每个真实 Agent 必须有独立 prompt、methodTools、hooks、outputType、parser、validator。
+- 每个真实 Agent 必须遵守 docs/09_AGENT_BUILD_GUIDE.md 中定义的 Prompt、工具调用、结构化输出、Parser 和 Validator 规范。
 - DTO 不依赖 Spring AI Alibaba 类型。
 - Model Core 只负责状态、版本、产物和追溯关系。
 - Execution Module 不能执行 LLM 拼出来的任意 shell。

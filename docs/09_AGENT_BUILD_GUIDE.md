@@ -10,7 +10,7 @@
 | SHOULD | 默认推荐做法，除非当前任务有明确理由才可偏离 |
 | MAY    | 可选扩展，只有任务明确要求时再实现      |
 
-Mock 只作为测试、降级、本地替身使用。真实业务主流程 MUST 以 Spring AI Alibaba Agent 为目标设计。
+Mock JSON / 样例数据只用于前后端联调、回归测试和离线测试，归 `docs/07_TEST_DATA_AND_SCENARIOS.md` 管理。真实业务主流程 MUST 面向真实 Spring AI Alibaba Agent + Nacos + Agent Card + A2A。
 
 ---
 
@@ -78,28 +78,18 @@ MAC-TAV 中每个智能体 MUST 是对应独立 Maven 模块中的真实 Spring 
 9. 先得到 `ResponseSchema`，再经 Parser 转 DTO，再经 Validator 校验。
 10. 返回 `mac-tav-model` 中定义的 DTO，不返回模型原始字符串给 Orchestrator。
 
-### 2.1 Agent 的长期服务化形态与当前开发兼容
+### 2.1 Agent 的长期服务化形态
 
-#### 2.1.1 长期标准形态：独立 A2A Agent 服务
+专业 Agent 模块作为独立 Spring Boot 服务启动，注册到 Nacos，发布 Agent Card，并通过 A2A 被 Orchestrator 调用。
 
-这是长期标准形态。专业 Agent 模块作为独立 Spring Boot 服务启动，注册到 Nacos，发布 Agent Card，并通过 A2A 被 Orchestrator 调用。
-
-- Agent 模块可以拥有自己的 Spring Boot 启动类和 `application.yml`。
-- Agent 模块可以配置 A2A Server / Client、Nacos 注册和 Agent Card。
-- Agent Card 描述能力、输入输出契约、服务地址、版本等。
-- Nacos 负责服务发现和配置注册。
-- A2A 负责 Agent 间远程调用。
-- Agent 间不要通过 Maven 直接依赖彼此实现类。
-- Agent 模块拥有启动类和配置文件不等于架构污染；真正禁止的是依赖 Web、Orchestrator、其他具体 Agent、直接写 Workspace 或绕过 Parser / Validator。
-
-#### 2.1.2 当前开发兼容：本地 Bean 方式
-
-这是当前过渡开发方式，只用于早期联调、单进程调试和无 Nacos / A2A 环境下验证流程，不是长期架构目标。
-
-- Agent 模块可以临时作为普通 Maven jar 提供 Spring Bean。
-- `mac-tav-web` 可以临时扫描本地 Agent Bean。
-- Orchestrator 可以临时本地调用 `XxxService` / `XxxAgent`。
-- 后续落地应逐步迁移到 `Orchestrator -> RemoteAgentTool / A2A Client -> Nacos -> Agent Card -> 专业 Agent A2A Service` 的标准链路。
+- Agent 模块可以拥有自己的启动类、`application.yml`、Nacos 配置、Agent Card 配置和 A2A Service 配置。
+- Agent Card 描述能力、输入输出契约、服务地址、版本和健康状态等。
+- Nacos 负责专业 Agent 服务注册、发现和必要配置管理。
+- A2A 负责 Orchestrator 与专业 Agent 之间的远程协作调用。
+- Agent 模块不得依赖 `mac-tav-web`、`mac-tav-orchestrator` 或其他具体 Agent 模块。
+- Agent 模块不得直接写 `NetworkWorkspace`、推进任务状态或管理 Artifact 版本。
+- Agent 模块不得绕过 `ResponseSchema -> Parser -> DTO -> Validator`。
+- Agent 模块拥有启动类和配置文件不等于架构污染；真正禁止的是跨模块直连、直接写状态和绕过结构化输出边界。
 
 ## 3. 标准调用链
 
@@ -123,30 +113,12 @@ Controller / API
   -> Model Core / NetworkWorkspace / Artifact
 ```
 
-当前过渡开发方式下，可以临时使用本地 Bean 调用链：
-
-```text
-Controller
-  -> TaskOrchestratorService
-  -> XxxService
-  -> XxxAgent
-  -> Spring AI Alibaba Agent
-  -> Tools / MCP / Skills
-  -> ResponseSchema
-  -> Parser
-  -> DTO
-  -> Validator
-  -> Orchestrator / Model Core 写入 NetworkWorkspace
-```
-
-该链路只用于早期联调和无 Nacos / A2A 环境下的开发调试，不作为长期验收标准。
-
 MUST 遵守的边界：
 
 1. `Controller` MUST NOT 调用 `ChatModel` / `ChatClient` / `ReactAgent`。
 2. `Controller` MUST NOT 构造 Prompt。
-3. `TaskOrchestratorService` MUST NOT 构造 Prompt。
-4. `TaskOrchestratorService` MUST NOT 直接调用大模型。
+3. `Orchestrator` MUST NOT 构造 Prompt。
+4. `Orchestrator` MUST NOT 直接调用大模型。
 5. DTO MUST NOT 依赖 Spring AI Alibaba 类型。
 6. `Model Core` MUST NOT 调用大模型。
 7. `Tool` MUST NOT 直接写 `NetworkWorkspace`。
@@ -245,7 +217,7 @@ com.yali.mactav.agent.core.context.AgentRunContext
 
 ## 5. Agent 模块标准结构
 
-每个真实 Agent 模块 MUST 使用以下结构。未被当前任务要求的 `mcp`、`skill`、`a2a` 空壳 MUST NOT 提前生成。
+每个真实 Agent 模块 MUST 使用以下基础结构。未被当前任务要求的 `a2a`、`agentcard`、`nacos`、`mcp`、`skill` 空壳 MUST NOT 提前生成。
 
 ```text
 mac-tav-xxx-agent
@@ -277,15 +249,15 @@ mac-tav-xxx-agent
 | `agent` | 封装 Spring AI Alibaba `ReactAgent` 调用 |
 | `config` | 装配当前 Agent Bean、配置运行参数 |
 | `schema` | 定义模型结构化输出 `ResponseSchema` |
-| `service` | 当前开发兼容方式下可临时对 Orchestrator 暴露当前模块服务；长期标准 A2A 服务化架构下承接协议入口后的业务调用 |
+| `service` | 承接当前 Agent 模块内部的业务调用入口，可被 A2A Service / Agent 调用；不得作为 Orchestrator 本地直连入口，不得面向 `mac-tav-web` 暴露业务 Controller |
 | `tool` | 定义当前 Agent 的 `methodTools` |
 | `parser` | 执行 `ResponseSchema -> DTO` |
 | `validator` | 校验 DTO 领域约束 |
 | `resources/prompts` | 存放当前 Agent 系统提示词 |
 
-这是当前开发兼容方式下的最小结构，只用于早期联调和无 Nacos / A2A 环境下验证流程。
+这是长期 Agent 模块的基础结构。A2A、Agent Card、Nacos、MCP、Skill 等目录只在当前阶段明确需要时生成，不为了占位一次性生成空壳。
 
-长期标准 A2A 服务化架构下，Agent 模块 MAY 在任务明确要求时增加：
+Agent 模块 MAY 在任务明确要求时增加：
 
 ```text
 src/main/java/com/yali/mactav/xxx/XxxAgentApplication.java
@@ -297,7 +269,17 @@ mcp
 skill
 ```
 
-这些目录和配置只在需要独立启动、注册 Nacos、发布 Agent Card 或暴露 A2A Service 时增加，不应为了占位一次性生成空壳。
+可选目录说明：
+
+| 路径 | 生成时机 |
+| --- | --- |
+| `a2a` | 当前 Agent 需要暴露 A2A Service / Handler / Adapter 时生成 |
+| `agentcard` | 当前 Agent 需要发布 Agent Card 或维护能力描述时生成 |
+| `nacos` | 当前任务需要 Nacos 注册 / 发现配置相关代码时生成 |
+| `mcp` | 当前 Agent 需要 MCP 能力时生成 |
+| `skill` | 当前 Agent 需要 Skill 能力时生成 |
+
+这些目录和配置只在需要独立启动、注册 Nacos、发布 Agent Card、暴露 A2A Service 或接入 MCP / Skill 时增加，不应为了占位一次性生成空壳。
 
 ---
 
@@ -564,26 +546,25 @@ mac-tav-agent-core
 
 ## 11. A2A / Agent Card / Nacos 规范
 
-A2A 是长期标准 A2A 多 Agent 服务化架构下的远程协作通道。落地时仍应按任务范围渐进实现，Codex MUST NOT 在未被要求时一次性生成 A2A、Agent Card 或 Nacos 空壳。
+A2A / Nacos / Agent Card 是长期标准远程协作基础。落地时仍应按当前任务范围渐进实现，Codex MUST NOT 在未被要求时一次性生成所有专业 Agent 的 A2A、MCP、Skills 空壳。
 
-长期标准架构下 MUST 遵守：
+MUST 遵守：
 
-1. Orchestrator 仍是唯一主编排入口和确定性工程流程主控。
-2. Orchestrator 负责决定当前阶段应该调用哪个专业 Agent，并传递阶段输入和 Workspace 摘要。
-3. Orchestrator 负责接收专业 Agent 返回的阶段 DTO 或标准失败结果。
-4. RemoteAgentTool / A2A Client 默认放在 `mac-tav-orchestrator` 中，作为 Orchestrator 调用远程专业 Agent 的客户端适配能力。
-5. RemoteAgentTool / A2A Client 负责从 Nacos 查询 Agent Card。
-6. RemoteAgentTool / A2A Client 负责通过 A2A 调用远程专业 Agent。
-7. RemoteAgentTool / A2A Client 负责处理远程调用异常和协议适配。
-8. RemoteAgentTool / A2A Client 不承担业务编排职责，不写 Workspace，不管理任务状态。
-9. Agent Card 描述能力、输入输出契约、服务地址、版本、协议和健康状态等。
-10. Nacos 负责服务发现和配置注册。
-11. A2A 负责 Agent 间远程调用。
-12. 每个 Agent 对外暴露标准输入输出 DTO 或稳定请求 / 响应契约。
-13. Agent 之间不得通过 Maven 直接依赖彼此实现类。
-14. Agent 之间不得直接共享内部状态。
-15. 状态、版本、阶段产物和追溯关系仍通过 `Model Core / NetworkWorkspace` 维护。
-16. Parser / Validator 是强制边界，不因远程调用而省略。
+1. 当 `docs/06_DEV_PLAN.md` 的 Phase 2 要求实现最小服务化链路时，Codex MUST 实现必要的 RemoteAgentTool / A2A Client、Agent Card、Nacos 注册 / 发现和最小 A2A 调用能力。
+2. Orchestrator 仍是唯一主编排入口和确定性工程流程主控。
+3. Orchestrator 负责决定当前阶段应该调用哪个专业 Agent，并传递阶段输入和 Workspace 摘要。
+4. Orchestrator 负责接收专业 Agent 返回的阶段 DTO 或标准失败结果。
+5. RemoteAgentTool / A2A Client 默认放在 `mac-tav-orchestrator` 中，作为 Orchestrator 调用远程专业 Agent 的客户端适配能力。
+6. RemoteAgentTool / A2A Client 只负责远程发现、调用、协议适配和异常转换。
+7. RemoteAgentTool / A2A Client 不承担业务编排职责，不写 Workspace，不管理任务状态。
+8. Agent Card 描述能力、输入输出契约、服务地址、版本、协议和健康状态等。
+9. Nacos 负责专业 Agent 服务发现和配置注册。
+10. A2A 负责 Orchestrator 与专业 Agent 之间的远程调用。
+11. 每个 Agent 对外暴露标准输入输出 DTO 或稳定请求 / 响应契约。
+12. Agent 之间不得通过 Maven 直接依赖彼此实现类。
+13. Agent 之间不得直接共享内部状态。
+14. 状态、版本、阶段产物和追溯关系仍通过 `Model Core / NetworkWorkspace` 维护。
+15. Parser / Validator 是强制边界，不因远程调用而省略。
 
 A2A 消息 MUST 至少包含：
 
@@ -607,6 +588,7 @@ Agent Card SHOULD 至少包含：
 | `serviceEndpoint` | A2A 服务地址 |
 | `version` | Agent 版本 |
 | `healthStatus` | 健康状态 |
+
 ## 12. ResponseSchema / Parser 规范
 
 每个 Agent MUST 定义自己的 `ResponseSchema`。
@@ -776,7 +758,7 @@ MUST NOT 直接执行修复命令。
 
 Execute Module MUST：
 
-1. 将 `NetworkPlan + ConfigSet` 转换为 Mininet / Ryu / DryRun 可执行内容。
+1. 将 `NetworkPlan + ConfigSet` 转换为 Mininet / Ryu / 自定义适配器可执行内容；如 Mininet / Ryu 暂不可用，可以提供结构校验模式验证转换链路，但不得作为最终执行验收替代。
 2. 通过 adapter 白名单控制执行命令。
 3. 输出 `ExecutionReport`。
 
@@ -887,51 +869,40 @@ spring:
 6. Prompt 文件存在性。
 7. Agent 输出跨阶段字段时被拒绝。
 
-测试 SHOULD 使用：
+测试 MAY 使用：
 
-1. Stub `ChatModel`。
-2. Fake `ReactAgent` 调用封装。
-3. Mock Tool。
-4. Mock MCP Server 或 Stub Client。
-5. 测试 Agent Bean 替换真实 Agent 做 Orchestrator 集成测试。
+1. 固定样例 JSON 验证 Parser / Validator。
+2. 可替换的模型调用边界隔离真实外部模型 API。
+3. 边界接口或测试夹具模拟 Tool / MCP / A2A 异常分支。
+4. `docs/07_TEST_DATA_AND_SCENARIOS.md` 管理的 Mock JSON / 样例数据。
+
+测试 MUST NOT：
+
+1. 把 Stub `ChatModel`、Fake `ReactAgent` 或 Mock Tool 写成 Agent 主流程的一部分。
+2. 用 Mock Agent / Mock Tool 替代真实业务主链路。
+3. 用测试 Agent Bean 替代真实 Agent 验证 Orchestrator 到专业 Agent 的长期调用链。
 
 真实 DashScope / 外部 API MAY 作为手动集成验证，但 MUST 通过环境变量注入 API Key。
 
 ---
 
-## 18. 落地优先级
+## 18. 落地边界
 
-Codex MUST 按任务范围渐进落地，不得在未被要求时一次性生成所有 MCP / Skill / A2A 空壳。
+具体开发阶段路线由 `docs/06_DEV_PLAN.md` 维护。本文档只规定 Agent 构建方式和边界。
 
-长期实现顺序：
+Codex MUST：
 
-1. 第一阶段：`Agent Core + IntentAgent`。
-2. 第二阶段：`PlanningAgent`。
-3. 第三阶段：`ConfigurationAgent + RAG / Template Tools`。
-4. 第四阶段：`VerificationAgent`。
-5. 第五阶段：`ExecutionAdapter + Mininet/Ryu Tool/MCP`。
-6. 第六阶段：`HealingAgent + A2A / Nacos / Agent Card`。
+1. 按当前任务范围渐进落地，不得在未被要求时一次性生成所有 MCP / Skill / A2A 空壳。
+2. 保持长期标准调用链边界稳定。
+3. 先固定 `AgentUtils`、Prompt、hooks、`outputType`、Parser 和 Validator 等 Agent 共用构建模式。
+4. 在实现具体 Agent 时，确保其输出阶段 DTO，并通过 `ResponseSchema -> Parser -> DTO -> Validator`。
+5. 在实现服务化链路时，面向 Nacos、Agent Card、A2A 和 Orchestrator 侧 RemoteAgentTool / A2A Client。
+6. 保持 Orchestrator 负责主编排和 Workspace 写入，专业 Agent 只负责阶段能力。
 
-每一阶段 MUST 保持长期标准调用链边界稳定；当前本地 Bean 方式只作为过渡开发兼容。
+Codex MUST NOT：
 
-当前开发兼容链路：
-
-```text
-Controller -> Orchestrator -> Service -> Agent -> ResponseSchema -> Parser -> DTO -> Validator -> Workspace
-```
-
-长期标准 A2A 服务化链路：
-
-```text
-Controller -> Orchestrator -> RemoteAgentTool / A2A Client -> Nacos -> Agent Card -> 专业 Agent A2A Service -> XxxAgent -> ResponseSchema -> Parser -> DTO -> Validator -> Orchestrator -> Model Core / NetworkWorkspace / Artifact
-```
-
-阶段落地规则：
-
-1. 第一阶段 MUST 先固定 `AgentUtils` 最小 API。
-2. 第一阶段 MUST 先实现 `IntentAgent` 的真实 API 调用、prompt 文件、schema、parser、validator。
-3. 第二阶段 MUST 保证 `PlanningAgent` 不输出 CLI。
-4. 第三阶段 MUST 优先实现配置模板工具，再接 RAG。
-5. 第四阶段 MUST 先结合规则工具判断，再由 LLM 组织解释。
-6. 第五阶段 MUST 通过 `ExecutionAdapter` 接入 Mininet / Ryu。
-7. 第六阶段 SHOULD 将本地直接调用逐步替换为 Orchestrator 侧 RemoteAgentTool / A2A Client 调用，并完成 `HealingAgent` 的 A2A 服务化验证。
+1. 把 Maven 依赖细节写入本文档，相关规则交给 `docs/02_MAVEN_MODULES.md`。
+2. 在本文档展开 DTO 全字段，相关规则交给 `docs/04_DATA_MODELS.md`。
+3. 在本文档展开 API 路径，相关规则交给 `docs/05_API_DESIGN.md`。
+4. 在本文档展开运行命令，相关规则交给 `docs/08_RUN_AND_TEST.md`。
+5. 在本文档重复开发阶段路线，相关规则交给 `docs/06_DEV_PLAN.md`。

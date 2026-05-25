@@ -6,12 +6,18 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 public class Assumption {
 
+    private String id;
+
     private String field;
+
     private String value;
+
     private String reason;
+
+    private Double confidence;
 }

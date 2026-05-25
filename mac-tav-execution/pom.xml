@@ -8,10 +8,12 @@
         <groupId>com.yali</groupId>
         <artifactId>network-intent-agent-system</artifactId>
         <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
     </parent>
 
     <artifactId>mac-tav-execution</artifactId>
     <packaging>jar</packaging>
+
     <name>mac-tav-execution</name>
 
     <dependencies>
@@ -22,15 +24,6 @@
         <dependency>
             <groupId>com.yali</groupId>
             <artifactId>mac-tav-model</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-context</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter</artifactId>
-            <scope>test</scope>
         </dependency>
     </dependencies>
 </project>

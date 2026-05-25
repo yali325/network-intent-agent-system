@@ -20,7 +20,7 @@ API 路径、资源边界、Controller 边界和统一响应格式 MUST 以 `doc
 4. 手动验证。
 5. 常见问题。
 
-本文档必须同步 MAC-TAV 的长期 A2A 多 Agent 服务化架构：`mac-tav-web` 承载 Web / API / SSE 入口，Orchestrator 通过 RemoteAgentTool / A2A Client 调用远程专业 Agent。本地聚合启动只作为当前过渡开发方式，不作为长期验收标准。
+本文档同步长期 A2A 多 Agent 服务化架构。`mac-tav-web` 只承载 Web / API / SSE 入口，Orchestrator 通过 RemoteAgentTool / A2A Client 调用注册到 Nacos 的专业 Agent。本文档不描述本地 Agent 聚合启动路线。
 
 ## 2. 基础环境要求
 
@@ -33,7 +33,7 @@ API 路径、资源边界、Controller 边界和统一响应格式 MUST 以 `doc
 | 操作系统 | Windows + Docker Desktop / WSL2 可以使用，但要注意端口、路径和文件锁 |
 | Nacos | 长期服务化运行用于专业 Agent 服务发现和 Agent Card 注册 / 发现 |
 | A2A 运行环境或协议支持 | 长期服务化运行用于 Orchestrator 调用远程专业 Agent |
-| DashScope / OpenAI Compatible Key | 仅用于手动真实模型验证，不用于单元测试 |
+| DashScope / OpenAI Compatible Key | 仅用于真实 Agent 手动验证或真实集成验证，不用于自动化测试 |
 | Redis / MySQL / Qdrant | 可作为长期持久化、SSE、向量检索等依赖规划；当前开发不要求一次性全部具备 |
 
 运行前 SHOULD 确认：
@@ -75,27 +75,33 @@ mvn -pl mac-tav-web -am test
 - `mac-tav-orchestrator` 可以运行模块测试，但不作为独立 Spring Boot 服务启动。
 - `mac-tav-web` 是 Web / API / SSE 入口，并通过依赖的 Orchestrator 承载主编排流程。
 - 专业 Agent 服务化后，可以分别对 `mac-tav-intent-agent`、`mac-tav-planning-agent`、`mac-tav-configuration-agent`、`mac-tav-verification-agent`、`mac-tav-healing-agent` 运行模块测试。
-- Agent 单元测试不得调用真实外部模型 API，应使用 Stub ChatModel / Fake ReactAgent / Mock Tool。
+- 自动化测试不得调用真实外部模型 API。Parser / Validator 可使用 `docs/07_TEST_DATA_AND_SCENARIOS.md` 中的固定样例 JSON 做离线回归测试；Tool / MCP / A2A 异常分支可使用测试夹具验证。不得用 Stub ChatModel、Fake ReactAgent、Mock Tool 或测试 Agent Bean 替代真实业务主链路。
 - 如果 Windows 文件锁导致 `mvn clean` 失败，不要反复 clean。
 - 可以先运行 `mvn compile` 或 `mvn test`。
 - 清理 `target` 前 SHOULD 关闭正在运行的 Java 进程和 IDE 占用。
 
 ## 4. 后端启动方式
 
-### 4.1 当前过渡开发启动
+### 4.1 长期 A2A 服务化启动顺序
 
-当前开发阶段，为了降低联调成本，`mac-tav-web` 可以临时作为本地聚合启动入口。
+长期运行方式以 A2A 多 Agent 服务化架构为准：
 
-可选启动方式：
+1. 启动 Nacos。
+2. 启动当前阶段需要验证的专业 Agent 服务，例如 `mac-tav-intent-agent`、`mac-tav-planning-agent`、`mac-tav-configuration-agent`、`mac-tav-verification-agent`、`mac-tav-healing-agent`。
+3. 确认专业 Agent 已注册到 Nacos。
+4. 确认 Agent Card 可被查询。
+5. 启动 `mac-tav-web`。
+6. `mac-tav-web` 通过依赖的 Orchestrator 承载主编排流程。
+7. Orchestrator 通过 RemoteAgentTool / A2A Client 查询 Nacos、读取 Agent Card，并通过 A2A 调用专业 Agent。
+8. `mac-tav-orchestrator` 不单独作为服务启动。
 
-1. 通过 IDEA 启动 `MacTavApplication`。
-2. 使用 Maven 启动 Web 模块：
+启动 Web / API / SSE 入口可使用：
 
 ```bash
 mvn -pl mac-tav-web -am spring-boot:run
 ```
 
-该方式只用于开发联调、早期验证、单进程调试和无 Nacos / A2A 环境下的临时调试，不作为长期验收标准。
+该命令只启动 Web / API / SSE 入口，不是本地 Agent 聚合入口。
 
 Codex 执行要求：
 
@@ -103,25 +109,6 @@ Codex 执行要求：
 - 如果 Codex 需要验证启动，只允许短时间观察日志。
 - 看到 `Started MacTavApplication` 后应停止进程。
 - 不要让启动进程长期卡住。
-
-### 4.2 长期 A2A 服务化运行方式
-
-长期运行方式以最终 A2A 多 Agent 服务化架构为准：
-
-1. 启动 Nacos。
-2. 启动专业 Agent 服务：
-   - `mac-tav-intent-agent`
-   - `mac-tav-planning-agent`
-   - `mac-tav-configuration-agent`
-   - `mac-tav-verification-agent`
-   - `mac-tav-healing-agent`
-3. 专业 Agent 服务注册到 Nacos，并发布 Agent Card。
-4. 启动 `mac-tav-web`。
-5. `mac-tav-web` 承载 Controller、Web / API、SSE，并通过依赖的 Orchestrator 执行主编排。
-6. `mac-tav-orchestrator` 不单独作为服务启动。
-7. Orchestrator 通过 RemoteAgentTool / A2A Client 查询 Nacos、读取 Agent Card，并通过 A2A 调用专业 Agent。
-
-如果当前代码还没有对应启动类、Nacos 注册配置、Agent Card 或 A2A Service，应标注为长期目标验证项，不要把本地聚合路径视为最终运行方式。
 
 ## 5. 前端运行方式
 
@@ -175,26 +162,57 @@ npm run build
 - API Key 不写入 `application.yml`。
 - API Key 不提交仓库。
 - 日志不打印完整 API Key。
-- 单元测试不依赖真实 API Key。
-- DashScope / OpenAI Compatible 等模型 Key 只用于手动真实模型验证，不用于单元测试。
+- 不在命令历史中暴露真实 Key。
+- DashScope / OpenAI Compatible Key 只用于真实 Agent 手动验证或真实集成验证。
+- 自动化测试不依赖真实 API Key。
 
-## 7. Agent 单元测试规则
+## 7. Agent 测试规则
 
-Agent 单元测试 MUST：
+### 7.1 Parser / Validator 离线测试
 
-- 使用 Stub ChatModel / Fake ReactAgent。
-- 使用 Mock Tool。
-- 测试 Prompt 文件是否存在。
-- 测试 `ResponseSchema -> DTO` 转换。
-- 测试 Validator。
-- 测试 Tool 异常转换。
-- 测试 Agent 输出越界字段被拒绝。
+Parser / Validator 离线测试 MUST：
 
-Agent 单元测试不得调用真实外部模型 API。
+- 使用 `docs/07_TEST_DATA_AND_SCENARIOS.md` 中的固定样例 JSON。
+- 验证 `ResponseSchema -> DTO` 转换。
+- 验证 Validator 合法输出和非法输出。
+- 验证 Agent 输出跨阶段字段时被拒绝。
+- 不调用真实模型。
+- 不构造 Fake Agent 主链路。
+
+### 7.2 真实 Agent 手动验证
+
+真实 Agent 手动验证 MUST：
+
+- 使用真实 `ChatModel`。
+- API Key 通过环境变量注入。
+- 验证真实 Agent 输出 `ResponseSchema`。
+- 验证 Parser / Validator 后得到项目 DTO。
+- 检查 Agent 是否越界输出。
+
+### 7.3 A2A 集成验证
+
+A2A 集成验证 MUST：
+
+- 启动 Nacos。
+- 启动目标专业 Agent 服务。
+- 确认 Agent Card 可发现。
+- 启动 `mac-tav-web`。
+- 通过 Workflow API 触发 Orchestrator。
+- 验证 Orchestrator 通过 A2A 调用专业 Agent。
+- 验证结果写入 `NetworkWorkspace` / `NetworkArtifact` / `WorkspaceEvent`。
+
+明确禁止：
+
+- 不用 Mock Agent / Mock Tool 验证业务主链路。
+- 不用测试 Agent Bean 替代真实 Agent 验证 Orchestrator 到专业 Agent 的长期调用链。
+- 不让 Controller 直接调用具体 Agent。
+- 自动化测试不得调用真实外部模型 API。
 
 ## 8. API 测试方式
 
 长期 API 前缀为 `/api/v1`。API 契约、资源边界、请求响应结构以 `docs/05_API_DESIGN.md` 为准。本文档只提供手动调试示例。
+
+curl 只访问 `mac-tav-web` 暴露的 `/api/v1` 业务 API，不直接调用专业 Agent A2A Service，不把 A2A Service 暴露为前端 public API。
 
 常用调试入口：
 
@@ -208,7 +226,7 @@ Agent 单元测试不得调用真实外部模型 API。
 - 前端视图：`GET /api/v1/views/{taskId}/topology`
 - 事件流：`GET /api/v1/events/{taskId}`
 
-不要把内部 A2A Service 暴露为 public `/api/v1` 前端业务 API。Orchestrator 通过 RemoteAgentTool / A2A Client 调用远程专业 Agent。
+Orchestrator 通过 RemoteAgentTool / A2A Client 调用远程专业 Agent。
 
 创建任务示例：
 
@@ -275,6 +293,8 @@ curl http://localhost:8080/api/v1/events/{taskId}/history
 
 - `AI_DASHSCOPE_API_KEY`
 
+真实模型验证属于手动集成验证，不是自动化单元测试。真实模型验证必须经过 `ResponseSchema -> Parser -> DTO -> Validator`。
+
 手动验证 SHOULD 记录：
 
 - 输入。
@@ -282,6 +302,7 @@ curl http://localhost:8080/api/v1/events/{taskId}/history
 - 错误码。
 - 模型调用耗时。
 - Validator 结果。
+- `AgentExecutionRecord` / `WorkspaceEvent` 摘要。
 
 检查重点：
 
@@ -294,6 +315,12 @@ curl http://localhost:8080/api/v1/events/{taskId}/history
 ## 11. Mininet / Ryu 手动验证
 
 ExecutionAdapter 接入后再启用 Mininet / Ryu 验证。
+
+说明：
+
+- Mininet / Ryu 不是 Agent 打通前置条件。
+- Mininet / Ryu 验证不替代 A2A / Nacos / Agent Card 验证。
+- 失败结果必须进入 `ExecutionReport`。
 
 验证前 SHOULD 检查：
 
@@ -392,8 +419,9 @@ ExecutionAdapter 接入后再启用 Mininet / Ryu 验证。
 - 检查 Nacos 是否启动。
 - 检查专业 Agent 是否已注册到 Nacos。
 - 检查 Agent Card 是否包含能力、输入输出契约、服务地址和版本。
-- 检查 `mac-tav-web` / Orchestrator 侧 Nacos 地址配置。
-- 不要改成本地聚合路径来作为长期验收替代。
+- 检查 Agent Card 中的 A2A Endpoint 是否可访问。
+- 检查 `mac-tav-web` / Orchestrator 侧 Nacos 地址和 RemoteAgentTool / A2A Client 配置。
+- 不允许回退成本地 Agent Bean 调用作为长期验证方式。
 
 ### 12.10 A2A 调用失败
 
@@ -409,27 +437,31 @@ ExecutionAdapter 接入后再启用 Mininet / Ryu 验证。
 - 检查协议地址、端口、超时和鉴权配置。
 - 检查失败是否被 Orchestrator 记录到任务状态、执行日志或 Workspace 变更记录中。
 - 不在 Controller 中直接绕过 Orchestrator 调用专业 Agent。
+- 不允许回退成本地 Agent Bean 调用作为长期验证方式。
 
 ## 13. 长期验收清单
 
 长期验收 SHOULD 包括：
 
-- 真实 IntentAgent 可以生成 `NetworkIntent`。
-- PlanningAgent 可以生成 `NetworkPlan`。
-- ConfigurationAgent 可以生成结构化 `ConfigSet`。
-- ExecutionAdapter 可以输出 `ExecutionReport`，且执行命令受 Adapter 白名单控制。
-- VerificationAgent 可以输出 `ValidationReport`。
-- HealingAgent 可以输出 `RepairPlan`。
+- Nacos 已启动。
 - 专业 Agent 可独立启动。
-- 专业 Agent 可注册到 Nacos。
-- Agent Card 可被发现并描述能力、输入输出契约、服务地址和版本。
-- Orchestrator 可通过 RemoteAgentTool / A2A Client 调用远程专业 Agent。
+- 专业 Agent 已注册到 Nacos。
+- Agent Card 可被 Orchestrator 查询。
+- Orchestrator 可通过 A2A 调用专业 Agent。
+- 真实 IntentAgent 可输出 `NetworkIntent`。
+- 真实 PlanningAgent 可输出 `NetworkPlan`。
+- 真实 ConfigurationAgent 可输出 `ConfigSet`。
+- ExecutionAdapter 可输出 `ExecutionReport`。
+- VerificationAgent 可输出 `ValidationReport`。
+- HealingAgent 可输出 `RepairPlan`。
 - A2A 调用失败可转换为统一错误。
 - Orchestrator 仍负责写 Workspace、推进任务状态、管理 Artifact 版本和闭环控制。
 - Workspace 可以保存全流程产物。
 - 前端可以展示意图、拓扑、配置、执行、验证、修复。
 - 测试不泄漏 API Key。
-- 本地聚合路径不再被视为最终验收标准。
+- 不存在 `mac-tav-web` 本地扫描具体 Agent Bean 的启动路线。
+- 不存在 Controller 直接调用具体 Agent 的路线。
+- 不存在 Mock Agent / Mock Tool 替代业务主链路的验收路线。
 
 ## 14. 本文档与其他文档的分工
 

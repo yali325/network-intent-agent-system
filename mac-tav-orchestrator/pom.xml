@@ -8,10 +8,12 @@
         <groupId>com.yali</groupId>
         <artifactId>network-intent-agent-system</artifactId>
         <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
     </parent>
 
     <artifactId>mac-tav-orchestrator</artifactId>
     <packaging>jar</packaging>
+
     <name>mac-tav-orchestrator</name>
 
     <dependencies>
@@ -29,31 +31,21 @@
         </dependency>
         <dependency>
             <groupId>com.yali</groupId>
-            <artifactId>mac-tav-intent-agent</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.yali</groupId>
-            <artifactId>mac-tav-planning-agent</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.yali</groupId>
-            <artifactId>mac-tav-configuration-agent</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.yali</groupId>
             <artifactId>mac-tav-execution</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.yali</groupId>
-            <artifactId>mac-tav-verification-agent</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-context</artifactId>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

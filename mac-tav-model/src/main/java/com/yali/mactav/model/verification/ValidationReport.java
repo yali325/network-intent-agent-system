@@ -1,28 +1,56 @@
 package com.yali.mactav.model.verification;
 
-import com.yali.mactav.common.enums.StageStatus;
-import com.yali.mactav.common.enums.ValidationStatus;
+import com.yali.mactav.model.enums.StageStatus;
+import com.yali.mactav.model.enums.ValidationStatus;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * Validate 阶段产物对象
+ */
+/**
+ * Verification-stage artifact summarizing whether execution satisfies intent.
+ *
+ * <p>ValidationReport carries findings and evidence for orchestration and
+ * healing. It must not apply configuration or trigger repair execution itself.</p>
+ */
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 public class ValidationReport {
 
     private String taskId;
+
     private Integer intentVersion;
+
     private Integer planVersion;
+
     private Integer configVersion;
+
     private Integer executionVersion;
+
     private Integer validationVersion;
+
     private ValidationStatus overallStatus;
+
     private String summary;
-    private List<ValidationItem> items;
-    private List<String> suggestions;
+
+    @Builder.Default
+    private List<ValidationItem> items = new ArrayList<>();
+
+    @Builder.Default
+    private List<ValidationEvidence> evidences = new ArrayList<>();
+
+    @Builder.Default
+    private List<String> suggestions = new ArrayList<>();
+
     private StageStatus stageStatus;
+
+    private LocalDateTime createTime;
 }

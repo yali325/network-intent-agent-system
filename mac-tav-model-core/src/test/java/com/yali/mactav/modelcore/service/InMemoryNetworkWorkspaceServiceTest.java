@@ -1,0 +1,121 @@
+package com.yali.mactav.modelcore.service;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
+import com.yali.mactav.common.enums.ErrorCode;
+import com.yali.mactav.common.exception.BusinessException;
+import com.yali.mactav.model.enums.ArtifactType;
+import com.yali.mactav.model.enums.StageStatus;
+import com.yali.mactav.model.enums.TaskStatus;
+import com.yali.mactav.model.enums.WorkflowStage;
+import com.yali.mactav.model.intent.NetworkIntent;
+import com.yali.mactav.model.task.NetworkTask;
+import com.yali.mactav.model.workspace.NetworkArtifact;
+import com.yali.mactav.model.workspace.NetworkWorkspace;
+import com.yali.mactav.model.workspace.TraceRefs;
+import com.yali.mactav.modelcore.ModelCoreTestFixture;
+import java.util.List;
+import org.junit.jupiter.api.Test;
+
+class InMemoryNetworkWorkspaceServiceTest {
+
+    @Test
+    void createWorkspaceShouldCreateInitialWorkspace() {
+        ModelCoreTestFixture.Services services = ModelCoreTestFixture.services();
+
+        NetworkWorkspace workspace = services.workspaceService().createWorkspace(task("task-001"));
+
+        assertEquals("task-001", workspace.getTask().getTaskId());
+        assertEquals(TaskStatus.CREATED, workspace.getWorkspaceStatus());
+        assertEquals(WorkflowStage.INTENT, workspace.getTask().getCurrentStage());
+        assertEquals(1, workspace.getEvents().size());
+        assertEquals("workspace.created", workspace.getEvents().get(0).getEventType());
+    }
+
+    @Test
+    void saveStageArtifactShouldSaveIntentArtifactAndUpdateCurrentRefs() {
+        ModelCoreTestFixture.Services services = ModelCoreTestFixture.services();
+        services.workspaceService().createWorkspace(task("task-002"));
+        NetworkIntent intent = intent("task-002", "Build a low latency network");
+
+        NetworkArtifact artifact = services.workspaceService().saveStageArtifact(
+                "task-002",
+                ArtifactType.NETWORK_INTENT,
+                WorkflowStage.INTENT,
+                intent,
+                "intent summary",
+                "IntentAgent",
+                TraceRefs.builder().build());
+
+        NetworkWorkspace workspace = services.workspaceService().getWorkspaceOrThrow("task-002");
+        assertEquals(artifact.getArtifactId(), workspace.getCurrentArtifactRefs().get(ArtifactType.NETWORK_INTENT));
+        assertEquals(1, workspace.getCurrentIntentVersion());
+        assertSame(intent, workspace.getCurrentIntent());
+        assertEquals(2, workspace.getEvents().size());
+        assertEquals("artifact.generated", workspace.getEvents().get(1).getEventType());
+    }
+
+    @Test
+    void saveStageArtifactShouldIncrementVersionsAndKeepHistory() {
+        ModelCoreTestFixture.Services services = ModelCoreTestFixture.services();
+        services.workspaceService().createWorkspace(task("task-003"));
+
+        NetworkArtifact first = services.workspaceService().saveStageArtifact(
+                "task-003",
+                ArtifactType.NETWORK_INTENT,
+                WorkflowStage.INTENT,
+                intent("task-003", "Initial intent"),
+                "v1",
+                "IntentAgent",
+                TraceRefs.builder().build());
+        NetworkArtifact second = services.workspaceService().saveStageArtifact(
+                "task-003",
+                ArtifactType.NETWORK_INTENT,
+                WorkflowStage.INTENT,
+                intent("task-003", "Refined intent"),
+                "v2",
+                "IntentAgent",
+                TraceRefs.builder().build());
+
+        NetworkWorkspace workspace = services.workspaceService().getWorkspaceOrThrow("task-003");
+        List<NetworkArtifact> artifacts = services.artifactService()
+                .listByTaskIdAndType("task-003", ArtifactType.NETWORK_INTENT);
+        assertEquals(1, first.getVersion());
+        assertEquals(2, second.getVersion());
+        assertEquals(2, workspace.getCurrentIntentVersion());
+        assertEquals(second.getArtifactId(), workspace.getCurrentArtifactRefs().get(ArtifactType.NETWORK_INTENT));
+        assertEquals(2, artifacts.size());
+        assertNotNull(services.artifactService().findByArtifactId(first.getArtifactId()).orElse(null));
+    }
+
+    @Test
+    void getWorkspaceOrThrowShouldThrowWhenMissing() {
+        ModelCoreTestFixture.Services services = ModelCoreTestFixture.services();
+
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> services.workspaceService().getWorkspaceOrThrow("missing-task"));
+
+        assertEquals(ErrorCode.WORKSPACE_NOT_FOUND.getErrorCode(), exception.getErrorCode());
+    }
+
+    private NetworkTask task(String taskId) {
+        return NetworkTask.builder()
+                .taskId(taskId)
+                .rawText("raw intent")
+                .build();
+    }
+
+    private NetworkIntent intent(String taskId, String rawText) {
+        return NetworkIntent.builder()
+                .taskId(taskId)
+                .intentVersion(1)
+                .rawText(rawText)
+                .stageStatus(StageStatus.SUCCESS)
+                .build();
+    }
+}

@@ -113,10 +113,10 @@ NetworkPlan + ConfigSet
 
 ExecutionAdapter SHOULD 支持：
 
-- DryRun 校验。
 - Mininet / Ryu 仿真。
 - Docker 或自定义实验环境。
 - 后续真实设备适配。
+- 结构校验模式，用于 Mininet / Ryu 暂不可用时验证转换链路，但不得作为最终执行验收替代。
 
 真实执行不得：
 
@@ -139,17 +139,17 @@ HealingAgent 只能输出 `RepairPlan`。它不得直接修改 `NetworkWorkspace
 
 ## 8. Mock 边界
 
-Mock 不是长期主流程。
+Mock 在本文档中主要指样例 JSON、固定测试数据、Parser / Validator 离线测试数据、失败分支样例和外部依赖异常分支测试夹具。
 
-Mock MAY 用于：
+样例数据 / 测试夹具 MAY 用于：
 
-- 单元测试。
-- 离线测试。
+- 前后端联调。
+- Parser / Validator 离线测试。
 - 失败分支验证。
-- 本地开发替身。
-- 外部依赖不可用时的降级。
+- 回归测试。
+- Tool / MCP / A2A 异常分支测试夹具。
 
-Mock  不得成为真实业务能力的替代说明。真实 Agent、RAG、ExecutionAdapter、Verification、Healing 的长期实现仍以专题文档为准。
+Mock 不得成为真实业务主链路替身。不得生成 Mock Agent、Mock Tool、Fake Agent、Fake ReactAgent 或本地 Agent Bean 替代真实业务主链路。真实 Agent、RAG、ExecutionAdapter、Verification、Healing 的长期实现仍以专题文档为准。
 
 ## 9. 与其他文档的分工
 

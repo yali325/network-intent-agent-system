@@ -17,7 +17,7 @@
     <packaging>pom</packaging>
 
     <name>network-intent-agent-system</name>
-    <description>Multi-Agent Collaborative Translation And Verification demo</description>
+    <description>Multi-Agent Collaborative Translation And Verification</description>
 
     <modules>
         <module>mac-tav-common</module>
@@ -29,6 +29,7 @@
         <module>mac-tav-configuration-agent</module>
         <module>mac-tav-execution</module>
         <module>mac-tav-verification-agent</module>
+        <module>mac-tav-healing-agent</module>
         <module>mac-tav-orchestrator</module>
         <module>mac-tav-web</module>
     </modules>
@@ -68,9 +69,6 @@
                 <artifactId>lombok</artifactId>
                 <version>${lombok.version}</version>
             </dependency>
-
-
-
             <dependency>
                 <groupId>com.yali</groupId>
                 <artifactId>mac-tav-common</artifactId>
@@ -118,9 +116,37 @@
             </dependency>
             <dependency>
                 <groupId>com.yali</groupId>
+                <artifactId>mac-tav-healing-agent</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.yali</groupId>
                 <artifactId>mac-tav-orchestrator</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.yali</groupId>
+                <artifactId>mac-tav-web</artifactId>
                 <version>${project.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <configuration>
+                        <release>${maven.compiler.release}</release>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-maven-plugin</artifactId>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
 </project>
