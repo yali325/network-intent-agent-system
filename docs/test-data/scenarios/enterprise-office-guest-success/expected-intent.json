@@ -1,0 +1,101 @@
+{
+  "taskId": "task-enterprise-office-guest",
+  "intentVersion": 1,
+  "rawText": "Build an office and guest network policy. Office users can access the server. Guest users cannot access the server. Office and guest users must be isolated from each other. Use OSPF as the preferred routing protocol.",
+  "semanticIntentGraph": {
+    "nodes": [
+      {
+        "id": "node-office",
+        "name": "office",
+        "type": "ZONE",
+        "description": "Office users",
+        "attributes": {
+          "businessName": "office"
+        }
+      },
+      {
+        "id": "node-guest",
+        "name": "guest",
+        "type": "ZONE",
+        "description": "Guest users",
+        "attributes": {
+          "businessName": "guest"
+        }
+      },
+      {
+        "id": "node-server",
+        "name": "server",
+        "type": "SERVICE",
+        "description": "Shared business server",
+        "attributes": {
+          "businessName": "server"
+        }
+      }
+    ],
+    "relations": [
+      {
+        "id": "rel-office-server",
+        "type": "ACCESS",
+        "source": "node-office",
+        "target": "node-server",
+        "action": "ALLOW",
+        "service": "business-application",
+        "priority": 1,
+        "explicit": true,
+        "description": "Office users can access the server.",
+        "constraints": []
+      },
+      {
+        "id": "rel-guest-server",
+        "type": "ACCESS",
+        "source": "node-guest",
+        "target": "node-server",
+        "action": "DENY",
+        "service": "business-application",
+        "priority": 1,
+        "explicit": true,
+        "description": "Guest users cannot access the server.",
+        "constraints": []
+      },
+      {
+        "id": "rel-office-guest",
+        "type": "ISOLATION",
+        "source": "node-office",
+        "target": "node-guest",
+        "action": "DENY",
+        "service": "all-business-services",
+        "priority": 1,
+        "explicit": true,
+        "description": "Office and guest users must be isolated from each other.",
+        "constraints": []
+      }
+    ]
+  },
+  "assumptions": [
+    {
+      "id": "asm-service-scope",
+      "field": "service",
+      "value": "business application access",
+      "reason": "The user did not specify a concrete application protocol.",
+      "confidence": 0.7
+    }
+  ],
+  "constraints": [
+    {
+      "id": "con-guest-isolation",
+      "type": "security",
+      "value": "guest must stay isolated from office resources",
+      "description": "Guest users are denied access to protected business resources."
+    }
+  ],
+  "preferences": [
+    {
+      "id": "pref-routing-protocol",
+      "type": "routing-protocol-preference",
+      "value": "OSPF",
+      "priority": 1
+    }
+  ],
+  "stageStatus": "SUCCESS",
+  "traceId": "trace-enterprise-office-guest"
+}

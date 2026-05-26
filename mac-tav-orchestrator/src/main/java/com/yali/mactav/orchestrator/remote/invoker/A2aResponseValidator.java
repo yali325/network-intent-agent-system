@@ -46,6 +46,12 @@ public class A2aResponseValidator {
         if (!Objects.equals(request.getStage(), response.getStage())) {
             throw invalid("A2A response stage does not match request");
         }
+        if (!Objects.equals(request.getTargetAgent(), response.getSourceAgent())) {
+            throw invalid("A2A response sourceAgent does not match request targetAgent");
+        }
+        if (!Objects.equals(request.getSourceAgent(), response.getTargetAgent())) {
+            throw invalid("A2A response targetAgent does not match request sourceAgent");
+        }
     }
 
     private void requireText(String value, String message) {

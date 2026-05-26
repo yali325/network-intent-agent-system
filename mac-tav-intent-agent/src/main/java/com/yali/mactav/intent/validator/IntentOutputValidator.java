@@ -25,28 +25,61 @@ import java.util.regex.Pattern;
  */
 public class IntentOutputValidator implements AgentOutputValidator<NetworkIntent> {
 
-    private static final Pattern IP_ADDRESS_PATTERN = Pattern.compile("\\b(?:\\d{1,3}\\.){3}\\d{1,3}\\b");
+    private static final Pattern IP_OR_CIDR_PATTERN = Pattern.compile("\\b(?:\\d{1,3}\\.){3}\\d{1,3}(?:/\\d{1,2})?\\b");
 
-    private static final List<String> BOUNDARY_KEYWORDS = List.of(
+    private static final Pattern NETWORK_COMMAND_PATTERN =
+            Pattern.compile("\\bnetwork\\s+(?:\\d{1,3}\\.){3}\\d{1,3}\\b");
+
+    private static final Pattern INTERFACE_COMMAND_PATTERN =
+            Pattern.compile("\\binterface\\s+(?:gigabitethernet|fastethernet|ethernet|loopback|vlanif|ge|xge)\\S*\\b");
+
+    private static final Pattern OSPF_AREA_PATTERN = Pattern.compile("\\barea\\s+\\d+\\b");
+
+    private static final List<String> IMPLEMENTATION_KEYWORDS = List.of(
             "vlan",
-            "interface",
             "cli",
             "topology",
-            "router",
-            "switch",
-            "firewall",
             "device",
             "acl",
             "access-list",
             "route-map",
-            "ospf",
-            "bgp",
-            "static route",
             "ip address",
+            "ip route",
+            "router ospf",
+            "router bgp",
+            "router-id",
+            "router id",
+            "interface ",
             "gigabitethernet",
             "fastethernet",
             "configure terminal",
-            "show running-config"
+            "show running-config",
+            "command block"
+    );
+
+    private static final Set<String> ROUTING_PROTOCOL_TERMS = Set.of("OSPF", "BGP", "STATIC");
+
+    private static final Set<String> DISALLOWED_NODE_TYPES = Set.of(
+            "DEVICE",
+            "ROUTER",
+            "SWITCH",
+            "FIREWALL",
+            "INTERFACE"
+    );
+
+    private static final Set<String> ALLOWED_RELATION_ACTIONS = Set.of(
+            "ALLOW",
+            "DENY",
+            "REQUIRE",
+            "ISOLATE"
+    );
+
+    private static final Set<String> ALLOWED_RELATION_TYPES = Set.of(
+            "ACCESS",
+            "ISOLATION",
+            "INTERNET_ACCESS",
+            "SERVICE_ACCESS",
+            "ROUTING_REQUIREMENT"
     );
 
     @Override
@@ -95,8 +128,8 @@ public class IntentOutputValidator implements AgentOutputValidator<NetworkIntent
             if (isBlank(node.getId())) {
                 messages.add("intent node id must not be blank");
             }
-            else {
-                nodeIds.add(node.getId());
+            else if (!nodeIds.add(node.getId())) {
+                messages.add("intent node id must be unique: " + node.getId());
             }
         }
         return nodeIds;
@@ -106,6 +139,7 @@ public class IntentOutputValidator implements AgentOutputValidator<NetworkIntent
         if (relations == null) {
             return;
         }
+        Set<String> relationIds = new HashSet<>();
         for (IntentRelation relation : relations) {
             if (relation == null) {
                 messages.add("intent relation must not be null");
@@ -115,6 +149,14 @@ public class IntentOutputValidator implements AgentOutputValidator<NetworkIntent
             requireNotBlank(messages, "intent relation source", relation.getSource());
             requireNotBlank(messages, "intent relation target", relation.getTarget());
             requireNotBlank(messages, "intent relation action", relation.getAction());
+            requireNotBlank(messages, "intent relation type", relation.getType());
+
+            if (!isBlank(relation.getId()) && !relationIds.add(relation.getId())) {
+                messages.add("intent relation id must be unique: " + relation.getId());
+            }
+
+            validateAllowedValue(messages, "intent relation type", relation.getType(), ALLOWED_RELATION_TYPES);
+            validateAllowedValue(messages, "intent relation action", relation.getAction(), ALLOWED_RELATION_ACTIONS);
 
             if (!isBlank(relation.getSource()) && !nodeIds.contains(relation.getSource())) {
                 messages.add("intent relation source does not reference an existing node: " + relation.getSource());
@@ -132,9 +174,10 @@ public class IntentOutputValidator implements AgentOutputValidator<NetworkIntent
                 if (node == null) {
                     continue;
                 }
-                rejectBoundaryText(messages, "node.name", node.getName());
-                rejectBoundaryText(messages, "node.type", node.getType());
-                rejectBoundaryText(messages, "node.description", node.getDescription());
+                rejectImplementationText(messages, "node.name", node.getName(), false);
+                rejectImplementationText(messages, "node.type", node.getType(), false);
+                rejectImplementationText(messages, "node.description", node.getDescription(), false);
+                rejectDisallowedNodeType(messages, node.getType());
                 rejectBoundaryAttributes(messages, node.getAttributes());
             }
         }
@@ -144,10 +187,12 @@ public class IntentOutputValidator implements AgentOutputValidator<NetworkIntent
                 if (relation == null) {
                     continue;
                 }
-                rejectBoundaryText(messages, "relation.type", relation.getType());
-                rejectBoundaryText(messages, "relation.action", relation.getAction());
-                rejectBoundaryText(messages, "relation.service", relation.getService());
-                rejectBoundaryText(messages, "relation.description", relation.getDescription());
+                rejectImplementationText(messages, "relation.type", relation.getType(), false);
+                rejectImplementationText(messages, "relation.action", relation.getAction(), false);
+                rejectImplementationText(messages, "relation.source", relation.getSource(), false);
+                rejectImplementationText(messages, "relation.target", relation.getTarget(), false);
+                rejectImplementationText(messages, "relation.service", relation.getService(), false);
+                rejectImplementationText(messages, "relation.description", relation.getDescription(), false);
                 rejectBoundaryConstraints(messages, relation.getConstraints());
             }
         }
@@ -162,8 +207,8 @@ public class IntentOutputValidator implements AgentOutputValidator<NetworkIntent
             return;
         }
         for (Map.Entry<String, Object> entry : attributes.entrySet()) {
-            rejectBoundaryText(messages, "node.attribute." + entry.getKey(), entry.getKey());
-            rejectBoundaryText(messages, "node.attribute." + entry.getKey(), String.valueOf(entry.getValue()));
+            rejectImplementationText(messages, "node.attribute." + entry.getKey(), entry.getKey(), false);
+            rejectImplementationText(messages, "node.attribute." + entry.getKey(), String.valueOf(entry.getValue()), false);
         }
     }
 
@@ -175,9 +220,9 @@ public class IntentOutputValidator implements AgentOutputValidator<NetworkIntent
             if (assumption == null) {
                 continue;
             }
-            rejectBoundaryText(messages, "assumption.field", assumption.getField());
-            rejectBoundaryText(messages, "assumption.value", assumption.getValue());
-            rejectBoundaryText(messages, "assumption.reason", assumption.getReason());
+            rejectImplementationText(messages, "assumption.field", assumption.getField(), false);
+            rejectImplementationText(messages, "assumption.value", assumption.getValue(), true);
+            rejectImplementationText(messages, "assumption.reason", assumption.getReason(), false);
         }
     }
 
@@ -189,9 +234,9 @@ public class IntentOutputValidator implements AgentOutputValidator<NetworkIntent
             if (constraint == null) {
                 continue;
             }
-            rejectBoundaryText(messages, "constraint.type", constraint.getType());
-            rejectBoundaryText(messages, "constraint.value", constraint.getValue());
-            rejectBoundaryText(messages, "constraint.description", constraint.getDescription());
+            rejectImplementationText(messages, "constraint.type", constraint.getType(), false);
+            rejectImplementationText(messages, "constraint.value", constraint.getValue(), true);
+            rejectImplementationText(messages, "constraint.description", constraint.getDescription(), false);
         }
     }
 
@@ -203,26 +248,77 @@ public class IntentOutputValidator implements AgentOutputValidator<NetworkIntent
             if (preference == null) {
                 continue;
             }
-            rejectBoundaryText(messages, "preference.type", preference.getType());
-            rejectBoundaryText(messages, "preference.value", preference.getValue());
+            rejectImplementationText(messages, "preference.type", preference.getType(), false);
+            rejectImplementationText(messages, "preference.value", preference.getValue(), true);
         }
     }
 
-    private void rejectBoundaryText(List<String> messages, String fieldName, String value) {
+    private void rejectImplementationText(List<String> messages,
+                                          String fieldName,
+                                          String value,
+                                          boolean allowRoutingProtocolTerm) {
         if (isBlank(value)) {
             return;
         }
         String normalized = value.toLowerCase(Locale.ROOT);
-        if (IP_ADDRESS_PATTERN.matcher(normalized).find()) {
-            messages.add(fieldName + " contains IP-level content outside IntentAgent boundary");
+        if (IP_OR_CIDR_PATTERN.matcher(normalized).find()) {
+            messages.add(fieldName + " contains IP or CIDR content outside IntentAgent boundary");
             return;
         }
-        for (String keyword : BOUNDARY_KEYWORDS) {
+        if (containsCliPattern(normalized)) {
+            messages.add(fieldName + " contains CLI or routing configuration content outside IntentAgent boundary");
+            return;
+        }
+        for (String keyword : IMPLEMENTATION_KEYWORDS) {
             if (normalized.contains(keyword)) {
                 messages.add(fieldName + " contains " + keyword + " content outside IntentAgent boundary");
                 return;
             }
         }
+        if (!allowRoutingProtocolTerm && containsRoutingProtocolTerm(value)) {
+            messages.add(fieldName + " contains routing protocol content outside its allowed intent field");
+        }
+    }
+
+    private boolean containsCliPattern(String normalized) {
+        return NETWORK_COMMAND_PATTERN.matcher(normalized).find()
+                || INTERFACE_COMMAND_PATTERN.matcher(normalized).find()
+                || OSPF_AREA_PATTERN.matcher(normalized).find();
+    }
+
+    private void rejectDisallowedNodeType(List<String> messages, String nodeType) {
+        String normalized = normalizeToken(nodeType);
+        if (DISALLOWED_NODE_TYPES.contains(normalized)) {
+            messages.add("node.type must remain a business object type, not implementation type: " + nodeType);
+        }
+    }
+
+    private void validateAllowedValue(List<String> messages, String fieldName, String value, Set<String> allowedValues) {
+        if (isBlank(value)) {
+            return;
+        }
+        String normalized = normalizeToken(value);
+        if (!allowedValues.contains(normalized)) {
+            messages.add(fieldName + " has unsupported value: " + value);
+        }
+    }
+
+    private boolean containsRoutingProtocolTerm(String value) {
+        String normalized = normalizeToken(value);
+        return ROUTING_PROTOCOL_TERMS.contains(normalized)
+                || normalized.contains("_OSPF")
+                || normalized.contains("OSPF_")
+                || normalized.contains("_BGP")
+                || normalized.contains("BGP_")
+                || normalized.contains("_STATIC")
+                || normalized.contains("STATIC_");
+    }
+
+    private String normalizeToken(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.trim().replace('-', '_').replace(' ', '_').toUpperCase(Locale.ROOT);
     }
 
     private void requireNotBlank(List<String> messages, String fieldName, String value) {

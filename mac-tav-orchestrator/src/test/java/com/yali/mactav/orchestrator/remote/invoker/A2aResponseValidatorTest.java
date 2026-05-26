@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.yali.mactav.common.enums.ErrorCode;
 import com.yali.mactav.common.exception.BusinessException;
+import com.yali.mactav.model.a2a.A2aRequest;
 import com.yali.mactav.model.a2a.A2aResponse;
 import com.yali.mactav.model.enums.WorkflowStage;
 import java.time.LocalDateTime;
@@ -27,6 +28,17 @@ class A2aResponseValidatorTest {
         assertInvalid(validResponse().toBuilder().payloadJson(" ").build());
     }
 
+    @Test
+    void validateForRequestShouldRejectAgentMismatch() {
+        BusinessException exception = assertThrows(
+                BusinessException.class,
+                () -> validator.validateForRequest(validRequest(), validResponse().toBuilder()
+                        .sourceAgent("OtherAgent")
+                        .build()));
+
+        assertEquals(ErrorCode.A2A_RESPONSE_INVALID.getErrorCode(), exception.getErrorCode());
+    }
+
     private void assertInvalid(A2aResponse response) {
         BusinessException exception = assertThrows(BusinessException.class, () -> validator.validate(response));
 
@@ -43,6 +55,18 @@ class A2aResponseValidatorTest {
                 .payloadJson("{\"intentVersion\":1}")
                 .traceId("trace-001")
                 .timestamp(LocalDateTime.of(2026, 5, 25, 1, 1))
+                .build();
+    }
+
+    private A2aRequest validRequest() {
+        return A2aRequest.builder()
+                .taskId("task-001")
+                .sourceAgent("Orchestrator")
+                .targetAgent("IntentAgent")
+                .stage(WorkflowStage.INTENT)
+                .payloadJson("{}")
+                .traceId("trace-001")
+                .timestamp(LocalDateTime.of(2026, 5, 25, 1, 0))
                 .build();
     }
 }

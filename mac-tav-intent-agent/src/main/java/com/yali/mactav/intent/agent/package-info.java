@@ -1,8 +1,7 @@
 /**
- * Future real IntentAgent wrapper package.
+ * Real IntentAgent wrapper package for the MAC-TAV intent module.
  *
- * <p>The ReactAgent/ChatModel binding is intentionally deferred until the exact
- * Spring AI Alibaba API is confirmed. This package must not contain fake or mock
- * agent implementations.</p>
+ * <p>Classes here may invoke Spring AI Alibaba through Agent Core, but must not
+ * write NetworkWorkspace, expose Web APIs, or depend on Orchestrator.</p>
  */
 package com.yali.mactav.intent.agent;

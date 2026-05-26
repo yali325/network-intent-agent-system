@@ -27,7 +27,7 @@ public final class IntentTestFixtures {
     public static final String TRACE_ID = "trace-enterprise-office-guest";
 
     public static final String RAW_TEXT = "Build an office and guest network policy where office can access "
-            + "server, guest cannot access server, and office and guest are isolated.";
+            + "server, guest cannot access server, office and guest are isolated, and OSPF is preferred.";
 
     private IntentTestFixtures() {
     }
@@ -87,9 +87,9 @@ public final class IntentTestFixtures {
                 ))
                 .preferences(List.of(
                         IntentPreferenceSchema.builder()
-                                .id("pref-simple-policy")
-                                .type("simplicity")
-                                .value("prefer simple and auditable policy")
+                                .id("pref-routing-protocol")
+                                .type("routing-protocol-preference")
+                                .value("OSPF")
                                 .priority(1)
                                 .build()
                 ))

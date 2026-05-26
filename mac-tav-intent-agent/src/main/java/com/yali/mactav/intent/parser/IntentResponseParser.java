@@ -79,10 +79,10 @@ public class IntentResponseParser implements AgentResponseParser<IntentResponseS
             }
             relations.add(IntentRelation.builder()
                     .id(schema.getId())
-                    .type(schema.getType())
+                    .type(normalizeRelationType(schema.getType()))
                     .source(schema.getSource())
                     .target(schema.getTarget())
-                    .action(schema.getAction())
+                    .action(normalizeRelationAction(schema.getAction(), schema.getType()))
                     .service(schema.getService())
                     .priority(schema.getPriority())
                     .explicit(schema.getExplicit())
@@ -148,5 +148,33 @@ public class IntentResponseParser implements AgentResponseParser<IntentResponseS
 
     private Map<String, Object> copyAttributes(Map<String, Object> attributes) {
         return attributes == null ? new HashMap<>() : new HashMap<>(attributes);
+    }
+
+    private String normalizeRelationType(String type) {
+        if (type == null || type.isBlank()) {
+            return null;
+        }
+        String normalized = type.trim().replace('-', '_').replace(' ', '_').toUpperCase();
+        if ("ISOLATE".equals(normalized) || "ISOLATED".equals(normalized)) {
+            return "ISOLATION";
+        }
+        return normalized;
+    }
+
+    private String normalizeRelationAction(String action, String type) {
+        if ((action == null || action.isBlank()) && "ISOLATION".equals(normalizeRelationType(type))) {
+            return "DENY";
+        }
+        if (action == null || action.isBlank()) {
+            return null;
+        }
+        String normalized = action.trim().replace('-', '_').replace(' ', '_').toUpperCase();
+        if ("PERMIT".equals(normalized)) {
+            return "ALLOW";
+        }
+        if ("BLOCK".equals(normalized) || "ISOLATE".equals(normalized) || "ISOLATED".equals(normalized)) {
+            return "DENY";
+        }
+        return normalized;
     }
 }

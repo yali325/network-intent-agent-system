@@ -1,0 +1,5 @@
+Build an office and guest network policy.
+Office users can access the server.
+Guest users cannot access the server.
+Office and guest users must be isolated from each other.
+Use OSPF as the preferred routing protocol.

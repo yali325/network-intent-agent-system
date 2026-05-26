@@ -44,6 +44,9 @@ public class RemoteAgentInvoker {
         try {
             response = a2aClient.call(request, agentCard);
         }
+        catch (BusinessException ex) {
+            throw ex;
+        }
         catch (Exception ex) {
             throw new BusinessException(
                     ErrorCode.A2A_CALL_FAILED,

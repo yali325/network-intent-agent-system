@@ -35,10 +35,11 @@ class IntentResponseParserTest {
         assertEquals(3, intent.getSemanticIntentGraph().getRelations().size());
         assertEquals("node-office", intent.getSemanticIntentGraph().getNodes().get(0).getId());
         assertEquals("rel-office-server", intent.getSemanticIntentGraph().getRelations().get(0).getId());
-        assertEquals("allow", intent.getSemanticIntentGraph().getRelations().get(0).getAction());
+        assertEquals("ALLOW", intent.getSemanticIntentGraph().getRelations().get(0).getAction());
         assertEquals(1, intent.getAssumptions().size());
         assertEquals(1, intent.getConstraints().size());
         assertEquals(1, intent.getPreferences().size());
+        assertEquals("OSPF", intent.getPreferences().get(0).getValue());
     }
 
     @Test

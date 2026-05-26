@@ -183,13 +183,14 @@ Controller / API
 
 ## 10. 安全规则
 
-- API Key 不允许硬编码。
+- API Key 不允许硬编码，采用aliApi-key环境变量。
 - DashScope / OpenAI Compatible / 其他模型 Key MUST 从环境变量或本地私有配置读取。
 - 不要提交真实密钥。
 - 不要在日志中打印完整 API Key、请求头、外部凭据。
 - 外部命令执行 MUST 白名单化。
 - Web 响应不返回完整异常堆栈。
 - 测试不调用真实外部模型 API。
+- 如果有需要的外部环境需求如 nacos 等，请告知我，不要因为某些环境就阻塞真实代码的开发。
 
 ## 11. 构建与测试要求
 

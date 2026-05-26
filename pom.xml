@@ -41,6 +41,7 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <spring-boot.run.skip>true</spring-boot.run.skip>
         <spring-ai-alibaba.version>1.1.2.2</spring-ai-alibaba.version>
+        <spring-ai-alibaba-agent-framework.version>1.1.2.0</spring-ai-alibaba-agent-framework.version>
         <lombok.version>1.18.38</lombok.version>
         <spring-ai.version>1.1.2</spring-ai.version>
     </properties>
@@ -62,6 +63,11 @@
                 <version>${spring-ai.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.alibaba.cloud.ai</groupId>
+                <artifactId>spring-ai-alibaba-agent-framework</artifactId>
+                <version>${spring-ai-alibaba-agent-framework.version}</version>
             </dependency>
             <!--lombok-->
             <dependency>

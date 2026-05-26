@@ -31,6 +31,15 @@ class IntentOutputValidatorTest {
     }
 
     @Test
+    void validateShouldAllowOspfAsIntentPreference() {
+        NetworkIntent intent = IntentTestFixtures.validIntent();
+
+        ValidationResult result = validator.validate(intent);
+
+        assertTrue(result.isValid(), () -> String.join("; ", result.getMessages()));
+    }
+
+    @Test
     void validateShouldFailWhenNodesAreEmpty() {
         NetworkIntent intent = IntentTestFixtures.validIntent();
         intent.getSemanticIntentGraph().setNodes(new ArrayList<>());
@@ -62,6 +71,74 @@ class IntentOutputValidatorTest {
 
         assertFalse(result.isValid());
         assertTrue(result.getMessages().stream().anyMatch(message -> message.contains("source")));
+    }
+
+    @Test
+    void validateShouldFailWhenNodeIdsAreDuplicated() {
+        NetworkIntent intent = IntentTestFixtures.validIntent();
+        intent.getSemanticIntentGraph().getNodes().get(1).setId("node-office");
+
+        ValidationResult result = validator.validate(intent);
+
+        assertFalse(result.isValid());
+        assertTrue(result.getMessages().stream().anyMatch(message -> message.contains("node id must be unique")));
+    }
+
+    @Test
+    void validateShouldFailWhenRelationIdsAreDuplicated() {
+        NetworkIntent intent = IntentTestFixtures.validIntent();
+        intent.getSemanticIntentGraph().getRelations().get(1).setId("rel-office-server");
+
+        ValidationResult result = validator.validate(intent);
+
+        assertFalse(result.isValid());
+        assertTrue(result.getMessages().stream().anyMatch(message -> message.contains("relation id must be unique")));
+    }
+
+    @Test
+    void validateShouldFailWhenNodeTypeIsImplementationObject() {
+        NetworkIntent intent = IntentTestFixtures.validIntent();
+        intent.getSemanticIntentGraph().getNodes().get(0).setType("ROUTER");
+
+        ValidationResult result = validator.validate(intent);
+
+        assertFalse(result.isValid());
+        assertTrue(result.getMessages().stream().anyMatch(message -> message.contains("business object type")));
+    }
+
+    @Test
+    void validateShouldFailWhenOutputContainsIpv4OrCidrContent() {
+        NetworkIntent intent = IntentTestFixtures.validIntent();
+        intent.getPreferences().get(0).setValue("OSPF with 10.10.0.0/16");
+
+        ValidationResult result = validator.validate(intent);
+
+        assertFalse(result.isValid());
+        assertTrue(result.getMessages().stream().anyMatch(message -> message.contains("IP or CIDR")));
+    }
+
+    @Test
+    void validateShouldFailWhenOspfAppearsAsConfigurationCommand() {
+        NetworkIntent intent = IntentTestFixtures.validIntent();
+        intent.getPreferences().get(0).setValue("router ospf 1 network 10.0.0.0 0.0.0.255 area 0");
+
+        ValidationResult result = validator.validate(intent);
+
+        assertFalse(result.isValid());
+        assertTrue(result.getMessages().stream()
+                .anyMatch(message -> message.contains("outside IntentAgent boundary")));
+    }
+
+    @Test
+    void validateShouldFailWhenRoutingProtocolAppearsInBusinessObjectField() {
+        NetworkIntent intent = IntentTestFixtures.validIntent();
+        intent.getSemanticIntentGraph().getNodes().get(0).setName("ospf-area");
+
+        ValidationResult result = validator.validate(intent);
+
+        assertFalse(result.isValid());
+        assertTrue(result.getMessages().stream()
+                .anyMatch(message -> message.contains("routing protocol content")));
     }
 
     @Test
