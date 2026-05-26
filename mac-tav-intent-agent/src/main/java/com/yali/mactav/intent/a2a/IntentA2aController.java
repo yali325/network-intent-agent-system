@@ -5,25 +5,29 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yali.mactav.common.enums.ErrorCode;
 import com.yali.mactav.common.exception.BusinessException;
 import com.yali.mactav.intent.agent.IntentAgent;
-import com.yali.mactav.intent.card.IntentAgentCardFactory;
 import com.yali.mactav.model.a2a.A2aRequest;
 import com.yali.mactav.model.a2a.A2aResponse;
 import com.yali.mactav.model.intent.IntentAgentInvokePayload;
 import com.yali.mactav.model.intent.NetworkIntent;
 import java.time.LocalDateTime;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Internal HTTP JSON A2A endpoint for invoking IntentAgent.
+ * Legacy internal HTTP JSON A2A endpoint for invoking IntentAgent.
  *
- * <p>This controller is not a frontend business API. It accepts the shared A2A
- * envelope, invokes only the local IntentAgent, and returns the A2A envelope
- * without writing NetworkWorkspace or advancing workflow state.</p>
+ * <p>The preferred Phase 3 direction is Spring AI Alibaba's official A2A
+ * server/registry auto-configuration. This controller remains opt-in only for
+ * compatibility tests and must not be used as a frontend business API, write
+ * NetworkWorkspace, or advance workflow state.</p>
  */
 @RestController
+@ConditionalOnProperty(prefix = "mactav.a2a.legacy.http-json", name = "enabled", havingValue = "true")
 public class IntentA2aController {
+
+    private static final String AGENT_NAME = "IntentAgent";
 
     public static final String INVOKE_PATH = "/internal/a2a/intent/invoke";
 
@@ -75,7 +79,7 @@ public class IntentA2aController {
         return A2aResponse.builder()
                 .success(true)
                 .taskId(request.getTaskId())
-                .sourceAgent(IntentAgentCardFactory.AGENT_NAME)
+                .sourceAgent(AGENT_NAME)
                 .targetAgent(request.getSourceAgent())
                 .stage(request.getStage())
                 .payloadJson(payloadJson)
@@ -89,7 +93,7 @@ public class IntentA2aController {
         return A2aResponse.builder()
                 .success(false)
                 .taskId(request == null ? null : request.getTaskId())
-                .sourceAgent(IntentAgentCardFactory.AGENT_NAME)
+                .sourceAgent(AGENT_NAME)
                 .targetAgent(request == null ? null : request.getSourceAgent())
                 .stage(request == null ? null : request.getStage())
                 .errorCode(errorCode)

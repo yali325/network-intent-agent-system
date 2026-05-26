@@ -31,9 +31,9 @@ import org.springframework.ai.chat.model.ChatModel;
  */
 public class IntentAgent {
 
-    private static final String AGENT_NAME = "IntentAgent";
+    public static final String AGENT_NAME = "IntentAgent";
 
-    private static final String AGENT_DESCRIPTION = "MAC-TAV business intent understanding agent";
+    public static final String AGENT_DESCRIPTION = "MAC-TAV business intent understanding agent";
 
     private final ReactAgent reactAgent;
 
@@ -54,6 +54,12 @@ public class IntentAgent {
                 objectMapper,
                 intentService
         );
+    }
+
+    public IntentAgent(ReactAgent reactAgent,
+                       ObjectMapper objectMapper,
+                       IntentService intentService) {
+        this(reactAgent, null, objectMapper, intentService);
     }
 
     public IntentAgent(SchemaAgentInvoker schemaAgentInvoker,
@@ -99,7 +105,7 @@ public class IntentAgent {
         }
     }
 
-    private static ReactAgent buildReactAgent(ChatModel chatModel,
+    public static ReactAgent buildReactAgent(ChatModel chatModel,
                                              IntentExtractTool intentExtractTool,
                                              IntentAgentProperties properties) {
         IntentAgentProperties safeProperties = properties == null ? new IntentAgentProperties() : properties;
@@ -116,6 +122,7 @@ public class IntentAgent {
                                 .runLimit(safeProperties.effectiveRunLimit())
                                 .build()
                 )
+                .outputKey("output")
                 .outputType(IntentResponseSchema.class)
                 .build();
     }

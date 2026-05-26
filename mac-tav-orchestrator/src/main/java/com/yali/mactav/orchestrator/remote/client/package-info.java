@@ -1,7 +1,8 @@
 /**
  * A2A client boundary.
  *
- * TODO Phase 2+: bind this interface to the selected Spring AI Alibaba A2A SDK
- * after the concrete request/response API is confirmed.
+ * The preferred runtime adapter is Spring AI Alibaba's official A2A client and
+ * Nacos discovery stack. Legacy HTTP JSON transport remains only as a fallback
+ * compatibility adapter.
  */
 package com.yali.mactav.orchestrator.remote.client;

@@ -215,7 +215,7 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
                 .traceId(traceId)
                 .agentName(ORCHESTRATOR_AGENT)
                 .targetAgentName(INTENT_AGENT)
-                .remoteCallType("A2A_HTTP_JSON")
+                .remoteCallType("SAA_A2A")
                 .stage(WorkflowStage.INTENT)
                 .stageStatus(status)
                 .outputArtifactIds(artifact == null ? List.of() : List.of(artifact.getArtifactId()))

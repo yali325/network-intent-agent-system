@@ -1,0 +1,12 @@
+spring:
+  ai:
+    alibaba:
+      a2a:
+        nacos:
+          server-addr: 127.0.0.1:8848
+          username: nacos
+          password: nacos
+          discovery:
+            enabled: true
+          registry:
+            enabled: false

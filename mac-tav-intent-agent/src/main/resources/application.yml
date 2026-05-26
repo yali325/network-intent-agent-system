@@ -5,16 +5,10 @@ mactav:
       run-limit: 6
       prompt-path: prompts/intent-agent-prompt.md
       manual-model-validation-enabled: false
-  agent-card:
-    intent:
-      publish-enabled: true
-      nacos-server-addr: ${MACTAV_NACOS_SERVER_ADDR:http://127.0.0.1:8848}
-      nacos-group: MAC_TAV_AGENT_CARDS
-      nacos-data-id: mactav.agent-card.IntentAgent.json
-      service-host: ${INTENT_AGENT_HOST:127.0.0.1}
-      service-port: ${INTENT_AGENT_PORT:18081}
-      a2a-path: /internal/a2a/intent/invoke
-      version: ${project.version:0.0.1-SNAPSHOT}
+  a2a:
+    legacy:
+      http-json:
+        enabled: false
 
 spring:
   ai:
@@ -25,6 +19,25 @@ spring:
       chat:
         options:
           model: ${DASHSCOPE_CHAT_MODEL:qwen-plus}
+    alibaba:
+      a2a:
+        nacos:
+          server-addr: 127.0.0.1:8848
+          username: nacos
+          password: nacos
+          discovery:
+            enabled: false
+          registry:
+            enabled: true
+        server:
+          version: 1.0.0
+          card:
+            name: IntentAgent
+            description: MAC-TAV business intent extraction agent
+            provider:
+              name: MAC-TAV
+              organization: yali
+              url: http://127.0.0.1:${INTENT_AGENT_PORT:18081}
 
 server:
   port: ${INTENT_AGENT_PORT:18081}

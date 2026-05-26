@@ -16,12 +16,13 @@ import java.net.http.HttpTimeoutException;
 import java.time.Duration;
 
 /**
- * HTTP JSON implementation of the A2aClient transport boundary.
+ * Legacy HTTP JSON implementation of the A2aClient transport boundary.
  *
  * <p>The client posts the shared A2A envelope to an AgentCard service endpoint.
- * It never constructs prompts, calls model APIs, parses business DTOs, or writes
- * NetworkWorkspace state.</p>
+ * It remains for compatibility tests and fallback only; new remote calls should
+ * prefer Spring AI Alibaba's official A2A client path.</p>
  */
+@Deprecated(since = "0.0.1", forRemoval = false)
 public class HttpA2aClient implements A2aClient {
 
     private final ObjectMapper objectMapper;

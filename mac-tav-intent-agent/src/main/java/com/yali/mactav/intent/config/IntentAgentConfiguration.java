@@ -3,6 +3,7 @@ package com.yali.mactav.intent.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.alibaba.cloud.ai.graph.agent.ReactAgent;
 import com.yali.mactav.agent.core.parser.AgentResponseParser;
 import com.yali.mactav.agent.core.validator.AgentOutputValidator;
 import com.yali.mactav.intent.agent.IntentAgent;
@@ -69,13 +70,21 @@ public class IntentAgentConfiguration {
 
     @Bean
     @ConditionalOnBean(ChatModel.class)
+    @ConditionalOnMissingBean(ReactAgent.class)
+    @ConditionalOnProperty(prefix = "mactav.agents.intent", name = "enabled", havingValue = "true", matchIfMissing = true)
+    public ReactAgent intentReactAgent(ChatModel chatModel,
+                                       IntentExtractTool intentExtractTool,
+                                       IntentAgentProperties properties) {
+        return IntentAgent.buildReactAgent(chatModel, intentExtractTool, properties);
+    }
+
+    @Bean
+    @ConditionalOnBean(ChatModel.class)
     @ConditionalOnMissingBean
     @ConditionalOnProperty(prefix = "mactav.agents.intent", name = "enabled", havingValue = "true", matchIfMissing = true)
-    public IntentAgent intentAgent(ChatModel chatModel,
-                                   IntentExtractTool intentExtractTool,
+    public IntentAgent intentAgent(ReactAgent intentReactAgent,
                                    ObjectMapper objectMapper,
-                                   IntentService intentService,
-                                   IntentAgentProperties properties) {
-        return new IntentAgent(chatModel, intentExtractTool, objectMapper, intentService, properties);
+                                   IntentService intentService) {
+        return new IntentAgent(intentReactAgent, objectMapper, intentService);
     }
 }

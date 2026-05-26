@@ -18,12 +18,13 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Nacos Config backed AgentCard registry client for Orchestrator discovery.
+ * Legacy Nacos Config backed AgentCard registry client for Orchestrator discovery.
  *
  * <p>The implementation reads AgentCard JSON through the Nacos OpenAPI. It is a
- * registry adapter only and must not perform workflow orchestration or call
- * concrete agent modules directly.</p>
+ * compatibility adapter only; new service-to-service traffic should prefer
+ * Spring AI Alibaba's official A2A Nacos registry/discovery starter.</p>
  */
+@Deprecated(since = "0.0.1", forRemoval = false)
 public class NacosAgentCardRegistryClient implements AgentCardRegistryClient {
 
     public static final String DEFAULT_GROUP = "MAC_TAV_AGENT_CARDS";
