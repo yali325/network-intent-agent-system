@@ -1,7 +1,6 @@
 package com.yali.mactav.intent.manual;
 
 import com.yali.mactav.intent.agent.IntentAgent;
-import com.yali.mactav.intent.config.IntentAgentApiKeyResolver;
 import com.yali.mactav.intent.config.IntentAgentConfiguration;
 import com.yali.mactav.intent.request.IntentAgentRequest;
 import com.yali.mactav.model.intent.NetworkIntent;
@@ -29,9 +28,10 @@ public final class IntentAgentManualValidation {
     }
 
     public static void main(String[] args) {
-        String apiKey = IntentAgentApiKeyResolver.resolve()
-                .orElseThrow(() -> new IllegalStateException(
-                        "Set aliApi-key before manual validation."));
+        String apiKey = System.getenv("aliApi-key");
+        if (apiKey == null || apiKey.isBlank()) {
+            throw new IllegalStateException("Set aliApi-key before manual validation.");
+        }
         String rawText = args == null || args.length == 0 ? DEFAULT_INPUT : String.join(" ", args);
 
         try (ConfigurableApplicationContext context = new SpringApplicationBuilder(ManualIntentAgentApplication.class)

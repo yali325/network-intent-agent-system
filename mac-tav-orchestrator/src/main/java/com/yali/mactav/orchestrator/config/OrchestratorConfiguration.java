@@ -23,6 +23,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -55,7 +56,7 @@ public class OrchestratorConfiguration {
     }
 
     @Bean
-    @ConditionalOnMissingBean(value = AgentCardRegistryClient.class, name = "nacosAgentCardProvider")
+    @ConditionalOnProperty(prefix = "mactav.legacy", name = "nacos-card-registry-enabled", havingValue = "true")
     public AgentCardRegistryClient agentCardRegistryClient(
             @Value("${mactav.nacos.server-addr:http://127.0.0.1:8848}") String serverAddr,
             @Value("${mactav.agent-card.group:MAC_TAV_AGENT_CARDS}") String group,
@@ -78,7 +79,7 @@ public class OrchestratorConfiguration {
     }
 
     @Bean
-    @ConditionalOnMissingBean(value = A2aClient.class, name = "nacosAgentCardProvider")
+    @ConditionalOnProperty(prefix = "mactav.legacy", name = "http-a2a-client-enabled", havingValue = "true")
     public A2aClient a2aClient(ObjectMapper objectMapper) {
         return new HttpA2aClient(objectMapper);
     }

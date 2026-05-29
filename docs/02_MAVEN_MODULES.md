@@ -1,4 +1,4 @@
-# Maven 模块与依赖规划
+﻿# Maven 模块与依赖规划
 
 ## 1. 文档目标
 
@@ -106,7 +106,7 @@ mac-tav-orchestrator
   -> RemoteAgentTool / A2A Client
   -> Nacos Agent Discovery
   -> Agent Card
-  -> 专业 Agent A2A Service
+  -> Spring AI Alibaba A2A Server 自动暴露的协议入口
 ```
 
 明确规则：
@@ -392,5 +392,55 @@ A2A / Nacos / Agent Card 不改变 Maven 依赖底线：
 - Agent 服务不直接写 Workspace。  
 - 状态、版本、阶段产物和追溯关系仍由 Orchestrator / Model Core 统一管理。  
 - 共享契约通过 `mac-tav-model` 和稳定请求 / 响应 DTO 维护。
+
+### 9.1 A2A / Nacos Starter 依赖
+
+专业 Agent 模块如需暴露 A2A 服务并注册到 Nacos，MUST 引入官方 Spring AI Alibaba A2A Nacos starter（参考官方文档：<https://java2ai.com/docs/frameworks/agent-framework/advanced/a2a>）：
+
+```xml
+<!-- Agent 模块 pom.xml -->
+<dependency>
+    <groupId>com.alibaba.cloud.ai</groupId>
+    <artifactId>spring-ai-alibaba-starter-a2a-nacos</artifactId>
+    <version>${spring-ai-alibaba.version}</version>
+</dependency>
+```
+
+版本号 MUST 在父工程 `<dependencyManagement>` 中统一管理：
+
+```xml
+<!-- 根 pom.xml <dependencyManagement> 中 -->
+<dependency>
+    <groupId>com.alibaba.cloud.ai</groupId>
+    <artifactId>spring-ai-alibaba-starter-a2a-nacos</artifactId>
+    <version>${spring-ai-alibaba.version}</version>
+</dependency>
+```
+
+使用规则：
+
+1. `mac-tav-orchestrator` MUST 引入此依赖（用于 A2A Discovery + A2aRemoteAgent 客户端调用）。
+2. 需要暴露 A2A 服务的专业 Agent 模块（如 `mac-tav-intent-agent`、`mac-tav-planning-agent` 等）MUST 引入此依赖（用于 A2A Server + Nacos Registry）。
+3. 不需要独立暴露 A2A 服务的模块（`mac-tav-common`、`mac-tav-model`、`mac-tav-agent-core`、`mac-tav-model-core`）MUST NOT 引入此依赖。
+4. `mac-tav-web` MUST NOT 引入此依赖（Web 通过 Orchestrator 间接调用远程 Agent）。
+5. Agent 模块引入此 starter 后，A2A Server / Agent Card 发布 / Nacos 注册 MUST 通过 `application.yml` 配置 + `ReactAgent` Bean 自动装配完成，不得手写 A2A HTTP Controller 或 Nacos 注册代码（详见 `docs/09_AGENT_BUILD_GUIDE.md` §11.1）。
+
+Agent 模块的 `application.yml` 最小 A2A 配置示例：
+
+```yaml
+spring:
+  ai:
+    alibaba:
+      a2a:
+        server:
+          enabled: true
+          card:
+            name: intentReactAgent   # MUST 与 ReactAgent Bean name 一致
+        nacos:
+          registry:
+            enabled: true
+          discovery:
+            enabled: true
+```
 
 ---

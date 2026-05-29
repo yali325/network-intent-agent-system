@@ -1,3 +1,6 @@
+server:
+  port: 18081
+
 mactav:
   agents:
     intent:
@@ -5,20 +8,14 @@ mactav:
       run-limit: 6
       prompt-path: prompts/intent-agent-prompt.md
       manual-model-validation-enabled: false
-  a2a:
-    legacy:
-      http-json:
-        enabled: false
 
 spring:
   ai:
-    model:
-      chat: dashscope
     dashscope:
       api-key: ${aliApi-key:}
       chat:
         options:
-          model: ${DASHSCOPE_CHAT_MODEL:qwen-plus}
+          model: qwen-plus
     alibaba:
       a2a:
         nacos:
@@ -37,7 +34,4 @@ spring:
             provider:
               name: MAC-TAV
               organization: yali
-              url: http://127.0.0.1:${INTENT_AGENT_PORT:18081}
-
-server:
-  port: ${INTENT_AGENT_PORT:18081}
+              url: http://127.0.0.1:18081

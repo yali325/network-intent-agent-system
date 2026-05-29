@@ -10,37 +10,6 @@ import org.junit.jupiter.api.Test;
 class AgentUtilsTest {
 
     @Test
-    void callSchemaShouldDelegateToSchemaInvoker() {
-        SchemaAgentInvoker invoker = new SchemaAgentInvoker() {
-            @Override
-            public <T> T call(String input, Class<T> outputType) {
-                return outputType.cast(input);
-            }
-        };
-
-        String actual = AgentUtils.callSchema(invoker, "schema", String.class);
-
-        assertEquals("schema", actual);
-    }
-
-    @Test
-    void callSchemaShouldConvertInvokerFailure() {
-        SchemaAgentInvoker invoker = new SchemaAgentInvoker() {
-            @Override
-            public <T> T call(String input, Class<T> outputType) {
-                throw new IllegalStateException("boom");
-            }
-        };
-
-        BusinessException exception = assertThrows(
-                BusinessException.class,
-                () -> AgentUtils.callSchema(invoker, "schema", String.class)
-        );
-
-        assertEquals(ErrorCode.AGENT_EXECUTION_FAILED.getErrorCode(), exception.getErrorCode());
-    }
-
-    @Test
     void wrapExceptionShouldPreserveBusinessException() {
         BusinessException original = new BusinessException(ErrorCode.TOOL_CALL_FAILED);
 

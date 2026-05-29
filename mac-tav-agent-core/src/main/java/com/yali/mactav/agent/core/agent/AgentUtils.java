@@ -66,25 +66,6 @@ public final class AgentUtils {
         return parseAssistantMessage(response, outputType);
     }
 
-    public static <T> T callSchema(SchemaAgentInvoker invoker, String input, Class<T> outputType) {
-        if (invoker == null) {
-            throw new BusinessException(ErrorCode.AGENT_EXECUTION_FAILED, "Schema agent invoker must not be null");
-        }
-        try {
-            return invoker.call(input, outputType);
-        }
-        catch (BusinessException ex) {
-            throw ex;
-        }
-        catch (Exception ex) {
-            throw wrapException(
-                    ErrorCode.AGENT_EXECUTION_FAILED.getErrorCode(),
-                    "Agent schema call failed",
-                    ex
-            );
-        }
-    }
-
     private static <T> T parseAssistantMessage(AssistantMessage response, Class<T> outputType) {
         if (response == null || response.getText() == null || response.getText().isBlank()) {
             throw new BusinessException(ErrorCode.AGENT_SCHEMA_INVALID, "Agent response schema text must not be blank");

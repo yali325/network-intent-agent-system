@@ -1,4 +1,4 @@
-# 长期实现路线
+﻿# 长期实现路线
 
 ## 1. 文档目标
 
@@ -117,11 +117,12 @@ Controller / API -> Orchestrator -> RemoteAgentTool / A2A Client -> Nacos -> Age
 
 ### 做什么
 
-1. 定义 Agent Card 最小字段和发布方式。
-2. 定义专业 Agent 独立启动、Nacos 注册和 A2A Service 暴露的最小约定。
-3. 实现 Orchestrator 侧 RemoteAgentTool / A2A Client 的最小调用封装。
+1. 引入官方 `spring-ai-alibaba-starter-a2a-nacos` 依赖（参考：<https://java2ai.com/docs/frameworks/agent-framework/advanced/a2a>）。
+2. 配置 `application.yml` 启用 A2A Server / Nacos Registry / Nacos Discovery，依赖 `ReactAgent` Bean 自动装配。
+3. 实现 Orchestrator 侧 `A2aRemoteAgent` / `AgentCardProvider` 的最小调用封装（优先使用官方 starter 提供的发现与调用能力）。
 4. 定义 A2A 调用失败的统一错误转换。
 5. 保持远程返回结果仍进入 Parser / DTO / Validator。
+6. 不手写 Agent Card 发布代码、Nacos 注册代码或 A2A HTTP Controller。
 
 ### 不做什么
 
@@ -132,14 +133,17 @@ Controller / API -> Orchestrator -> RemoteAgentTool / A2A Client -> Nacos -> Age
 
 ### 验收标准
 
-1. Orchestrator 可以通过 Nacos 发现专业 Agent Card。
-2. Orchestrator 可以通过 A2A Client 调用专业 Agent 的标准入口。
-3. A2A 调用失败可转换为统一错误。
-4. 状态仍由 Orchestrator / Model Core 写入 `NetworkWorkspace`。
+1. Agent 服务启动后 Agent Card 自动发布在 `/.well-known/agent.json`。
+2. Orchestrator 可以通过 Nacos 发现专业 Agent Card。
+3. Orchestrator 可以通过 `A2aRemoteAgent` / `AgentCardProvider` 调用专业 Agent 的标准入口（使用官方 starter 能力，非手写 HTTP Client）。
+4. A2A 调用失败可转换为统一错误。
+5. 状态仍由 Orchestrator / Model Core 写入 `NetworkWorkspace`。
+6. 不存在手写的 A2A HTTP Controller、Nacos 注册代码或 HTTP fallback。
 
 ### 依赖前置
 
 依赖 Phase 1 的 Agent Core 基础设施。
+需要可用的 Nacos 服务（本地或远程）。
 
 ## 6. Phase 3：真实 IntentAgent
 
@@ -154,9 +158,10 @@ Controller / API -> Orchestrator -> RemoteAgentTool / A2A Client -> Nacos -> Age
 3. 实现 `IntentExtractTool`。
 4. 实现 `IntentResponseParser`。
 5. 实现 `IntentOutputValidator`。
-6. 实现 `IntentAgent`，注入 `ChatModel`，使用 `AgentUtils.reactAgentBuilder`。
-7. `IntentAgent` 输出 `NetworkIntent`。
-8. 以 Nacos / Agent Card / A2A 方式对接 Orchestrator。
+6. 实现 `IntentAgentConfiguration`（`@Configuration`），通过 `@Bean` 方法调用 `AgentUtils.reactAgentBuilder(...)` 注册 `intentReactAgent` Bean，并构造 `IntentAgent` Bean。
+7. 实现 `IntentAgent`（非 `@Component`），注入 `ReactAgent` Bean，执行 `ResponseSchema -> Parser -> DTO -> Validator`，输出 `NetworkIntent`。
+8. 通过官方 SAA A2A starter + `application.yml` + 命名 `ReactAgent` Bean 完成 Nacos 注册与 Agent Card 发布。
+9. 以 A2A 方式对接 Orchestrator（Orchestrator 侧通过 `A2aRemoteAgent` / `AgentCardProvider` 调用）。
 
 ### 不做什么
 
@@ -167,11 +172,14 @@ Controller / API -> Orchestrator -> RemoteAgentTool / A2A Client -> Nacos -> Age
 
 ### 验收标准
 
-1. 输入自然语言可以生成 `NetworkIntent`。
-2. `NetworkIntent` 通过 Validator。
-3. `IntentAgent` 不越界生成规划或配置。
-4. `ResponseSchema -> Parser -> DTO -> Validator -> Workspace` 链路完整。
-5. 远程调用链路可记录 traceId 和 Agent 执行摘要。
+1. `IntentAgentConfiguration` 正确注册 `intentReactAgent` Bean 和 `IntentAgent` Bean。
+2. `IntentAgent` 不包含 `@Component`，不在构造器内调用 `ReactAgent.builder()` 或 `AgentUtils.reactAgentBuilder(...)`。
+3. 输入自然语言可以生成 `NetworkIntent`。
+4. `NetworkIntent` 通过 Validator。
+5. `IntentAgent` 不越界生成规划或配置。
+6. `ResponseSchema -> Parser -> DTO -> Validator -> Workspace` 链路完整。
+7. Agent Card 可通过 `/.well-known/agent.json` 访问。
+8. 远程调用链路可记录 traceId 和 Agent 执行摘要。
 
 ### 依赖前置
 
@@ -190,8 +198,10 @@ Controller / API -> Orchestrator -> RemoteAgentTool / A2A Client -> Nacos -> Age
 3. 实现地址规划、VLAN 规划、拓扑模板等 `methodTools`。
 4. 实现 `PlanningResponseParser`。
 5. 实现 `PlanningOutputValidator`。
-6. 输出 `NetworkPlan`。
-7. 以 A2A 方式向 Orchestrator 返回规划产物。
+6. 实现 `PlanningAgentConfiguration`（`@Configuration`），通过 `@Bean` 方法调用 `AgentUtils.reactAgentBuilder(...)` 注册 `planningReactAgent` Bean，并构造 `PlanningAgent` Bean。
+7. 实现 `PlanningAgent`（非 `@Component`），注入 `ReactAgent` Bean，执行 `ResponseSchema -> Parser -> DTO -> Validator`，输出 `NetworkPlan`（参考模板：`docs/09_AGENT_BUILD_GUIDE.md` §7）。
+8. 通过官方 SAA A2A starter + `application.yml` + 命名 `ReactAgent` Bean 完成 Nacos 注册与 Agent Card 发布。
+9. 以 A2A 方式向 Orchestrator 返回规划产物。
 
 ### 不做什么
 
@@ -202,10 +212,13 @@ Controller / API -> Orchestrator -> RemoteAgentTool / A2A Client -> Nacos -> Age
 
 ### 验收标准
 
-1. `NetworkPlan` 包含拓扑、区域、地址、VLAN、路由、安全策略、`targetEnvironment`。
-2. `NetworkPlan` 不包含 CLI。
-3. 规划元素具备可追溯 `id`。
-4. 规划结果可被 `ConfigurationAgent` 和 `ExecutionAdapter` 使用。
+1. `PlanningAgentConfiguration` 正确注册 `planningReactAgent` Bean 和 `PlanningAgent` Bean。
+2. `PlanningAgent` 不包含 `@Component`，不在构造器内调用 `ReactAgent.builder()` 或 `AgentUtils.reactAgentBuilder(...)`。
+3. `NetworkPlan` 包含拓扑、区域、地址、VLAN、路由、安全策略、`targetEnvironment`。
+4. `NetworkPlan` 不包含 CLI。
+5. 规划元素具备可追溯 `id`。
+6. 规划结果可被 `ConfigurationAgent` 和 `ExecutionAdapter` 使用。
+7. Agent Card 可通过 `/.well-known/agent.json` 访问，`server.card.name` 与 `planningReactAgent` Bean name 一致。
 
 ### 依赖前置
 
@@ -451,3 +464,4 @@ Phase 9 / Phase 10
 6. `docs/07_TEST_DATA_AND_SCENARIOS.md`：测试场景和样例数据。
 7. `docs/08_RUN_AND_TEST.md`：运行、测试、手动验证。
 8. `docs/09_AGENT_BUILD_GUIDE.md`：真实 Spring AI Alibaba Agent 构建规范。
+

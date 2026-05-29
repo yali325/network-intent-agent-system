@@ -20,7 +20,7 @@ API 路径、资源边界、Controller 边界和统一响应格式 MUST 以 `doc
 4. 手动验证。
 5. 常见问题。
 
-本文档同步长期 A2A 多 Agent 服务化架构。`mac-tav-web` 只承载 Web / API / SSE 入口，Orchestrator 通过 RemoteAgentTool / A2A Client 调用注册到 Nacos 的专业 Agent。本文档不描述本地 Agent 聚合启动路线。
+本文档同步长期 A2A 多 Agent 服务化架构。`mac-tav-web` 只承载 Web / API / SSE 入口，Orchestrator 通过 A2aRemoteAgent / AgentCardProvider（官方 SAA A2A starter） 调用注册到 Nacos 的专业 Agent。本文档不描述本地 Agent 聚合启动路线。
 
 ## 2. 基础环境要求
 
@@ -42,7 +42,7 @@ API 路径、资源边界、Controller 边界和统一响应格式 MUST 以 `doc
 - Docker Desktop / WSL2 可用。
 - 本地环境变量按需配置。
 - 不在日志或命令历史中暴露真实 API Key。
-- 长期 A2A 服务化验证前，Nacos、Agent Card、A2A Service 和 RemoteAgentTool / A2A Client 配置可被发现和连通。
+- 长期 A2A 服务化验证前，Nacos、Agent Card、A2A Service 和 A2aRemoteAgent / AgentCardProvider（官方 SAA A2A starter） 配置可被发现和连通。
 
 ## 3. 后端构建命令
 
@@ -92,7 +92,7 @@ mvn -pl mac-tav-web -am test
 4. 确认 Agent Card 可被查询。
 5. 启动 `mac-tav-web`。
 6. `mac-tav-web` 通过依赖的 Orchestrator 承载主编排流程。
-7. Orchestrator 通过 RemoteAgentTool / A2A Client 查询 Nacos、读取 Agent Card，并通过 A2A 调用专业 Agent。
+7. Orchestrator 通过 A2aRemoteAgent / AgentCardProvider（官方 SAA A2A starter） 查询 Nacos、读取 Agent Card，并通过 A2A 调用专业 Agent。
 8. `mac-tav-orchestrator` 不单独作为服务启动。
 
 启动 Web / API / SSE 入口可使用：
@@ -148,8 +148,7 @@ npm run build
 
 | 环境变量 | 说明 |
 | --- | --- |
-| `AI_DASHSCOPE_API_KEY` | DashScope API Key |
-| `ALI_API_KEY` | 兼容可选 Key |
+| `aliApi-key` | DashScope API Key |
 | `DASHSCOPE_CHAT_MODEL` | DashScope ChatModel 名称 |
 | `SERVER_PORT` | 后端端口 |
 | `VITE_API_BASE_URL` | 前端访问后端的基础地址 |
@@ -159,12 +158,13 @@ npm run build
 
 要求：
 
-- API Key 不写入 `application.yml`。
+- API Key 不写入 `application.yml`，使用环境变量 `aliApi-key`。
 - API Key 不提交仓库。
 - 日志不打印完整 API Key。
 - 不在命令历史中暴露真实 Key。
-- DashScope / OpenAI Compatible Key 只用于真实 Agent 手动验证或真实集成验证。
+- `aliApi-key` 只用于真实 Agent 手动验证或真实集成验证。
 - 自动化测试不依赖真实 API Key。
+- A2A / Nacos 配置通过 `spring.ai.alibaba.a2a` 前缀的 `application.yml` + SAA starter 自动装配，不手写注册代码（参考：<https://java2ai.com/docs/frameworks/agent-framework/advanced/a2a>）。
 
 ## 7. Agent 测试规则
 
@@ -217,16 +217,16 @@ curl 只访问 `mac-tav-web` 暴露的 `/api/v1` 业务 API，不直接调用专
 常用调试入口：
 
 - 任务基础资源：`POST /api/v1/tasks`、`GET /api/v1/tasks/{taskId}`、`GET /api/v1/tasks`
-- 流程控制：`POST /api/v1/workflows/{taskId}/run`
+- 流程控制：`POST /api/v1/workflows/{taskId}/start`
 - Workspace 当前视图：`GET /api/v1/workspaces/{taskId}`
-- Artifact 查询：`GET /api/v1/artifacts?taskId={taskId}`
+- Artifact 查询：`GET /api/v1/artifacts/{taskId}`
 - 执行报告：`GET /api/v1/executions/{taskId}`
 - 验证报告：`GET /api/v1/validations/{taskId}`
 - 修复计划：`GET /api/v1/repairs/{taskId}`
 - 前端视图：`GET /api/v1/views/{taskId}/topology`
 - 事件流：`GET /api/v1/events/{taskId}`
 
-Orchestrator 通过 RemoteAgentTool / A2A Client 调用远程专业 Agent。
+Orchestrator 通过 A2aRemoteAgent / AgentCardProvider（官方 SAA A2A starter） 调用远程专业 Agent。
 
 创建任务示例：
 
@@ -239,9 +239,9 @@ curl -X POST http://localhost:8080/api/v1/tasks ^
 启动流程示例：
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/workflows/{taskId}/run ^
+curl -X POST http://localhost:8080/api/v1/workflows/{taskId}/start ^
   -H "Content-Type: application/json" ^
-  -d "{\"startStage\":\"INTENT\"}"
+
 ```
 
 查询 Workspace 示例：
@@ -253,7 +253,7 @@ curl http://localhost:8080/api/v1/workspaces/{taskId}
 查询 Artifact 示例：
 
 ```bash
-curl "http://localhost:8080/api/v1/artifacts?taskId={taskId}&artifactType=CONFIG_SET"
+curl "http://localhost:8080/api/v1/artifacts/{taskId}?artifactType=CONFIG_SET"
 ```
 
 查询执行、验证和修复结果示例：
@@ -291,7 +291,7 @@ curl http://localhost:8080/api/v1/events/{taskId}/history
 
 手动验证真实 DashScope 前 MUST 设置：
 
-- `AI_DASHSCOPE_API_KEY`
+- `aliApi-key`
 
 真实模型验证属于手动集成验证，不是自动化单元测试。真实模型验证必须经过 `ResponseSchema -> Parser -> DTO -> Validator`。
 
@@ -370,7 +370,7 @@ ExecutionAdapter 接入后再启用 Mininet / Ryu 验证。
 
 处理方式：
 
-- 检查 `AI_DASHSCOPE_API_KEY`。
+- 检查 `aliApi-key`。
 - 确认未把 Key 写入仓库。
 
 ### 12.5 DashScope 调用超时
@@ -420,20 +420,20 @@ ExecutionAdapter 接入后再启用 Mininet / Ryu 验证。
 - 检查专业 Agent 是否已注册到 Nacos。
 - 检查 Agent Card 是否包含能力、输入输出契约、服务地址和版本。
 - 检查 Agent Card 中的 A2A Endpoint 是否可访问。
-- 检查 `mac-tav-web` / Orchestrator 侧 Nacos 地址和 RemoteAgentTool / A2A Client 配置。
+- 检查 `mac-tav-web` / Orchestrator 侧 Nacos 地址和 A2aRemoteAgent / AgentCardProvider（官方 SAA A2A starter） 配置。
 - 不允许回退成本地 Agent Bean 调用作为长期验证方式。
 
 ### 12.10 A2A 调用失败
 
 现象：
 
-- Orchestrator 通过 RemoteAgentTool / A2A Client 调用专业 Agent 失败。
+- Orchestrator 通过 A2aRemoteAgent / AgentCardProvider（官方 SAA A2A starter） 调用专业 Agent 失败。
 - 统一错误码应收敛为 `A2A_CALL_FAILED` 或更具体的远程 Agent 错误。
 
 处理方式：
 
 - 检查专业 Agent A2A Service 是否启动。
-- 检查 RemoteAgentTool / A2A Client 是否读取到正确 Agent Card。
+- 检查 A2aRemoteAgent / AgentCardProvider（官方 SAA A2A starter） 是否读取到正确 Agent Card。
 - 检查协议地址、端口、超时和鉴权配置。
 - 检查失败是否被 Orchestrator 记录到任务状态、执行日志或 Workspace 变更记录中。
 - 不在 Controller 中直接绕过 Orchestrator 调用专业 Agent。
@@ -463,9 +463,3 @@ ExecutionAdapter 接入后再启用 Mininet / Ryu 验证。
 - 不存在 Controller 直接调用具体 Agent 的路线。
 - 不存在 Mock Agent / Mock Tool 替代业务主链路的验收路线。
 
-## 14. 本文档与其他文档的分工
-
-- 本文档：运行、测试、手动验证、常见问题。
-- `docs/05_API_DESIGN.md`：API 契约。
-- `docs/07_TEST_DATA_AND_SCENARIOS.md`：测试场景与样例数据。
-- `docs/09_AGENT_BUILD_GUIDE.md`：Agent 构建规范。

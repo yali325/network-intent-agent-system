@@ -2,32 +2,15 @@
 
 ## 1. 文档目标
 
-本文档定义 MAC-TAV 长期核心 DTO 和跨模块数据契约。
+本文档定义 MAC-TAV 长期核心 DTO 和跨模块数据契约。共享 DTO 和领域模型枚举放在 `mac-tav-model`，公共异常、统一响应、错误码放在 `mac-tav-common`。
 
-约定：
-
-1. 所有共享 DTO 和领域模型枚举应放在 `mac-tav-model`。
-2. 公共异常、统一响应、通用错误码、通用工具和常量应放在 `mac-tav-common`。
-3. 本文档只描述字段和数据关系，不描述 Agent 代码实现细节。
-4. 每个阶段产物必须可序列化、可追踪、可校验、可进入 `NetworkWorkspace`。
-5. 模型字段应服务于长期闭环：意图解析、网络规划、配置生成、执行适配、验证评估、异常诊断与修复。
-
-本文档不负责 Maven 模块拆分、API 路径、前端页面、数据库表结构或 Spring AI Alibaba Agent 初始化方式。
+每个阶段产物必须可序列化、可追踪、可校验、可进入 `NetworkWorkspace`。本文档不负责 Maven 模块拆分、API 路径、前端页面、数据库表结构或 Agent 初始化方式。
 
 ## 2. 通用数据建模约定
 
 ### 2.1 ID 约定
 
-所有核心对象必须有稳定 `id`。
-
-ID 约束：
-
-1. `id` 不应依赖前端展示名称。
-2. `id` 应便于 `traceRefs`、`ValidationItem`、`RepairAction` 引用。
-3. 同一任务内同类对象的 `id` 应唯一。
-4. 可被其他阶段引用的元素不得只依赖数组下标。
-
-至少包括：
+所有核心对象必须有稳定 `id`。ID 应便于 `traceRefs`、`ValidationItem`、`RepairAction` 引用，不依赖前端展示名称或数组下标。
 
 | ID | 说明 |
 | --- | --- |
@@ -46,153 +29,58 @@ ID 约束：
 
 阶段产物保留独立版本字段：
 
-| 阶段产物               | 版本字段                |
-| ------------------ | ------------------- |
-| `NetworkIntent`    | `intentVersion`     |
-| `NetworkPlan`      | `planVersion`       |
-| `ConfigSet`        | `configVersion`     |
-| `ExecutionReport`  | `executionVersion`  |
+| 阶段产物 | 版本字段 |
+| --- | --- |
+| `NetworkIntent` | `intentVersion` |
+| `NetworkPlan` | `planVersion` |
+| `ConfigSet` | `configVersion` |
+| `ExecutionReport` | `executionVersion` |
 | `ValidationReport` | `validationVersion` |
-| `RepairPlan`       | `repairVersion`     |
+| `RepairPlan` | `repairVersion` |
 
-版本约束：
-
-1. 当前版本用于当前主流程。
-2. 历史版本用于重试、自愈、回滚和过程回放。
-3. 新版本不应覆盖旧版本，应通过 `NetworkArtifact` 或等价机制保留引用。
-4. `NetworkWorkspace` 必须记录每类产物的当前版本。
+当前版本用于主流程，历史版本通过 `NetworkArtifact` 保留用于重试、自愈和回放。`NetworkWorkspace` 记录每类产物的当前版本。
 
 ### 2.3 时间字段约定
 
-长期模型建议统一使用以下时间字段：
-
-| 字段           | 说明        |
-| ------------ | --------- |
-| `createTime`  | 对象创建时间    |
-| `updateTime`  | 对象最后更新时间  |
-| `startTime`  | 阶段或执行开始时间 |
+| 字段 | 说明 |
+| --- | --- |
+| `createTime` | 对象创建时间 |
+| `updateTime` | 对象最后更新时间 |
+| `startTime` | 阶段或执行开始时间 |
 | `finishTime` | 阶段或执行结束时间 |
 
-Java DTO 内部时间字段统一使用 `LocalDateTime`。
-对外 API 序列化格式由 Web 层统一配置，核心 DTO 不在字段类型中混用字符串时间。
+Java DTO 内部统一使用 `LocalDateTime`。对外 API 序列化格式由 Web 层统一配置。
 
 ### 2.4 状态枚举约定
 
-状态必须拆分，不要混用任务状态、流程阶段、阶段执行状态、产物状态、验证结论和修复状态。
+状态按维度拆分，不混用任务状态、流程阶段、执行状态、产物状态、验证结论和修复状态。枚举放在 `mac-tav-model`。
 
-枚举归属约定：
-
-1. 公共异常、统一响应、通用错误码、通用工具和常量放在 `mac-tav-common`。
-2. 领域模型枚举放在 `mac-tav-model`。
-3. 领域模型枚举包括 `TaskStatus`、`WorkflowStage`、`StageStatus`、`ArtifactStatus`、`ArtifactType`、`ValidationStatus`、`RepairStatus` 等。
-
-#### `TaskStatus`
-
-表示整个任务生命周期：
-
-```text
-CREATED
-RUNNING
-WAITING_USER
-COMPLETED
-ERROR
-CANCELLED
-ARCHIVED
-```
-
-#### `WorkflowStage`
-
-表示当前流程阶段：
-
-```text
-INTENT
-PLANNING
-CONFIGURATION
-EXECUTION
-VERIFICATION
-HEALING
-FINISHED
-```
-
-#### `StageStatus`
-
-表示某个阶段执行状态：
-
-```text
-PENDING
-RUNNING
-SUCCESS
-FAILED
-SKIPPED
-```
-
-#### `ArtifactStatus`
-
-表示阶段产物状态：
-
-```text
-DRAFT
-GENERATED
-VALIDATED
-APPLIED
-SUPERSEDED
-ROLLED_BACK
-```
-
-#### `ValidationStatus`
-
-表示验证结论：
-
-```text
-PASSED
-FAILED
-PARTIAL
-UNKNOWN
-```
-
-#### `RepairStatus`
-
-表示修复动作状态：
-
-```text
-PROPOSED
-APPROVED
-APPLIED
-REJECTED
-FAILED
-```
+| 枚举 | 维度 | 可选值 |
+| --- | --- | --- |
+| `TaskStatus` | 任务生命周期 | `CREATED`, `RUNNING`, `WAITING_USER`, `COMPLETED`, `ERROR`, `CANCELLED`, `ARCHIVED` |
+| `WorkflowStage` | 当前流程阶段 | `INTENT`, `PLANNING`, `CONFIGURATION`, `EXECUTION`, `VERIFICATION`, `HEALING`, `FINISHED` |
+| `StageStatus` | 阶段执行状态 | `PENDING`, `RUNNING`, `SUCCESS`, `FAILED`, `SKIPPED` |
+| `ArtifactStatus` | 阶段产物状态 | `DRAFT`, `GENERATED`, `VALIDATED`, `APPLIED`, `SUPERSEDED`, `ROLLED_BACK` |
+| `ValidationStatus` | 验证结论 | `PASSED`, `FAILED`, `PARTIAL`, `UNKNOWN` |
+| `RepairStatus` | 修复动作状态 | `PROPOSED`, `APPROVED`, `APPLIED`, `REJECTED`, `FAILED` |
 
 ### 2.5 追溯关系约定
 
-`TraceRefs` 用于连接用户意图、规划、配置、执行、验证和修复之间的关系。
+`TraceRefs` 用于连接意图、规划、配置、执行、验证和修复之间的关系。
 
-`TraceRefs` 连接：
-
-1. 用户意图关系。
-2. 网络规划元素。
-3. 配置块。
-4. 执行测试。
-5. 验证项。
-6. 修复动作。
-
-长期字段：
-
-| 字段                  | 类型             | 说明      |
-| ------------------- | -------------- | ------- |
-| `intentNodeIds`     | `List<String>` | 关联的意图节点 |
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `intentNodeIds` | `List<String>` | 关联的意图节点 |
 | `intentRelationIds` | `List<String>` | 关联的意图关系 |
-| `planElementIds`    | `List<String>` | 关联的规划元素 |
-| `configBlockIds`    | `List<String>` | 关联的配置块  |
-| `testIds`           | `List<String>` | 关联的执行测试 |
-| `validationItemIds` | `List<String>` | 关联的验证项  |
-| `repairActionIds`   | `List<String>` | 关联的修复动作 |
+| `planElementIds` | `List<String>` | 关联的规划元素 |
+| `configBlockIds` | `List<String>` | 关联的配置块 |
+| `testIds` | `List<String>` | 关联的执行测试 |
+| `validationItemIds` | `List<String>` | 关联的验证项 |
+| `repairActionIds` | `List<String>` | 关联的修复动作 |
 
-要求：
+`ConfigSet.commandBlocks` 须能追溯到 `NetworkPlan` / `NetworkIntent`；`ValidationItem` 须能追溯到 intent / plan / config / test；`RepairAction` 须能追溯到 `validationItem` 和相关 plan / config 元素。
 
-1. `ConfigSet.commandBlocks` 必须能追溯到 `NetworkPlan` / `NetworkIntent`。
-2. `ValidationItem` 必须能追溯到 intent / plan / config / test。
-3. `RepairAction` 必须能追溯到 `validationItem` 和相关 plan / config 元素。
-4. 不要求 `TraceRefs` 的所有列表都必填，但关键阶段产物必须至少具备一条可解释来源。
+---
 
 ## 3. Task 与 Workspace
 
@@ -200,20 +88,20 @@ FAILED
 
 `NetworkTask` 表示一次用户提交的网络意图任务。
 
-| 字段             | 类型              | 说明      |
-| -------------- | --------------- | ------- |
-| `taskId`       | `String`        | 任务 ID   |
-| `rawText`      | `String`        | 用户原始输入  |
-| `taskStatus`   | `TaskStatus`    | 任务总状态   |
-| `currentStage` | `WorkflowStage` | 当前流程阶段  |
-| `createTime`   | `LocalDateTime` | 创建时间    |
-| `updateTime`   | `LocalDateTime` | 更新时间    |
-| `createdBy`    | `String`        | 创建人，可选  |
-| `description`  | `String`        | 任务描述，可选 |
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `taskId` | `String` | 任务 ID |
+| `rawText` | `String` | 用户原始输入 |
+| `taskStatus` | `TaskStatus` | 任务总状态 |
+| `currentStage` | `WorkflowStage` | 当前流程阶段 |
+| `createTime` | `LocalDateTime` | 创建时间 |
+| `updateTime` | `LocalDateTime` | 更新时间 |
+| `createdBy` | `String` | 创建人，可选 |
+| `description` | `String` | 任务描述，可选 |
 
 ### 3.2 `NetworkWorkspace`
 
-`NetworkWorkspace` 是任务状态中心，应支持“当前产物 + 版本历史 / Artifact 引用”。
+`NetworkWorkspace` 是任务状态中心，支持当前产物 + 版本历史 / Artifact 引用。
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
@@ -232,19 +120,12 @@ FAILED
 | `currentValidationReport` | `ValidationReport` | 当前验证产物 |
 | `currentRepairPlan` | `RepairPlan` | 当前修复计划 |
 | `artifacts` | `List<NetworkArtifact>` | 全部阶段产物记录或引用 |
-| `agentExecutionRecords` | `List<AgentExecutionRecord>` | Agent / 模块执行记录 |
+| `agentExecutionRecords` | `List<AgentExecutionRecord>` | Agent 执行记录 |
 | `events` | `List<WorkspaceEvent>` | 事件历史和前端 timeline 数据来源 |
 | `changeHistory` | `List<WorkspaceChangeRecord>` | 重试、修复、人工确认等变化记录 |
 | `workspaceStatus` | `TaskStatus` | Workspace 当前状态 |
 
-说明：
-
-1. `currentXxx` 用于当前视图快速展示，不承担完整历史持久化职责。
-2. 长期持久化可使用统一的 `currentArtifactRefs`，也可等价拆分为 `currentIntentArtifactId`、`currentPlanArtifactId`、`currentConfigArtifactId`、`currentExecutionArtifactId`、`currentValidationArtifactId`、`currentRepairArtifactId`。
-3. 完整历史 payload 由 `NetworkArtifact` 管理，`NetworkWorkspace` 只保留当前视图和引用关系。
-4. `agentExecutionRecords` 用于记录每个 Agent 的执行过程。
-5. `events` 用于支撑 SSE、Event history 和前端 timeline。
-6. `changeHistory` 用于记录自愈、重试、人工确认等变化。
+`currentXxx` 用于当前视图快速展示，完整历史 payload 由 `NetworkArtifact` 管理。`events` 支撑 SSE 和前端 timeline，`changeHistory` 记录自愈、重试、人工确认等变化。
 
 ### 3.3 `NetworkArtifact`
 
@@ -265,38 +146,19 @@ FAILED
 | `createdBy` | `String` | 创建来源，例如 Agent、用户或系统 |
 | `traceRefs` | `TraceRefs` | 追溯关系 |
 
-说明：
-
-1. `NetworkArtifact` 不使用宽泛的 `payload` 字段作为长期契约。
-2. 内存实现可临时保存 `payloadObject` 以便本地调试，但长期契约以 `payloadJson` 和 artifact 引用为准。
-3. `payloadSummary` 用于列表、timeline 和审计摘要，不替代完整 payload。
-
-`ArtifactType` 至少包括：
-
-```text
-NETWORK_INTENT
-NETWORK_PLAN
-CONFIG_SET
-EXECUTION_REPORT
-VALIDATION_REPORT
-REPAIR_PLAN
-```
+`ArtifactType` 至少包括：`NETWORK_INTENT`、`NETWORK_PLAN`、`CONFIG_SET`、`EXECUTION_REPORT`、`VALIDATION_REPORT`、`REPAIR_PLAN`。`NetworkArtifact` 不使用宽泛的 `payload` 字段作为长期契约，`payloadSummary` 用于列表和审计摘要。
 
 ### 3.4 `AgentExecutionRecord`
 
-`AgentExecutionRecord` 用于记录 Agent 或关键模块的执行过程。`AgentStepLog` 可以作为前端展示版本，但长期状态记录应以结构化执行记录为准。
+`AgentExecutionRecord` 用于记录 Agent 或关键模块的执行过程。
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
 | `recordId` | `String` | 执行记录 ID |
 | `taskId` | `String` | 任务 ID |
-| `traceId` | `String` | 调用链追踪 ID |
 | `agentName` | `String` | Agent 或模块名称 |
-| `targetAgentName` | `String` | 远程目标 Agent 名称，可选 |
-| `remoteCallType` | `String` | 调用类型，例如 `LOCAL`、`A2A`、`REMOTE_TOOL` |
-| `agentCardVersion` | `String` | 远程 Agent Card 版本，可选 |
 | `stage` | `WorkflowStage` | 所属阶段 |
-| `stageStatus` | `StageStatus` | 阶段执行状态 |
+| `status` | `StageStatus` | 执行状态 |
 | `inputArtifactIds` | `List<String>` | 输入产物 ID |
 | `outputArtifactIds` | `List<String>` | 输出产物 ID |
 | `toolCallSummaries` | `List<String>` | Tool 调用摘要 |
@@ -311,12 +173,6 @@ REPAIR_PLAN
 | `errorCode` | `String` | 错误码，可选 |
 | `errorMessage` | `String` | 错误信息，可选 |
 | `message` | `String` | 展示文本或摘要 |
-
-安全约束：
-
-1. 不保存完整敏感模型请求。
-2. 不保存 API Key、请求头和外部凭据。
-3. raw model output 如需保存，应脱敏并可配置。
 
 ### 3.5 `WorkspaceChangeRecord`
 
@@ -336,7 +192,7 @@ REPAIR_PLAN
 
 ### 3.6 `WorkspaceEvent`
 
-`WorkspaceEvent` 用于支撑 SSE、Event history 和前端 timeline，是过程事件的轻量记录。
+`WorkspaceEvent` 用于支撑 SSE、Event history 和前端 timeline。
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
@@ -353,481 +209,372 @@ REPAIR_PLAN
 | `traceId` | `String` | 调用链追踪 ID，可选 |
 | `payloadSummary` | `String` | 事件载荷摘要 |
 
+---
+
 ## 4. `NetworkIntent`
 
 `NetworkIntent` 是 `IntentAgent` 输出的业务意图模型。
 
-必须强调：
-
-1. `NetworkIntent` 不包含具体设备、接口、VLAN、IP、CLI。
-2. `NetworkIntent` 只表达业务对象、业务关系、用户偏好、约束和假设。
-
-字段：
-
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
+| `intentId` | `String` | 意图 ID |
 | `taskId` | `String` | 任务 ID |
 | `intentVersion` | `Integer` | 意图版本 |
-| `rawText` | `String` | 用户原始输入 |
+| `rawText` | `String` | 原始用户输入 |
 | `semanticIntentGraph` | `SemanticIntentGraph` | 语义意图图 |
-| `assumptions` | `List<Assumption>` | 系统假设 |
-| `constraints` | `List<IntentConstraint>` | 用户约束或推导约束 |
-| `preferences` | `List<IntentPreference>` | 用户偏好，例如协议、风格、目标环境倾向 |
-| `stageStatus` | `StageStatus` | 阶段状态 |
-| `traceId` | `String` | 调用链追踪 ID |
+| `assumptions` | `List<Assumption>` | 无法确认的假设 |
+| `constraints` | `List<IntentConstraint>` | 用户明确约束 |
+| `preferences` | `List<IntentPreference>` | 用户偏好 |
+| `status` | `StageStatus` | 意图解析阶段状态 |
 | `createTime` | `LocalDateTime` | 创建时间 |
+| `updateTime` | `LocalDateTime` | 更新时间 |
+| `createdBy` | `String` | 创建来源，例如 Agent 名称 |
 
 ### 4.1 `SemanticIntentGraph`
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| `nodes` | `List<IntentNode>` | 业务对象 |
-| `relations` | `List<IntentRelation>` | 业务关系 |
+| `nodes` | `List<IntentNode>` | 意图节点 |
+| `relations` | `List<IntentRelation>` | 意图关系 |
 
 ### 4.2 `IntentNode`
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| `id` | `String` | 节点 ID |
-| `name` | `String` | 节点名称 |
-| `type` | `String` | 节点类型 |
-| `description` | `String` | 描述 |
-| `attributes` | `Map<String, Object>` | 扩展属性，可选 |
-
-`type` 可包含：
-
-```text
-ZONE
-USER_GROUP
-SERVER_GROUP
-EXTERNAL_NETWORK
-SERVICE
-APPLICATION
-```
+| `nodeId` | `String` | 节点 ID |
+| `label` | `String` | 节点标签 |
+| `type` | `String` | 节点类型，例如 `BUSINESS_ZONE`, `SERVICE`, `USER_GROUP` |
+| `attributes` | `Map<String, Object>` | 扩展属性 |
 
 ### 4.3 `IntentRelation`
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| `id` | `String` | 关系 ID |
-| `type` | `String` | 关系类型 |
+| `relationId` | `String` | 关系 ID |
 | `source` | `String` | 源节点 ID |
 | `target` | `String` | 目标节点 ID |
-| `action` | `String` | `ALLOW` / `DENY` / `REQUIRE` 等 |
-| `service` | `String` | 服务或协议范围 |
-| `priority` | `Integer` | 优先级，可选 |
-| `explicit` | `Boolean` | 是否由用户明确提出 |
-| `description` | `String` | 描述 |
-| `constraints` | `List<IntentConstraint>` | 关系级约束，可选 |
-
-`type` 可包含：
-
-```text
-ACCESS
-ISOLATION
-INTERNET_ACCESS
-SERVICE_ACCESS
-ROUTING_REQUIREMENT
-```
+| `relationType` | `String` | 关系类型，例如 `ALLOW`, `DENY`, `ISOLATE`, `INTERNET_ACCESS` |
+| `protocol` | `String` | 协议偏好，例如 `TCP`, `UDP`, `ANY` |
+| `port` | `String` | 端口偏好，例如 `80`, `443`, `ANY` |
+| `description` | `String` | 自然语言描述 |
+| `confidence` | `Double` | 置信度 0–1 |
+| `attributes` | `Map<String, Object>` | 扩展属性 |
 
 ### 4.4 `Assumption`
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| `id` | `String` | 假设 ID |
-| `field` | `String` | 假设涉及字段 |
-| `value` | `String` | 假设值 |
+| `assumptionId` | `String` | 假设 ID |
+| `description` | `String` | 假设内容 |
 | `reason` | `String` | 假设原因 |
-| `confidence` | `Double` | 置信度，可选 |
+| `needsClarification` | `Boolean` | 是否需要用户澄清 |
 
 ### 4.5 `IntentConstraint`
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| `id` | `String` | 约束 ID |
-| `type` | `String` | 约束类型，例如 `PROTOCOL`、`SECURITY`、`PERFORMANCE` |
-| `value` | `String` | 约束值 |
-| `description` | `String` | 约束说明 |
+| `constraintId` | `String` | 约束 ID |
+| `description` | `String` | 约束描述 |
+| `relatedIntentRelationIds` | `List<String>` | 关联的意图关系 ID |
 
 ### 4.6 `IntentPreference`
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| `id` | `String` | 偏好 ID |
-| `type` | `String` | 偏好类型 |
+| `preferenceId` | `String` | 偏好 ID |
+| `key` | `String` | 偏好键 |
 | `value` | `String` | 偏好值 |
-| `priority` | `Integer` | 偏好优先级，可选 |
+
+---
 
 ## 5. `NetworkPlan`
 
-`NetworkPlan` 是 `PlanningAgent` 输出的网络设计方案。
-
-`NetworkPlan` 可以包含拓扑、区域、地址、VLAN、路由、安全策略、NAT、`targetEnvironment`。
-
-`NetworkPlan` 不包含具体 CLI 命令。
-
-字段：
+`NetworkPlan` 是 `PlanningAgent` 输出的网络设计方案，包含拓扑、区域、地址、VLAN、路由、安全策略、NAT、`targetEnvironment`。
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
+| `planId` | `String` | 规划 ID |
 | `taskId` | `String` | 任务 ID |
-| `intentVersion` | `Integer` | 来源意图版本 |
+| `intentId` | `String` | 关联的意图 ID |
 | `planVersion` | `Integer` | 规划版本 |
-| `planSummary` | `String` | 规划摘要 |
-| `selectedArchitecture` | `SelectedArchitecture` | 选定架构 |
-| `targetEnvironment` | `TargetEnvironment` | 目标环境 |
+| `selectedArchitecture` | `SelectedArchitecture` | 选定的网络架构 |
+| `targetEnvironment` | `TargetEnvironment` | 目标执行环境 |
 | `topology` | `Topology` | 网络拓扑 |
 | `zones` | `List<NetworkZone>` | 网络区域 |
 | `addressPlan` | `List<AddressPlanItem>` | 地址规划 |
 | `vlanPlan` | `List<VlanPlanItem>` | VLAN 规划 |
-| `routingPlan` | `RoutingPlan` | 路由规划 |
+| `routingPlans` | `List<RoutingPlan>` | 路由计划 |
+| `defaultRoute` | `DefaultRoute` | 默认路由 |
 | `securityPolicyPlan` | `List<SecurityPolicyPlanItem>` | 安全策略规划 |
 | `natPlan` | `NatPlan` | NAT 规划 |
-| `planConstraints` | `List<PlanConstraint>` | 规划约束 |
-| `traceRefs` | `TraceRefs` | 追溯关系 |
-| `stageStatus` | `StageStatus` | 阶段状态 |
+| `constraints` | `List<PlanConstraint>` | 规划约束 |
+| `status` | `StageStatus` | 规划阶段状态 |
 | `createTime` | `LocalDateTime` | 创建时间 |
-
-要求：
-
-1. 所有可被 `ConfigSet` / `ValidationReport` / `RepairPlan` 引用的规划元素都必须有 `id`。
-2. 地址规划可提供 `exampleHostAddress` 或 `hostAddressHints`，用于示例或候选主机地址。
-3. `NetworkPlan` 不输出配置命令。
+| `updateTime` | `LocalDateTime` | 更新时间 |
+| `createdBy` | `String` | 创建来源 |
 
 ### 5.1 `SelectedArchitecture`
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| `id` | `String` | 架构元素 ID，可选 |
-| `type` | `String` | 架构类型，例如 `ROUTER_ON_A_STICK`、`L3_SWITCH_CORE`、`SDN_OPENFLOW` |
-| `reason` | `String` | 选择理由 |
-| `tradeoffs` | `List<String>` | 取舍说明，可选 |
+| `architectureType` | `String` | 架构类型，例如 `THREE_TIER`, `SPINE_LEAF` |
+| `description` | `String` | 架构描述 |
 
 ### 5.2 `TargetEnvironment`
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| `vendor` | `String` | 设备风格，例如 `Huawei`、`GenericLinux` |
-| `configStyle` | `String` | 配置风格，例如 `CLI`、`OVS_FLOW`、`RYU_FLOW` |
-| `simulationTarget` | `String` | 执行目标 |
-| `adapterType` | `String` | 适配器类型，可选 |
-
-`simulationTarget` 应支持：
-
-```text
-DRY_RUN
-MININET_RYU
-REAL_DEVICE
-CUSTOM_ADAPTER
-```
+| `environmentType` | `String` | 环境类型，例如 `MININET`, `RYU`, `DOCKER`, `CUSTOM` |
+| `osType` | `String` | 操作系统类型，例如 `LINUX`, `WINDOWS` |
+| `controllerType` | `String` | 控制器类型，例如 `RYU`, `FLOODLIGHT` |
+| `topoScriptName` | `String` | 拓扑脚本名称，可选 |
+| `customConfig` | `Map<String, Object>` | 自定义配置，可选 |
 
 ### 5.3 `Topology`
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| `nodes` | `List<TopologyNode>` | 设备、主机、外部网络 |
-| `links` | `List<TopologyLink>` | 链路 |
+| `nodes` | `List<TopologyNode>` | 拓扑节点 |
+| `links` | `List<TopologyLink>` | 拓扑链路 |
 
 ### 5.4 `TopologyNode`
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| `id` | `String` | 节点 ID |
+| `nodeId` | `String` | 节点 ID |
 | `name` | `String` | 节点名称 |
-| `nodeType` | `String` | `DEVICE` / `HOST` / `EXTERNAL_NETWORK` |
-| `deviceType` | `String` | `ROUTER` / `SWITCH` 等，可选 |
-| `hostType` | `String` | `PC` / `SERVER` 等，可选 |
-| `role` | `String` | `GATEWAY` / `ACCESS` / `CORE` 等 |
-| `vendor` | `String` | 厂商或设备风格，可选 |
-| `zoneId` | `String` | 所属区域，可选 |
-| `traceRefs` | `TraceRefs` | 追溯关系，可选 |
+| `type` | `String` | 节点类型，例如 `SWITCH`, `ROUTER`, `HOST` |
+| `zoneId` | `String` | 所属区域 ID |
+| `attributes` | `Map<String, Object>` | 扩展属性 |
 
 ### 5.5 `TopologyLink`
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| `id` | `String` | 链路 ID |
-| `sourceNode` | `String` | 源节点 ID |
-| `sourceInterface` | `String` | 源接口 |
-| `targetNode` | `String` | 目标节点 ID |
-| `targetInterface` | `String` | 目标接口 |
-| `linkType` | `String` | `ACCESS` / `TRUNK` / `WAN` / `VIRTUAL` |
-| `traceRefs` | `TraceRefs` | 追溯关系，可选 |
+| `linkId` | `String` | 链路 ID |
+| `source` | `String` | 源节点 ID |
+| `target` | `String` | 目标节点 ID |
+| `linkType` | `String` | 链路类型，例如 `ETHERNET`, `FIBER` |
+| `bandwidth` | `String` | 带宽描述 |
 
 ### 5.6 `NetworkZone`
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| `id` | `String` | 区域 ID |
+| `zoneId` | `String` | 区域 ID |
 | `name` | `String` | 区域名称 |
-| `mappedFromIntentNode` | `String` | 来源意图节点 ID |
-| `zoneType` | `String` | `USER_ZONE` / `SERVER_ZONE` / `EXTERNAL_NETWORK` |
-| `description` | `String` | 描述，可选 |
+| `type` | `String` | 区域类型，例如 `OFFICE`, `SERVER`, `DMZ` |
+| `relatedIntentNodeIds` | `List<String>` | 关联的意图节点 ID |
 
 ### 5.7 `AddressPlanItem`
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| `id` | `String` | 地址规划元素 ID |
-| `zoneId` | `String` | 区域 ID |
-| `subnet` | `String` | 网段 |
-| `gateway` | `String` | 网关 |
-| `dnsServers` | `List<String>` | DNS，可选 |
-| `exampleHostAddress` | `String` | 示例主机地址，可选 |
-| `hostAddressHints` | `List<String>` | 主机地址提示，可选 |
-| `traceRefs` | `TraceRefs` | 追溯关系，可选 |
+| `itemId` | `String` | 地址规划项 ID |
+| `zoneId` | `String` | 所属区域 ID |
+| `subnet` | `String` | CIDR 子网，例如 `10.0.1.0/24` |
+| `gateway` | `String` | 网关地址 |
+| `dnsServers` | `List<String>` | DNS 服务器，可选 |
+| `ntpServers` | `List<String>` | NTP 服务器，可选 |
 
 ### 5.8 `VlanPlanItem`
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| `id` | `String` | VLAN 规划元素 ID |
+| `itemId` | `String` | VLAN 规划项 ID |
+| `zoneId` | `String` | 所属区域 ID |
 | `vlanId` | `Integer` | VLAN ID |
 | `name` | `String` | VLAN 名称 |
-| `zoneId` | `String` | 区域 ID |
-| `accessPorts` | `List<PortRef>` | 接入口 |
-| `trunkPorts` | `List<PortRef>` | Trunk 口，可选 |
-| `traceRefs` | `TraceRefs` | 追溯关系，可选 |
+| `subnet` | `String` | 关联子网 CIDR |
 
 ### 5.9 `PortRef`
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| `deviceId` | `String` | 设备 ID |
-| `interfaceName` | `String` | 接口名 |
-| `description` | `String` | 说明，可选 |
+| `nodeId` | `String` | 所属节点 ID |
+| `portName` | `String` | 端口名 |
 
 ### 5.10 `RoutingPlan`
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| `id` | `String` | 路由规划元素 ID |
-| `protocol` | `String` | `OSPF` / `STATIC` / `BGP` 等 |
-| `area` | `String` | OSPF 区域，可选 |
-| `routers` | `List<RoutingRouter>` | 路由器规划 |
-| `defaultRoute` | `DefaultRoute` | 默认路由 |
-| `traceRefs` | `TraceRefs` | 追溯关系，可选 |
+| `protocol` | `String` | 路由协议，例如 `STATIC`, `OSPF` |
+| `ospfArea` | `String` | OSPF 区域，可选 |
+| `routers` | `List<RoutingRouter>` | 路由器配置列表 |
 
 ### 5.11 `RoutingRouter`
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| `id` | `String` | 路由器规划元素 ID |
-| `deviceId` | `String` | 设备 ID |
+| `nodeId` | `String` | 节点 ID |
 | `routerId` | `String` | Router ID |
-| `advertisedNetworks` | `List<String>` | 宣告网段 |
-| `traceRefs` | `TraceRefs` | 追溯关系，可选 |
+| `networks` | `List<String>` | 通告网络 |
 
 ### 5.12 `DefaultRoute`
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| `enabled` | `Boolean` | 是否启用默认路由 |
-| `nextHop` | `String` | 下一跳或外部网络标识 |
-| `outInterface` | `PortRef` | 出口接口，可选 |
+| `nodeId` | `String` | 节点 ID |
+| `nextHop` | `String` | 下一跳 |
 
 ### 5.13 `SecurityPolicyPlanItem`
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| `id` | `String` | 安全策略 ID |
-| `name` | `String` | 策略名称 |
-| `sourceZone` | `String` | 源区域 |
-| `targetZone` | `String` | 目标区域 |
-| `action` | `String` | `ALLOW` / `DENY` |
-| `service` | `String` | 服务范围 |
-| `enforcementPoint` | `EnforcementPoint` | 执行点 |
-| `basedOnIntentRelation` | `String` | 来源意图关系 ID |
-| `traceRefs` | `TraceRefs` | 追溯关系，可选 |
+| `itemId` | `String` | 安全策略项 ID |
+| `basedOnIntentRelationId` | `String` | 基于的意图关系 ID |
+| `action` | `String` | 动作，例如 `PERMIT`, `DENY` |
+| `sourceZoneId` | `String` | 源区域 ID |
+| `targetZoneId` | `String` | 目标区域 ID |
+| `protocol` | `String` | 协议 |
+| `port` | `String` | 端口 |
+| `enforcementPoints` | `List<EnforcementPoint>` | 执行点 |
 
 ### 5.14 `EnforcementPoint`
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| `deviceId` | `String` | 设备 ID |
-| `interfaceName` | `String` | 接口名 |
-| `direction` | `String` | `INBOUND` / `OUTBOUND` |
+| `nodeId` | `String` | 执行节点 ID |
+| `direction` | `String` | 方向，例如 `INBOUND`, `OUTBOUND` |
 
 ### 5.15 `NatPlan`
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| `id` | `String` | NAT 规划元素 ID |
-| `enabled` | `Boolean` | 是否启用 |
-| `insideZones` | `List<String>` | 内部区域 |
-| `outsideInterface` | `PortRef` | 出口接口 |
-| `description` | `String` | 说明 |
-| `traceRefs` | `TraceRefs` | 追溯关系，可选 |
+| `type` | `String` | NAT 类型，例如 `STATIC`, `DYNAMIC`, `PAT` |
+| `insideZoneId` | `String` | 内部区域 ID |
+| `outsideZoneId` | `String` | 外部区域 ID |
+| `ruleCount` | `Integer` | 规则数量 |
 
 ### 5.16 `PlanConstraint`
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| `id` | `String` | 约束 ID |
-| `type` | `String` | 约束类型 |
+| `constraintId` | `String` | 约束 ID |
 | `description` | `String` | 约束描述 |
-| `sourceIntentId` | `String` | 来源意图节点或关系 ID，可选 |
+| `relatedPlanElementIds` | `List<String>` | 关联的规划元素 ID |
+
+---
 
 ## 6. `ConfigSet`
 
 `ConfigSet` 是 `ConfigurationAgent` 输出的结构化配置结果。
 
-`ConfigSet` 不能只是一整段命令文本。
-
-字段：
-
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
+| `configSetId` | `String` | 配置集 ID |
+| `planId` | `String` | 关联的规划 ID |
 | `taskId` | `String` | 任务 ID |
-| `planVersion` | `Integer` | 来源规划版本 |
 | `configVersion` | `Integer` | 配置版本 |
-| `targetEnvironment` | `TargetEnvironment` | 目标环境 |
-| `generationSummary` | `String` | 生成摘要 |
-| `generationSources` | `List<GenerationSource>` | 配置生成来源 |
-| `deviceConfigs` | `List<DeviceConfig>` | 设备配置 |
-| `endpointConfigs` | `List<EndpointConfig>` | 终端配置 |
+| `generationSource` | `GenerationSource` | 生成来源 |
+| `deviceConfigs` | `List<DeviceConfig>` | 设备配置列表 |
 | `rollbackPlan` | `RollbackPlan` | 回滚计划 |
-| `warnings` | `List<ConfigWarning>` | 配置警告 |
-| `traceRefs` | `TraceRefs` | 整体追溯关系 |
-| `stageStatus` | `StageStatus` | 阶段状态 |
+| `warnings` | `List<ConfigWarning>` | 警告信息 |
+| `status` | `StageStatus` | 配置阶段状态 |
 | `createTime` | `LocalDateTime` | 创建时间 |
+| `updateTime` | `LocalDateTime` | 更新时间 |
+| `createdBy` | `String` | 创建来源 |
 
 ### 6.1 `GenerationSource`
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| `sourceType` | `String` | 来源类型 |
-| `sourceName` | `String` | 来源名称 |
-| `description` | `String` | 说明 |
-| `artifactRef` | `String` | 知识库、模板或工具结果引用，可选 |
-
-长期 `sourceType` 应包括：
-
-```text
-LLM
-RAG
-TEMPLATE
-RULE
-TOOL
-MCP
-MANUAL_OVERRIDE
-```
+| `sourceType` | `String` | 来源类型，例如 `RAG`, `TEMPLATE`, `MODEL_GENERATED`, `MCP` |
+| `sourceId` | `String` | 来源 ID，例如模板 ID、知识库条目 ID |
+| `sourceDescription` | `String` | 来源描述 |
+| `confidence` | `Double` | 置信度 0–1 |
 
 ### 6.2 `DeviceConfig`
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| `deviceId` | `String` | 设备 ID |
+| `deviceConfigId` | `String` | 设备配置 ID |
 | `deviceName` | `String` | 设备名称 |
-| `deviceType` | `String` | 设备类型 |
-| `vendor` | `String` | 厂商或配置风格 |
-| `configText` | `String` | 完整配置文本，用于展示和审查 |
-| `commandBlocks` | `List<CommandBlock>` | 结构化配置块 |
+| `deviceType` | `String` | 设备类型，例如 `SWITCH`, `ROUTER` |
+| `commandBlocks` | `List<CommandBlock>` | 命令块列表 |
+| `endpointConfig` | `EndpointConfig` | 端点配置，可选 |
+| `traceRefs` | `TraceRefs` | 追溯关系 |
 
 ### 6.3 `CommandBlock`
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| `blockId` | `String` | 配置块 ID |
-| `blockType` | `String` | `INTERFACE` / `VLAN` / `ACL` / `ROUTING` / `NAT` 等 |
-| `order` | `Integer` | 执行顺序 |
-| `title` | `String` | 配置块标题 |
+| `blockId` | `String` | 命令块 ID |
 | `commands` | `List<String>` | 命令列表 |
-| `explanation` | `String` | 配置解释 |
-| `rollbackCommands` | `List<String>` | 回滚命令 |
-| `rollbackStrategy` | `String` | 回滚策略，可选 |
-| `dependsOn` | `List<String>` | 依赖的配置块 ID |
+| `explanation` | `String` | 命令解释 |
 | `traceRefs` | `TraceRefs` | 追溯关系 |
-| `riskLevel` | `String` | 风险等级，可选 |
+| `rollbackCommands` | `List<String>` | 回滚命令 |
+| `riskLevel` | `String` | 风险等级，例如 `LOW`, `MEDIUM`, `HIGH` |
+| `isIdempotent` | `Boolean` | 是否幂等 |
 
 每个 `commandBlock` 至少应能追溯到 `planElementIds` 或 `intentRelationIds`。
 
 ### 6.4 `TraceRefs`
 
-`TraceRefs` 字段统一引用第 2.5 节的完整定义，本节不重复定义字段。
-
-配置块不要求填满 `TraceRefs` 的所有列表，但关键配置块必须具备可解释来源。
+字段定义见 §2.5。配置块不要求填满所有列表，但关键配置块必须具备可解释来源。
 
 ### 6.5 `EndpointConfig`
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| `nodeId` | `String` | 终端节点 ID |
-| `nodeType` | `String` | 节点类型 |
-| `zoneId` | `String` | 所属区域 |
-| `commands` | `List<String>` | 终端配置命令 |
-| `explanation` | `String` | 说明 |
-| `traceRefs` | `TraceRefs` | 追溯关系 |
+| `ipAddress` | `String` | IP 地址 |
+| `subnetMask` | `String` | 子网掩码 |
+| `gateway` | `String` | 网关 |
+| `vlanId` | `Integer` | VLAN ID，可选 |
 
 ### 6.6 `RollbackPlan`
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| `strategy` | `String` | 回滚策略 |
-| `rollbackBlocks` | `List<RollbackBlock>` | 回滚块 |
-| `description` | `String` | 说明 |
+| `blocks` | `List<RollbackBlock>` | 回滚块列表 |
+| `estimatedRollbackTimeSeconds` | `Integer` | 预估回滚时间（秒） |
 
 ### 6.7 `RollbackBlock`
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| `deviceId` | `String` | 设备 ID |
-| `blockId` | `String` | 对应配置块 ID |
+| `relatedCommandBlockId` | `String` | 关联的命令块 ID |
 | `commands` | `List<String>` | 回滚命令 |
-| `order` | `Integer` | 回滚顺序 |
 
 ### 6.8 `ConfigWarning`
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| `level` | `String` | 警告等级 |
-| `message` | `String` | 警告内容 |
-| `relatedBlockId` | `String` | 相关配置块 ID，可选 |
+| `warningId` | `String` | 警告 ID |
+| `severity` | `String` | 严重程度 |
+| `message` | `String` | 警告消息 |
+| `relatedCommandBlockId` | `String` | 关联命令块 ID，可选 |
+
+---
 
 ## 7. `ExecutionReport`
 
-`ExecutionReport` 是 Execution Module 输出的执行适配与测试结果。
-
-`ExecutionReport` 支持结构校验模式、Mininet/Ryu、真实设备适配等多种执行模式。结构校验模式用于验证 `NetworkPlan + ConfigSet -> ExecutionReport` 的转换链路，不得作为最终执行验收替代。
-
-字段：
+`ExecutionReport` 是 Execution Module 输出的执行适配与测试结果。支持 Mininet/Ryu、真实设备适配等多种执行模式。
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
+| `executionId` | `String` | 执行 ID |
+| `planId` | `String` | 关联规划 ID |
+| `configSetId` | `String` | 关联配置集 ID |
 | `taskId` | `String` | 任务 ID |
-| `planVersion` | `Integer` | 来源规划版本 |
-| `configVersion` | `Integer` | 来源配置版本 |
 | `executionVersion` | `Integer` | 执行版本 |
-| `executionMode` | `String` | 执行模式 |
+| `environmentType` | `String` | 执行环境类型 |
 | `executionPlan` | `ExecutionPlan` | 执行计划 |
 | `runtimeState` | `RuntimeState` | 运行时状态 |
-| `testResult` | `TestResult` | 测试结果 |
+| `testResults` | `List<TestResult>` | 测试结果 |
 | `errors` | `List<ExecutionError>` | 执行错误 |
-| `warnings` | `List<String>` | 执行警告 |
-| `stageStatus` | `StageStatus` | 阶段状态 |
-| `startTime` | `LocalDateTime` | 开始时间 |
-| `finishTime` | `LocalDateTime` | 结束时间 |
-
-`executionMode` 可包含：
-
-```text
-DRY_RUN
-MININET_RYU
-REAL_DEVICE
-CUSTOM_ADAPTER
-```
+| `overallStatus` | `String` | 整体状态，例如 `SUCCESS`, `PARTIAL`, `FAILED` |
+| `createTime` | `LocalDateTime` | 创建时间 |
+| `updateTime` | `LocalDateTime` | 更新时间 |
+| `createdBy` | `String` | 创建来源 |
 
 ### 7.1 `ExecutionPlan`
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| `adapterType` | `String` | 适配器类型 |
-| `topologyScript` | `String` | 拓扑脚本或拓扑描述 |
-| `hostCommands` | `List<ExecutionCommand>` | 主机命令 |
-| `flowRules` | `List<FlowRule>` | 流表规则 |
-| `testCommands` | `List<TestCommand>` | 测试命令 |
-| `cleanupCommands` | `List<ExecutionCommand>` | 清理命令 |
-| `traceRefs` | `TraceRefs` | 追溯关系 |
+| `commands` | `List<ExecutionCommand>` | 执行命令序列 |
+| `flowRules` | `List<FlowRule>` | 流规则 |
+| `tests` | `List<TestCommand>` | 测试命令 |
 
 ### 7.2 `ExecutionCommand`
 
@@ -835,280 +582,178 @@ CUSTOM_ADAPTER
 | --- | --- | --- |
 | `commandId` | `String` | 命令 ID |
 | `targetNodeId` | `String` | 目标节点 ID |
+| `command` | `String` | 命令文本 |
 | `commandType` | `String` | 命令类型 |
-| `command` | `String` | 受控命令文本 |
-| `safeToRun` | `Boolean` | 是否允许执行 |
-| `traceRefs` | `TraceRefs` | 追溯关系 |
+| `relatedCommandBlockId` | `String` | 关联配置块 ID，可选 |
 
 ### 7.3 `FlowRule`
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| `ruleId` | `String` | 流表规则 ID |
+| `flowId` | `String` | 流规则 ID |
 | `switchId` | `String` | 交换机 ID |
-| `dpid` | `String` | OpenFlow DPID |
-| `priority` | `Integer` | 优先级 |
 | `match` | `Map<String, Object>` | 匹配条件 |
-| `actions` | `List<String>` | 动作 |
-| `traceRefs` | `TraceRefs` | 追溯关系 |
+| `actions` | `List<String>` | 动作列表 |
+| `relatedSecurityPolicyId` | `String` | 关联安全策略 ID，可选 |
 
 ### 7.4 `TestCommand`
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
 | `testId` | `String` | 测试 ID |
-| `type` | `String` | 测试类型 |
-| `sourceNode` | `String` | 源节点 |
-| `targetNode` | `String` | 目标节点 |
-| `command` | `String` | 受控测试命令 |
-| `expectedResult` | `String` | 期望结果 |
-| `traceRefs` | `TraceRefs` | 追溯关系 |
+| `testType` | `String` | 测试类型，例如 `PING`, `TRACEROUTE`, `NC` |
+| `sourceNode` | `String` | 源节点 ID |
+| `targetAddress` | `String` | 目标地址 |
+| `relatedIntentRelationId` | `String` | 关联意图关系 ID，可选 |
 
 ### 7.5 `RuntimeState`
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| `environmentStatus` | `String` | 环境状态 |
-| `nodes` | `List<RuntimeNodeState>` | 节点状态 |
-| `links` | `List<RuntimeLinkState>` | 链路状态 |
-| `controllerState` | `Map<String, Object>` | 控制器状态 |
-| `flowState` | `Map<String, Object>` | 流表状态 |
-| `rawLogs` | `List<String>` | 脱敏、截断后的原始日志 |
+| `nodes` | `List<RuntimeNodeState>` | 节点运行时状态 |
+| `links` | `List<RuntimeLinkState>` | 链路运行时状态 |
+| `timestamp` | `LocalDateTime` | 采集时间 |
 
 ### 7.6 `RuntimeNodeState`
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
 | `nodeId` | `String` | 节点 ID |
-| `status` | `String` | 节点状态 |
-| `interfaces` | `Map<String, Object>` | 接口状态，可选 |
-| `metadata` | `Map<String, Object>` | 扩展信息，可选 |
+| `status` | `String` | 状态，例如 `UP`, `DOWN` |
+| `cpuUsage` | `Double` | CPU 使用率，可选 |
+| `memoryUsage` | `Double` | 内存使用率，可选 |
 
 ### 7.7 `RuntimeLinkState`
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
 | `linkId` | `String` | 链路 ID |
-| `status` | `String` | 链路状态 |
-| `sourceNode` | `String` | 源节点 |
-| `targetNode` | `String` | 目标节点 |
-| `metadata` | `Map<String, Object>` | 扩展信息，可选 |
+| `status` | `String` | 状态，例如 `UP`, `DOWN` |
 
 ### 7.8 `TestResult`
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| `connectivityTests` | `List<ConnectivityTestResult>` | 连通性测试结果 |
-| `policyTests` | `List<PolicyTestResult>` | 策略测试结果 |
-| `performanceTests` | `List<PerformanceTestResult>` | 性能测试结果 |
-| `rawLogs` | `List<String>` | 脱敏、截断后的原始日志 |
+| `testId` | `String` | 测试 ID |
+| `passed` | `Boolean` | 是否通过 |
+| `expected` | `String` | 期望结果 |
+| `actual` | `String` | 实际结果 |
+| `output` | `String` | 原始输出，可选 |
+| `errorMessage` | `String` | 错误信息，可选 |
+| `durationMs` | `Long` | 耗时毫秒数 |
 
-说明：
-
-1. `TestResult` 只记录执行结果。
-2. 是否满足意图由 `VerificationAgent` 判断。
-3. `rawLogs` 必须脱敏、截断，不得包含 API Key、请求头、外部凭据、敏感环境变量或可直接复用的危险命令上下文。
+说明：`TestResult` 是执行模块的原始测试结果；`ValidationItem` 是验证模块基于测试结果的意图达成判断。
 
 ### 7.9 `ExecutionError`
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
 | `errorId` | `String` | 错误 ID |
-| `errorCode` | `String` | 错误码 |
-| `message` | `String` | 错误摘要 |
-| `relatedCommandId` | `String` | 相关命令 ID，可选 |
-| `traceRefs` | `TraceRefs` | 追溯关系，可选 |
+| `nodeId` | `String` | 错误节点 ID，可选 |
+| `commandId` | `String` | 错误命令 ID，可选 |
+| `errorType` | `String` | 错误类型 |
+| `errorMessage` | `String` | 错误消息 |
+| `timestamp` | `LocalDateTime` | 错误时间 |
+
+---
 
 ## 8. `ValidationReport`
 
 `ValidationReport` 是 `VerificationAgent` 输出的意图达成判断。
 
-字段：
-
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
+| `validationId` | `String` | 验证 ID |
 | `taskId` | `String` | 任务 ID |
-| `intentVersion` | `Integer` | 来源意图版本 |
-| `planVersion` | `Integer` | 来源规划版本 |
-| `configVersion` | `Integer` | 来源配置版本 |
-| `executionVersion` | `Integer` | 来源执行版本 |
+| `executionId` | `String` | 关联执行 ID |
 | `validationVersion` | `Integer` | 验证版本 |
-| `overallStatus` | `ValidationStatus` | 总体验证状态 |
+| `overallStatus` | `ValidationStatus` | 总体验证结论 |
+| `items` | `List<ValidationItem>` | 验证项列表 |
 | `summary` | `String` | 验证摘要 |
-| `items` | `List<ValidationItem>` | 验证项 |
-| `evidences` | `List<ValidationEvidence>` | 验证证据 |
-| `suggestions` | `List<String>` | 建议 |
-| `stageStatus` | `StageStatus` | 阶段状态 |
 | `createTime` | `LocalDateTime` | 创建时间 |
+| `updateTime` | `LocalDateTime` | 更新时间 |
+| `createdBy` | `String` | 创建来源 |
 
 ### 8.1 `ValidationItem`
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
 | `itemId` | `String` | 验证项 ID |
-| `name` | `String` | 验证项名称 |
-| `type` | `String` | `CONNECTIVITY` / `ISOLATION` / `ROUTING` / `SECURITY_POLICY` 等 |
-| `expected` | `String` | 期望结果 |
-| `actual` | `String` | 实际结果 |
+| `status` | `ValidationStatus` | 验证结论 |
+| `expected` | `String` | 期望行为 |
+| `actual` | `String` | 实际行为 |
 | `passed` | `Boolean` | 是否通过 |
-| `severity` | `String` | 严重程度 |
-| `relatedIntentRelationId` | `String` | 关联意图关系 ID |
-| `relatedPlanElementIds` | `List<String>` | 关联规划元素 ID |
-| `relatedConfigBlockIds` | `List<String>` | 关联配置块 ID |
-| `relatedTestId` | `String` | 关联测试 ID |
-| `evidenceIds` | `List<String>` | 关联证据 ID |
-| `message` | `String` | 展示说明 |
+| `severity` | `String` | 严重程度，例如 `CRITICAL`, `HIGH`, `MEDIUM`, `LOW` |
+| `description` | `String` | 验证描述 |
+| `traceRefs` | `TraceRefs` | 追溯关系 |
+| `evidences` | `List<ValidationEvidence>` | 验证证据 |
+| `suggestion` | `String` | 修复建议，可选 |
 
 ### 8.2 `ValidationEvidence`
-
-`ValidationEvidence` 是验证证据模型。
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
 | `evidenceId` | `String` | 证据 ID |
-| `evidenceType` | `String` | 证据类型 |
+| `type` | `String` | 证据类型，例如 `LOG`, `METRIC`, `PACKET_CAPTURE` |
 | `source` | `String` | 证据来源 |
-| `rawValue` | `String` | 原始值 |
-| `normalizedValue` | `String` | 归一化值 |
-| `metadata` | `Map<String, Object>` | 扩展结构化信息，可选 |
-| `relatedTestId` | `String` | 关联测试 ID |
-| `relatedRuntimeObjectId` | `String` | 关联运行时对象 ID |
+| `description` | `String` | 证据描述 |
+| `relatedTestId` | `String` | 关联测试 ID，可选 |
 
-说明：
-
-1. `ValidationReport` 不直接修改配置。
-2. 失败修复交给 `HealingAgent` / `RepairPlan`。
+---
 
 ## 9. `RepairPlan`
 
 `RepairPlan` 是 `HealingAgent` 输出的诊断与修复计划。
 
-字段：
-
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
+| `repairId` | `String` | 修复计划 ID |
 | `taskId` | `String` | 任务 ID |
-| `validationVersion` | `Integer` | 来源验证版本 |
+| `validationId` | `String` | 关联验证 ID |
 | `repairVersion` | `Integer` | 修复版本 |
-| `overallRepairStrategy` | `String` | 总体修复策略 |
-| `failureAnalysis` | `List<FailureAnalysis>` | 失败分析 |
-| `actions` | `List<RepairAction>` | 修复动作 |
-| `requiresUserConfirmation` | `Boolean` | 是否需要用户确认 |
-| `stageStatus` | `StageStatus` | 阶段状态 |
+| `failureAnalysis` | `FailureAnalysis` | 失败分析 |
+| `repairActions` | `List<RepairAction>` | 修复动作列表 |
+| `status` | `RepairStatus` | 修复状态 |
 | `createTime` | `LocalDateTime` | 创建时间 |
+| `createdBy` | `String` | 创建来源 |
 
 ### 9.1 `FailureAnalysis`
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| `analysisId` | `String` | 分析 ID |
-| `failureType` | `String` | 失败类型 |
-| `rootCauseSummary` | `String` | 根因摘要 |
-| `relatedValidationItemIds` | `List<String>` | 相关验证项 ID |
-| `relatedIntentRelationIds` | `List<String>` | 相关意图关系 ID |
-| `relatedPlanElementIds` | `List<String>` | 相关规划元素 ID |
-| `relatedConfigBlockIds` | `List<String>` | 相关配置块 ID |
+| `summary` | `String` | 失败摘要 |
+| `rootCause` | `String` | 根因分析 |
+| `failedValidationItemIds` | `List<String>` | 失败的验证项 ID |
+| `affectedIntentIds` | `List<String>` | 受影响的意图 ID，可选 |
+| `affectedPlanElementIds` | `List<String>` | 受影响的规划元素 ID，可选 |
+| `affectedConfigBlockIds` | `List<String>` | 受影响的配置块 ID，可选 |
 | `confidence` | `Double` | 置信度 |
-| `evidenceIds` | `List<String>` | 证据 ID |
-
-`failureType` 可包含：
-
-```text
-INTENT_CONFLICT
-PLANNING_ERROR
-CONFIG_ERROR
-EXECUTION_ENV_ERROR
-VERIFICATION_ERROR
-INSUFFICIENT_INFORMATION
-```
 
 ### 9.2 `RepairAction`
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| `actionId` | `String` | 修复动作 ID |
-| `actionType` | `String` | 修复动作类型 |
-| `targetStage` | `WorkflowStage` | 目标回退或重跑阶段 |
-| `description` | `String` | 动作描述 |
-| `relatedFailureAnalysisId` | `String` | 关联失败分析 ID |
-| `inputArtifactIds` | `List<String>` | 输入产物 ID |
-| `expectedOutputArtifactType` | `ArtifactType` | 预期输出产物类型 |
-| `riskLevel` | `String` | 风险等级 |
-| `riskReason` | `String` | 风险原因 |
-| `requiresApproval` | `Boolean` | 是否需要审批 |
-| `approvalStatus` | `String` | 审批状态，例如 `PENDING`、`APPROVED`、`REJECTED`、`NOT_REQUIRED` |
-| `approvedBy` | `String` | 审批人，可选 |
-| `approvedAt` | `LocalDateTime` | 审批时间，可选 |
-| `rejectedBy` | `String` | 驳回人，可选 |
-| `rejectedAt` | `LocalDateTime` | 驳回时间，可选 |
-| `approvalComment` | `String` | 审批或驳回说明，可选 |
-| `appliedAt` | `LocalDateTime` | 动作实际应用时间，可选 |
-| `traceRefs` | `TraceRefs` | 追溯关系 |
-| `status` | `RepairStatus` | 修复动作状态 |
+| `actionId` | `String` | 动作 ID |
+| `actionType` | `String` | 动作类型：`REPLAN`, `REGENERATE_CONFIG`, `PATCH_CONFIG`, `REEXECUTE`, `ASK_USER`, `ROLLBACK` |
+| `target` | `String` | 目标描述，例如阶段名、配置块 ID |
+| `reason` | `String` | 选择理由 |
+| `riskLevel` | `String` | 风险等级：`LOW`, `MEDIUM`, `HIGH` |
+| `relatedValidationItemIds` | `List<String>` | 关联验证项 ID |
+| `rolledBackArtifactId` | `String` | 被回滚产物 ID，仅 `ROLLBACK` 类型时使用 |
+| `status` | `RepairStatus` | 动作状态 |
 
-`actionType` 可包含：
-
-```text
-REPLAN
-REGENERATE_CONFIG
-PATCH_CONFIG
-REEXECUTE
-ASK_USER
-ROLLBACK
-```
-
-说明：
-
-1. `RepairPlan` 不直接执行修复。
-2. Orchestrator 根据 `RepairAction` 决定重新进入哪个阶段。
-3. `ExecutionAdapter` 负责实际执行相关动作。
+---
 
 ## 10. 前端展示辅助模型
 
-可以保留轻量展示模型，但不要和核心 DTO 混淆。
-展示模型优先放在 `mac-tav-web` 的 `vo` / `view` 包，或由前端转换生成，不要污染核心阶段 DTO。
-
-可选模型：
-
-1. `TopologyViewModel`
-2. `AgentTimelineItem`
-3. `ConfigBlockView`
-4. `ValidationSummaryView`
-
-说明：
-
-1. 前端展示模型只服务展示聚合和交互体验，不作为核心阶段产物契约。
-2. 不要让前端展示模型污染核心阶段 DTO。
-3. 前端页面布局和交互设计不在本文档定义。
+可保留轻量展示模型放在 `mac-tav-web` 的 `vo` 包，不污染核心阶段 DTO。可选模型：`TopologyViewModel`、`AgentTimelineItem`、`ConfigBlockView`、`ValidationSummaryView`。
 
 ## 11. 数据模型边界
 
-禁止事项：
+核心禁止事项（仅限模型层面）：
 
 1. `NetworkIntent` 不包含设备、接口、VLAN、IP、CLI。
 2. `NetworkPlan` 不包含具体 CLI。
 3. `ConfigSet` 不只是一整段命令文本。
-4. `ExecutionReport` 不判断业务意图是否满足。
-5. `ValidationReport` 不直接修改配置。
-6. `RepairPlan` 不直接执行修复。
-7. DTO 不依赖 Spring AI Alibaba 类型。
-8. DTO 不依赖 Web、Controller、Orchestrator、具体 Agent 实现。
-9. DTO 不包含 API Key、请求头、模型 provider 私密参数。
-10. DTO 中的系统状态字段不应由模型直接控制。
-
-## 12. 本文档与其他文档的分工
-
-文档分工：
-
-1. 本文档：核心 DTO、字段、版本、状态、追溯关系。
-2. `docs/02_MAVEN_MODULES.md`：Maven 模块与依赖边界。
-3. `docs/03_MODULE_DESIGN.md`：业务模块职责与流程。
-4. `docs/05_API_DESIGN.md`：API 路径和请求响应。
-5. `docs/06_DEV_PLAN.md`：长期实现路线。
-6. `docs/09_AGENT_BUILD_GUIDE.md`：真实 Spring AI Alibaba Agent 构建规范。
-
-实现数据模型时，应保持本文档与 `docs/09_AGENT_BUILD_GUIDE.md` 的核心链路一致：
-
-```text
-ResponseSchema -> Parser -> DTO -> Validator -> NetworkWorkspace
-```
+4. DTO 不依赖 Spring AI Alibaba 类型。
+5. DTO 不包含 API Key、请求头、模型 provider 私密参数。
