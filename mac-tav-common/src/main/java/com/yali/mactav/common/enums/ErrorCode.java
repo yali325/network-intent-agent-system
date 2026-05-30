@@ -43,7 +43,8 @@ public enum ErrorCode {
     WORKSPACE_NOT_FOUND(40402, "WORKSPACE_NOT_FOUND", "Workspace not found"),
     ARTIFACT_NOT_FOUND(40403, "ARTIFACT_NOT_FOUND", "Artifact not found"),
     ARTIFACT_INVALID(40011, "ARTIFACT_INVALID", "Artifact is invalid"),
-    WORKSPACE_STATE_INVALID(40913, "WORKSPACE_STATE_INVALID", "Workspace state is invalid");
+    WORKSPACE_STATE_INVALID(40913, "WORKSPACE_STATE_INVALID", "Workspace state is invalid"),
+    STAGE_NOT_READY(40914, "STAGE_NOT_READY", "Required previous stage artifact is not present");
 
     private final int code;
 

@@ -11,8 +11,8 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * Web API controller for triggering currently implemented workflow stages.
  *
- * <p>For this phase the run endpoint invokes only the INTENT stage through
- * Orchestrator. It must not start Phase 4 planning or call concrete agent beans.</p>
+ * <p>Each endpoint delegates to Orchestrator and must not call concrete agent
+ * beans, construct prompts, or directly invoke model APIs.</p>
  */
 @RestController
 @RequestMapping("/api/v1/workflows")
@@ -27,5 +27,10 @@ public class WorkflowController {
     @PostMapping("/{taskId}/run")
     public ApiResponse<NetworkWorkspace> runIntentStage(@PathVariable String taskId) {
         return ApiResponse.success(workflowOrchestrator.runIntentStage(taskId));
+    }
+
+    @PostMapping("/{taskId}/plan")
+    public ApiResponse<NetworkWorkspace> runPlanningStage(@PathVariable String taskId) {
+        return ApiResponse.success(workflowOrchestrator.runPlanningStage(taskId));
     }
 }

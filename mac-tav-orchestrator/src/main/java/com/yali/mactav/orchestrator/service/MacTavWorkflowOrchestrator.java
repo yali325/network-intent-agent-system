@@ -14,6 +14,8 @@ import com.yali.mactav.model.intent.IntentAgentInvokePayload;
 import com.yali.mactav.model.intent.IntentNode;
 import com.yali.mactav.model.intent.IntentRelation;
 import com.yali.mactav.model.intent.NetworkIntent;
+import com.yali.mactav.model.plan.NetworkPlan;
+import com.yali.mactav.model.plan.PlanningAgentInvokePayload;
 import com.yali.mactav.model.task.NetworkTask;
 import com.yali.mactav.model.workspace.AgentExecutionRecord;
 import com.yali.mactav.model.workspace.NetworkArtifact;
@@ -30,7 +32,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 /**
- * Deterministic MAC-TAV workflow coordinator for the current Intent-stage closure.
+ * Deterministic MAC-TAV workflow coordinator for Intent and Planning stage closure.
  *
  * <p>The orchestrator creates workspaces, invokes remote agents through
  * RemoteAgentInvoker, and writes stage artifacts through Model Core. It does not
@@ -42,6 +44,8 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
     private static final String ORCHESTRATOR_AGENT = "MacTavOrchestrator";
 
     private static final String INTENT_AGENT = "IntentAgent";
+
+    private static final String PLANNING_AGENT = "PlanningAgent";
 
     private final NetworkWorkspaceService workspaceService;
 
@@ -107,8 +111,8 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
                     ArtifactType.NETWORK_INTENT,
                     WorkflowStage.INTENT,
                     intent,
-                    "IntentAgent produced NetworkIntent v" + intent.getIntentVersion(),
-                    INTENT_AGENT,
+                    "NetworkIntent for task " + taskId,
+                    workspace.getTask().getCreatedBy(),
                     traceRefs(intent));
             appendExecutionRecord(taskId, traceId, startTime, StageStatus.SUCCESS, artifact, null, null);
             return workspaceService.getWorkspaceOrThrow(taskId);
@@ -119,8 +123,54 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
         }
         catch (RuntimeException ex) {
             markTaskErrorAndRecord(taskId, traceId, startTime,
-                    ErrorCode.AGENT_EXECUTION_FAILED.getErrorCode(), "Intent stage failed");
-            throw new BusinessException(ErrorCode.AGENT_EXECUTION_FAILED, "Intent stage failed", ex);
+                    ErrorCode.AGENT_EXECUTION_FAILED.name(), ex.getMessage());
+            throw ex;
+        }
+    }
+
+    @Override
+    public NetworkWorkspace runPlanningStage(String taskId) {
+        LocalDateTime startTime = LocalDateTime.now();
+        String traceId = "trace-" + UUID.randomUUID();
+        try {
+            NetworkWorkspace workspace = workspaceService.getWorkspaceOrThrow(taskId);
+            NetworkIntent currentIntent = workspace.getCurrentIntent();
+            if (currentIntent == null) {
+                throw new BusinessException(ErrorCode.STAGE_NOT_READY,
+                        "No current Intent found. Run intent stage first for task: " + taskId);
+            }
+            int planVersion = nextPlanVersion(workspace);
+            workspaceService.updateTaskStage(taskId, WorkflowStage.PLANNING);
+            workspaceService.updateTaskStatus(taskId, TaskStatus.RUNNING);
+
+            A2aRequest request = buildPlanningRequest(workspace, currentIntent, planVersion, traceId);
+            A2aResponse response = remoteAgentInvoker.invoke(request);
+            if (!Boolean.TRUE.equals(response.getSuccess())) {
+                throw new BusinessException(
+                        response.getErrorCode(),
+                        response.getMessage() == null ? "Remote PlanningAgent failed" : response.getMessage());
+            }
+            NetworkPlan plan = parsePlan(response.getPayloadJson());
+            NetworkArtifact artifact = workspaceService.saveStageArtifact(
+                    taskId,
+                    ArtifactType.NETWORK_PLAN,
+                    WorkflowStage.PLANNING,
+                    plan,
+                    plan.getPlanSummary() != null ? plan.getPlanSummary() : "NetworkPlan for task " + taskId,
+                    workspace.getTask().getCreatedBy(),
+                    plan.getTraceRefs());
+            appendExecutionRecord(taskId, traceId, startTime, StageStatus.SUCCESS,
+                    artifact, null, null, PLANNING_AGENT, WorkflowStage.PLANNING, null, null);
+            return workspaceService.getWorkspaceOrThrow(taskId);
+        }
+        catch (BusinessException ex) {
+            markTaskErrorAndRecord(taskId, traceId, startTime, ex.getErrorCode(), ex.getMessage());
+            throw ex;
+        }
+        catch (RuntimeException ex) {
+            markTaskErrorAndRecord(taskId, traceId, startTime,
+                    ErrorCode.AGENT_EXECUTION_FAILED.name(), ex.getMessage());
+            throw ex;
         }
     }
 
@@ -135,6 +185,7 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
                 .rawText(workspace.getTask().getRawText())
                 .intentVersion(intentVersion)
                 .traceId(traceId)
+                .userContext(targetEnvironmentHints.get(workspace.getTask().getTaskId()))
                 .workspaceSnapshot(workspaceSnapshot(workspace))
                 .targetEnvironmentHint(targetEnvironmentHints.get(workspace.getTask().getTaskId()))
                 .createdBy(workspace.getTask().getCreatedBy())
@@ -151,12 +202,51 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
                 .build();
     }
 
+    private A2aRequest buildPlanningRequest(NetworkWorkspace workspace, NetworkIntent currentIntent,
+                                            int planVersion, String traceId) {
+        String intentJson = serialize(currentIntent,
+                ErrorCode.AGENT_PARSE_FAILED,
+                "Failed to serialize current Intent for planning request");
+        PlanningAgentInvokePayload payload = PlanningAgentInvokePayload.builder()
+                .taskId(workspace.getTask().getTaskId())
+                .rawText(workspace.getTask().getRawText())
+                .intentVersion(workspace.getCurrentIntentVersion())
+                .intentJson(intentJson)
+                .planVersion(planVersion)
+                .traceId(traceId)
+                .userContext(targetEnvironmentHints.get(workspace.getTask().getTaskId()))
+                .workspaceSnapshot(workspaceSnapshot(workspace))
+                .targetEnvironmentHint(targetEnvironmentHints.get(workspace.getTask().getTaskId()))
+                .createdBy(workspace.getTask().getCreatedBy())
+                .build();
+        return A2aRequest.builder()
+                .taskId(workspace.getTask().getTaskId())
+                .sourceAgent(ORCHESTRATOR_AGENT)
+                .targetAgent(PLANNING_AGENT)
+                .stage(WorkflowStage.PLANNING)
+                .artifactVersion(planVersion)
+                .payloadJson(serialize(payload, ErrorCode.A2A_CALL_FAILED,
+                        "Planning A2A payload serialization failed"))
+                .traceId(traceId)
+                .timestamp(LocalDateTime.now())
+                .build();
+    }
+
     private NetworkIntent parseIntent(String payloadJson) {
         try {
             return objectMapper.readValue(payloadJson, NetworkIntent.class);
         }
         catch (JsonProcessingException ex) {
             throw new BusinessException(ErrorCode.A2A_RESPONSE_INVALID, "IntentAgent payload JSON is invalid", ex);
+        }
+    }
+
+    private NetworkPlan parsePlan(String payloadJson) {
+        try {
+            return objectMapper.readValue(payloadJson, NetworkPlan.class);
+        }
+        catch (JsonProcessingException ex) {
+            throw new BusinessException(ErrorCode.A2A_RESPONSE_INVALID, "PlanningAgent payload JSON is invalid", ex);
         }
     }
 
@@ -180,6 +270,11 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
 
     private int nextIntentVersion(NetworkWorkspace workspace) {
         Integer current = workspace.getCurrentIntentVersion();
+        return current == null ? 1 : current + 1;
+    }
+
+    private int nextPlanVersion(NetworkWorkspace workspace) {
+        Integer current = workspace.getCurrentPlanVersion();
         return current == null ? 1 : current + 1;
     }
 
@@ -208,28 +303,49 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
                                        NetworkArtifact artifact,
                                        String errorCode,
                                        String errorMessage) {
+        appendExecutionRecord(taskId, traceId, startTime, status, artifact, errorCode, errorMessage,
+                INTENT_AGENT, WorkflowStage.INTENT, status == StageStatus.SUCCESS
+                        ? "IntentAgent A2A call succeeded" : "IntentAgent A2A call failed",
+                status == StageStatus.SUCCESS ? "Intent stage completed" : "Intent stage failed");
+    }
+
+    private void appendExecutionRecord(String taskId,
+                                       String traceId,
+                                       LocalDateTime startTime,
+                                       StageStatus status,
+                                       NetworkArtifact artifact,
+                                       String errorCode,
+                                       String errorMessage,
+                                       String targetAgentName,
+                                       WorkflowStage stage,
+                                       String a2aSummary,
+                                       String message) {
         LocalDateTime finishTime = LocalDateTime.now();
+        String effectiveSummary = a2aSummary != null ? a2aSummary
+                : (status == StageStatus.SUCCESS
+                        ? targetAgentName + " A2A call succeeded"
+                        : targetAgentName + " A2A call failed");
+        String effectiveMessage = message != null ? message
+                : (status == StageStatus.SUCCESS ? stage.name() + " stage completed" : stage.name() + " stage failed");
         AgentExecutionRecord record = AgentExecutionRecord.builder()
                 .recordId("agent-record-" + UUID.randomUUID())
                 .taskId(taskId)
                 .traceId(traceId)
                 .agentName(ORCHESTRATOR_AGENT)
-                .targetAgentName(INTENT_AGENT)
+                .targetAgentName(targetAgentName)
                 .remoteCallType("SAA_A2A")
-                .stage(WorkflowStage.INTENT)
+                .stage(stage)
                 .stageStatus(status)
                 .outputArtifactIds(artifact == null ? List.of() : List.of(artifact.getArtifactId()))
-                .a2aCallSummaries(List.of(status == StageStatus.SUCCESS
-                        ? "IntentAgent A2A call succeeded"
-                        : "IntentAgent A2A call failed"))
+                .a2aCallSummaries(List.of(effectiveSummary))
                 .startTime(startTime)
                 .finishTime(finishTime)
                 .durationMs(Duration.between(startTime, finishTime).toMillis())
-                .inputSummary("Run intent stage")
+                .inputSummary("Run " + stage.name() + " stage")
                 .outputSummary(artifact == null ? null : artifact.getPayloadSummary())
                 .errorCode(errorCode)
                 .errorMessage(errorMessage)
-                .message(status == StageStatus.SUCCESS ? "Intent stage completed" : "Intent stage failed")
+                .message(effectiveMessage)
                 .build();
         executionRecordService.appendRecord(taskId, record);
     }
@@ -241,7 +357,8 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
                                         String message) {
         try {
             workspaceService.updateTaskStatus(taskId, TaskStatus.ERROR);
-            appendExecutionRecord(taskId, traceId, startTime, StageStatus.FAILED, null, errorCode, message);
+            appendExecutionRecord(taskId, traceId, startTime, StageStatus.FAILED, null,
+                    errorCode, message);
         }
         catch (RuntimeException ignored) {
             // Preserve the original failure while avoiding secondary error noise.

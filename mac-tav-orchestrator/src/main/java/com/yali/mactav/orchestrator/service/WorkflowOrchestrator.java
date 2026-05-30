@@ -15,5 +15,7 @@ public interface WorkflowOrchestrator {
 
     NetworkWorkspace runIntentStage(String taskId);
 
+    NetworkWorkspace runPlanningStage(String taskId);
+
     NetworkWorkspace getWorkspace(String taskId);
 }

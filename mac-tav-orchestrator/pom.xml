@@ -29,7 +29,7 @@
             <groupId>com.yali</groupId>
             <artifactId>mac-tav-model-core</artifactId>
         </dependency>
-<dependency>
+        <dependency>
             <groupId>com.alibaba.cloud.ai</groupId>
             <artifactId>spring-ai-alibaba-starter-a2a-nacos</artifactId>
         </dependency>

@@ -66,6 +66,11 @@ class WebControllerTest {
             }
 
             @Override
+            public NetworkWorkspace runPlanningStage(String taskId) {
+                return workspace;
+            }
+
+            @Override
             public NetworkWorkspace getWorkspace(String taskId) {
                 return workspace;
             }

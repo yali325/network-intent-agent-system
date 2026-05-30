@@ -1,12 +1,12 @@
 server:
-  port: 18081
+  port: 18082
 
 mactav:
   agents:
-    intent:
+    planning:
       enabled: true
-      run-limit: 6
-      prompt-path: prompts/intent-agent-prompt.md
+      run-limit: 8
+      prompt-path: prompts/planning-agent-prompt.md
       manual-model-validation-enabled: false
 
 spring:
@@ -19,7 +19,7 @@ spring:
     alibaba:
       a2a:
         nacos:
-          server-addr: 127.0.0.1:18848
+          server-addr: 127.0.0.1:8848
           username: nacos
           password: nacos
           discovery:
@@ -29,9 +29,9 @@ spring:
         server:
           version: 1.0.0
           card:
-            name: IntentAgent
-            description: MAC-TAV business intent extraction agent
+            name: PlanningAgent
+            description: MAC-TAV network planning and topology design agent
             provider:
               name: MAC-TAV
               organization: yali
-              url: http://127.0.0.1:18081
+              url: http://127.0.0.1:18082
