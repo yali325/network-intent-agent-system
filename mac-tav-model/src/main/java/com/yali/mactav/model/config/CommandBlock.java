@@ -8,6 +8,9 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * Ordered configuration command block with traceability, rollback, and risk metadata.
+ */
 @Data
 @Builder
 @NoArgsConstructor
@@ -38,4 +41,6 @@ public class CommandBlock {
     private TraceRefs traceRefs;
 
     private String riskLevel;
+
+    private Boolean isIdempotent;
 }

@@ -1,0 +1,196 @@
+{
+  "taskId": "task-enterprise-office-guest",
+  "planVersion": 1,
+  "configVersion": 1,
+  "targetEnvironment": {
+    "vendor": "generic",
+    "configStyle": "structured",
+    "simulationTarget": "mininet",
+    "adapterType": "structured-validation"
+  },
+  "generationSummary": "Structured configuration for office, guest, and server isolation based on the approved network plan.",
+  "generationSources": [
+    {
+      "sourceType": "LLM",
+      "sourceId": "config-draft-001",
+      "sourceDescription": "Structured draft generated from NetworkPlan",
+      "confidence": 0.82
+    },
+    {
+      "sourceType": "TEMPLATE",
+      "sourceId": "vlan-access-template",
+      "sourceDescription": "Reusable VLAN access block pattern",
+      "confidence": 0.91
+    },
+    {
+      "sourceType": "RULE",
+      "sourceId": "guest-isolation-rule",
+      "sourceDescription": "Rule enforcing guest-to-server deny policy",
+      "confidence": 0.96
+    }
+  ],
+  "deviceConfigs": [
+    {
+      "deviceId": "sw-core",
+      "deviceName": "core-switch",
+      "deviceType": "SWITCH_L3",
+      "vendor": "generic",
+      "traceRefs": {
+        "intentNodeIds": ["node-office", "node-guest", "node-server"],
+        "planElementIds": ["vlan-office", "vlan-guest", "vlan-server", "sec-guest-to-server"]
+      },
+      "commandBlocks": [
+        {
+          "blockId": "cb-core-vlans",
+          "blockType": "VLAN",
+          "order": 10,
+          "title": "Core VLAN definitions",
+          "commands": [
+            "vlan 100",
+            "name OFFICE",
+            "vlan 110",
+            "name GUEST",
+            "vlan 120",
+            "name SERVER"
+          ],
+          "explanation": "Defines VLANs mapped from office, guest, and server zones.",
+          "rollbackCommands": [
+            "no vlan 100",
+            "no vlan 110",
+            "no vlan 120"
+          ],
+          "riskLevel": "LOW",
+          "isIdempotent": true,
+          "traceRefs": {
+            "intentNodeIds": ["node-office", "node-guest", "node-server"],
+            "planElementIds": ["vlan-office", "vlan-guest", "vlan-server"],
+            "configBlockIds": ["cb-core-vlans"]
+          }
+        },
+        {
+          "blockId": "cb-core-acl-guest-server",
+          "blockType": "ACL",
+          "order": 20,
+          "title": "Guest to server deny policy",
+          "commands": [
+            "ip access-list extended GUEST_TO_SERVER",
+            "deny ip 10.2.0.0 0.0.0.255 10.3.0.0 0.0.0.255",
+            "permit ip any any"
+          ],
+          "explanation": "Implements the plan policy that guest clients must not reach the server zone.",
+          "rollbackCommands": [
+            "no ip access-list extended GUEST_TO_SERVER"
+          ],
+          "riskLevel": "MEDIUM",
+          "isIdempotent": false,
+          "traceRefs": {
+            "intentNodeIds": ["node-guest", "node-server"],
+            "intentRelationIds": ["rel-guest-server"],
+            "planElementIds": ["sec-guest-to-server"],
+            "configBlockIds": ["cb-core-acl-guest-server"]
+          }
+        }
+      ]
+    },
+    {
+      "deviceId": "sw-office",
+      "deviceName": "office-switch",
+      "deviceType": "SWITCH_L2",
+      "vendor": "generic",
+      "traceRefs": {
+        "intentNodeIds": ["node-office"],
+        "planElementIds": ["vlan-office", "addr-office"]
+      },
+      "endpointConfig": {
+        "nodeId": "sw-office",
+        "nodeType": "SWITCH_L2",
+        "zoneId": "zone-office",
+        "commands": [
+          "interface range access-office",
+          "switchport access vlan 100"
+        ],
+        "explanation": "Places office access endpoints in the office VLAN.",
+        "traceRefs": {
+          "intentNodeIds": ["node-office"],
+          "planElementIds": ["vlan-office"]
+        }
+      },
+      "commandBlocks": [
+        {
+          "blockId": "cb-office-access",
+          "blockType": "ACCESS_PORT",
+          "order": 10,
+          "title": "Office access VLAN binding",
+          "commands": [
+            "interface range access-office",
+            "switchport mode access",
+            "switchport access vlan 100"
+          ],
+          "explanation": "Binds office access ports to VLAN 100 from the network plan.",
+          "rollbackCommands": [
+            "interface range access-office",
+            "no switchport access vlan"
+          ],
+          "riskLevel": "LOW",
+          "isIdempotent": true,
+          "traceRefs": {
+            "intentNodeIds": ["node-office"],
+            "planElementIds": ["vlan-office"],
+            "configBlockIds": ["cb-office-access"]
+          }
+        }
+      ]
+    }
+  ],
+  "endpointConfigs": [
+    {
+      "nodeId": "host-office-01",
+      "nodeType": "HOST",
+      "zoneId": "zone-office",
+      "commands": [
+        "ip addr add 10.1.0.100/24 dev eth0",
+        "ip route add default via 10.1.0.1"
+      ],
+      "explanation": "Example endpoint addressing for an office host.",
+      "traceRefs": {
+        "intentNodeIds": ["node-office"],
+        "planElementIds": ["addr-office"]
+      }
+    }
+  ],
+  "rollbackPlan": {
+    "strategy": "reverse-order",
+    "description": "Remove generated command blocks in reverse order.",
+    "rollbackBlocks": [
+      {
+        "deviceId": "sw-office",
+        "blockId": "cb-office-access",
+        "commands": [
+          "interface range access-office",
+          "no switchport access vlan"
+        ],
+        "order": 20
+      },
+      {
+        "deviceId": "sw-core",
+        "blockId": "cb-core-acl-guest-server",
+        "commands": [
+          "no ip access-list extended GUEST_TO_SERVER"
+        ],
+        "order": 10
+      }
+    ]
+  },
+  "warnings": [
+    {
+      "level": "INFO",
+      "message": "Interface names are logical placeholders for later ExecutionAdapter mapping.",
+      "relatedBlockId": "cb-office-access"
+    }
+  ],
+  "traceRefs": {
+    "intentNodeIds": ["node-office", "node-guest", "node-server"],
+    "intentRelationIds": ["rel-office-server", "rel-guest-server", "rel-office-guest"],
+    "planElementIds": ["vlan-office", "vlan-guest", "vlan-server", "sec-guest-to-server"]
+  }
+}

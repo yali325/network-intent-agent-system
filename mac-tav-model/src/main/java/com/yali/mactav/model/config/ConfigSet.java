@@ -12,9 +12,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * Config 阶段产物对象
- */
-/**
  * Configuration-stage artifact containing structured device and endpoint configuration.
  *
  * <p>ConfigSet is not a raw command blob. It should remain serializable DTO data
@@ -55,4 +52,8 @@ public class ConfigSet {
     private TraceRefs traceRefs;
 
     private LocalDateTime createTime;
+
+    private LocalDateTime updateTime;
+
+    private String createdBy;
 }
