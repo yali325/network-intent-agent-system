@@ -1,5 +1,7 @@
 # CODEX_DOC_INDEX
 
+> Phase 5 收尾后进入 Phase 6 时，除默认三件套外优先读取 `docs/phase-handoffs/PHASE_05_HANDOFF.md`。
+
 ## 1. 目标
 
 本文档用于帮助 Codex 按任务类型选择最小必要上下文，避免每次开发前全量读取 `docs/00-09`。
