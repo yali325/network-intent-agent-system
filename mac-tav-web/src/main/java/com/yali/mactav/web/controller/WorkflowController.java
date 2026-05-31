@@ -33,4 +33,9 @@ public class WorkflowController {
     public ApiResponse<NetworkWorkspace> runPlanningStage(@PathVariable String taskId) {
         return ApiResponse.success(workflowOrchestrator.runPlanningStage(taskId));
     }
+
+    @PostMapping("/{taskId}/config")
+    public ApiResponse<NetworkWorkspace> runConfigurationStage(@PathVariable String taskId) {
+        return ApiResponse.success(workflowOrchestrator.runConfigurationStage(taskId));
+    }
 }

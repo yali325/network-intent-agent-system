@@ -10,6 +10,10 @@ import com.yali.mactav.model.enums.ArtifactType;
 import com.yali.mactav.model.enums.StageStatus;
 import com.yali.mactav.model.enums.TaskStatus;
 import com.yali.mactav.model.enums.WorkflowStage;
+import com.yali.mactav.model.config.ConfigSet;
+import com.yali.mactav.model.config.ConfigurationAgentInvokePayload;
+import com.yali.mactav.model.config.DeviceConfig;
+import com.yali.mactav.model.config.GenerationSource;
 import com.yali.mactav.model.intent.IntentAgentInvokePayload;
 import com.yali.mactav.model.intent.IntentNode;
 import com.yali.mactav.model.intent.IntentRelation;
@@ -46,6 +50,8 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
     private static final String INTENT_AGENT = "IntentAgent";
 
     private static final String PLANNING_AGENT = "PlanningAgent";
+
+    private static final String CONFIGURATION_AGENT = "ConfigurationAgent";
 
     private final NetworkWorkspaceService workspaceService;
 
@@ -118,12 +124,13 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
             return workspaceService.getWorkspaceOrThrow(taskId);
         }
         catch (BusinessException ex) {
-            markTaskErrorAndRecord(taskId, traceId, startTime, ex.getErrorCode(), ex.getMessage());
+            markTaskErrorAndRecord(taskId, traceId, startTime,
+                    INTENT_AGENT, WorkflowStage.INTENT, ex.getErrorCode(), ex.getMessage());
             throw ex;
         }
         catch (RuntimeException ex) {
             markTaskErrorAndRecord(taskId, traceId, startTime,
-                    ErrorCode.AGENT_EXECUTION_FAILED.name(), ex.getMessage());
+                    INTENT_AGENT, WorkflowStage.INTENT, ErrorCode.AGENT_EXECUTION_FAILED.name(), ex.getMessage());
             throw ex;
         }
     }
@@ -164,11 +171,66 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
             return workspaceService.getWorkspaceOrThrow(taskId);
         }
         catch (BusinessException ex) {
-            markTaskErrorAndRecord(taskId, traceId, startTime, ex.getErrorCode(), ex.getMessage());
+            markTaskErrorAndRecord(taskId, traceId, startTime,
+                    PLANNING_AGENT, WorkflowStage.PLANNING, ex.getErrorCode(), ex.getMessage());
             throw ex;
         }
         catch (RuntimeException ex) {
             markTaskErrorAndRecord(taskId, traceId, startTime,
+                    PLANNING_AGENT, WorkflowStage.PLANNING, ErrorCode.AGENT_EXECUTION_FAILED.name(), ex.getMessage());
+            throw ex;
+        }
+    }
+
+    @Override
+    public NetworkWorkspace runConfigurationStage(String taskId) {
+        LocalDateTime startTime = LocalDateTime.now();
+        String traceId = "trace-" + UUID.randomUUID();
+        try {
+            NetworkWorkspace workspace = workspaceService.getWorkspaceOrThrow(taskId);
+            NetworkPlan currentPlan = workspace.getCurrentPlan();
+            if (currentPlan == null) {
+                throw new BusinessException(ErrorCode.STAGE_NOT_READY,
+                        "No current NetworkPlan found. Run planning stage first for task: " + taskId);
+            }
+            if (workspace.getCurrentArtifactRefs() == null
+                    || !workspace.getCurrentArtifactRefs().containsKey(ArtifactType.NETWORK_PLAN)) {
+                throw new BusinessException(ErrorCode.ARTIFACT_NOT_FOUND,
+                        "No NETWORK_PLAN artifact found. Run planning stage first for task: " + taskId);
+            }
+            int configVersion = nextConfigVersion(workspace);
+            workspaceService.updateTaskStage(taskId, WorkflowStage.CONFIGURATION);
+            workspaceService.updateTaskStatus(taskId, TaskStatus.RUNNING);
+
+            A2aRequest request = buildConfigurationRequest(workspace, currentPlan, configVersion, traceId);
+            A2aResponse response = remoteAgentInvoker.invoke(request);
+            if (!Boolean.TRUE.equals(response.getSuccess())) {
+                throw new BusinessException(
+                        response.getErrorCode(),
+                        response.getMessage() == null ? "Remote ConfigurationAgent failed" : response.getMessage());
+            }
+            ConfigSet configSet = parseConfigSet(response.getPayloadJson());
+            normalizeConfigSet(configSet, workspace, currentPlan, configVersion);
+            NetworkArtifact artifact = workspaceService.saveStageArtifact(
+                    taskId,
+                    ArtifactType.CONFIG_SET,
+                    WorkflowStage.CONFIGURATION,
+                    configSet,
+                    configSetSummary(configSet),
+                    workspace.getTask().getCreatedBy(),
+                    configSet.getTraceRefs());
+            appendExecutionRecord(taskId, traceId, startTime, StageStatus.SUCCESS,
+                    artifact, null, null, CONFIGURATION_AGENT, WorkflowStage.CONFIGURATION, null, null);
+            return workspaceService.getWorkspaceOrThrow(taskId);
+        }
+        catch (BusinessException ex) {
+            markTaskErrorAndRecord(taskId, traceId, startTime,
+                    CONFIGURATION_AGENT, WorkflowStage.CONFIGURATION, ex.getErrorCode(), ex.getMessage());
+            throw ex;
+        }
+        catch (RuntimeException ex) {
+            markTaskErrorAndRecord(taskId, traceId, startTime,
+                    CONFIGURATION_AGENT, WorkflowStage.CONFIGURATION,
                     ErrorCode.AGENT_EXECUTION_FAILED.name(), ex.getMessage());
             throw ex;
         }
@@ -232,12 +294,52 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
                 .build();
     }
 
+    private A2aRequest buildConfigurationRequest(NetworkWorkspace workspace, NetworkPlan currentPlan,
+                                                 int configVersion, String traceId) {
+        String planJson = serialize(currentPlan,
+                ErrorCode.AGENT_PARSE_FAILED,
+                "Failed to serialize current NetworkPlan for configuration request");
+        ConfigurationAgentInvokePayload payload = ConfigurationAgentInvokePayload.builder()
+                .taskId(workspace.getTask().getTaskId())
+                .rawText(workspace.getTask().getRawText())
+                .intentVersion(workspace.getCurrentIntentVersion())
+                .planVersion(workspace.getCurrentPlanVersion())
+                .planJson(planJson)
+                .configVersion(configVersion)
+                .traceId(traceId)
+                .userContext(targetEnvironmentHints.get(workspace.getTask().getTaskId()))
+                .workspaceSnapshot(workspaceSnapshot(workspace))
+                .targetEnvironmentHint(targetEnvironmentHints.get(workspace.getTask().getTaskId()))
+                .createdBy(workspace.getTask().getCreatedBy())
+                .build();
+        return A2aRequest.builder()
+                .taskId(workspace.getTask().getTaskId())
+                .sourceAgent(ORCHESTRATOR_AGENT)
+                .targetAgent(CONFIGURATION_AGENT)
+                .stage(WorkflowStage.CONFIGURATION)
+                .artifactVersion(configVersion)
+                .payloadJson(serialize(payload, ErrorCode.A2A_CALL_FAILED,
+                        "Configuration A2A payload serialization failed"))
+                .traceId(traceId)
+                .timestamp(LocalDateTime.now())
+                .build();
+    }
+
     private NetworkIntent parseIntent(String payloadJson) {
         try {
             return objectMapper.readValue(payloadJson, NetworkIntent.class);
         }
         catch (JsonProcessingException ex) {
             throw new BusinessException(ErrorCode.A2A_RESPONSE_INVALID, "IntentAgent payload JSON is invalid", ex);
+        }
+    }
+
+    private ConfigSet parseConfigSet(String payloadJson) {
+        try {
+            return objectMapper.readValue(payloadJson, ConfigSet.class);
+        }
+        catch (JsonProcessingException ex) {
+            throw new BusinessException(ErrorCode.A2A_RESPONSE_INVALID, "ConfigurationAgent payload JSON is invalid", ex);
         }
     }
 
@@ -276,6 +378,47 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
     private int nextPlanVersion(NetworkWorkspace workspace) {
         Integer current = workspace.getCurrentPlanVersion();
         return current == null ? 1 : current + 1;
+    }
+
+    private int nextConfigVersion(NetworkWorkspace workspace) {
+        Integer current = workspace.getCurrentConfigVersion();
+        return current == null ? 1 : current + 1;
+    }
+
+    private void normalizeConfigSet(ConfigSet configSet, NetworkWorkspace workspace,
+                                    NetworkPlan currentPlan, int configVersion) {
+        if (configSet.getTaskId() == null || configSet.getTaskId().isBlank()) {
+            configSet.setTaskId(workspace.getTask().getTaskId());
+        }
+        if (configSet.getPlanVersion() == null) {
+            configSet.setPlanVersion(currentPlan.getPlanVersion());
+        }
+        if (configSet.getConfigVersion() == null) {
+            configSet.setConfigVersion(configVersion);
+        }
+        if (configSet.getTraceRefs() == null) {
+            configSet.setTraceRefs(currentPlan.getTraceRefs());
+        }
+    }
+
+    private String configSetSummary(ConfigSet configSet) {
+        int deviceCount = configSet.getDeviceConfigs() == null ? 0 : configSet.getDeviceConfigs().size();
+        int commandBlockCount = configSet.getDeviceConfigs() == null ? 0 : configSet.getDeviceConfigs().stream()
+                .map(DeviceConfig::getCommandBlocks)
+                .filter(blocks -> blocks != null)
+                .mapToInt(List::size)
+                .sum();
+        String sourceTypes = configSet.getGenerationSources() == null ? "" : configSet.getGenerationSources().stream()
+                .map(GenerationSource::getSourceType)
+                .filter(sourceType -> sourceType != null)
+                .map(Enum::name)
+                .distinct()
+                .toList()
+                .toString();
+        return "ConfigSet version " + configSet.getConfigVersion()
+                + ", devices=" + deviceCount
+                + ", commandBlocks=" + commandBlockCount
+                + ", generationSources=" + sourceTypes;
     }
 
     private TraceRefs traceRefs(NetworkIntent intent) {
@@ -353,12 +496,14 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
     private void markTaskErrorAndRecord(String taskId,
                                         String traceId,
                                         LocalDateTime startTime,
+                                        String targetAgentName,
+                                        WorkflowStage stage,
                                         String errorCode,
                                         String message) {
         try {
             workspaceService.updateTaskStatus(taskId, TaskStatus.ERROR);
             appendExecutionRecord(taskId, traceId, startTime, StageStatus.FAILED, null,
-                    errorCode, message);
+                    errorCode, message, targetAgentName, stage, null, null);
         }
         catch (RuntimeException ignored) {
             // Preserve the original failure while avoiding secondary error noise.

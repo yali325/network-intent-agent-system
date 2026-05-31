@@ -44,11 +44,14 @@ class WebControllerTest {
         WorkspaceController workspaceController = new WorkspaceController(orchestrator);
 
         ApiResponse<NetworkWorkspace> runResponse = workflowController.runIntentStage("task-web-test");
+        ApiResponse<NetworkWorkspace> configResponse = workflowController.runConfigurationStage("task-web-test");
         ApiResponse<NetworkWorkspace> queryResponse = workspaceController.getWorkspace("task-web-test");
 
         assertTrue(runResponse.isSuccess());
+        assertTrue(configResponse.isSuccess());
         assertTrue(queryResponse.isSuccess());
         assertEquals("task-web-test", runResponse.getData().getTask().getTaskId());
+        assertEquals("task-web-test", configResponse.getData().getTask().getTaskId());
         assertEquals("task-web-test", queryResponse.getData().getTask().getTaskId());
     }
 
@@ -67,6 +70,11 @@ class WebControllerTest {
 
             @Override
             public NetworkWorkspace runPlanningStage(String taskId) {
+                return workspace;
+            }
+
+            @Override
+            public NetworkWorkspace runConfigurationStage(String taskId) {
                 return workspace;
             }
 
