@@ -23,6 +23,10 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class ConfigSet {
 
+    private String configSetId;
+
+    private String planId;
+
     private String taskId;
 
     private Integer planVersion;

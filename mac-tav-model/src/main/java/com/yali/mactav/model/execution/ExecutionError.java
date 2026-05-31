@@ -6,6 +6,9 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * Structured failure reported by the execution stage.
+ */
 @Data
 @Builder
 @NoArgsConstructor
@@ -18,7 +21,13 @@ public class ExecutionError {
 
     private String message;
 
+    private String stage;
+
+    private String actionId;
+
     private String relatedCommandId;
+
+    private Boolean recoverable;
 
     private TraceRefs traceRefs;
 }

@@ -321,6 +321,11 @@ ExecutionAdapter 接入后再启用 Mininet / Ryu 验证。
 - Mininet / Ryu 不是 Agent 打通前置条件。
 - Mininet / Ryu 验证不替代 A2A / Nacos / Agent Card 验证。
 - 失败结果必须进入 `ExecutionReport`。
+- Phase 6 P0-P4 只记录执行边界和依赖准备，不是最终执行验收。
+- Python Mininet/Ryu executor 是受控内部执行器，不是对外业务 API，不是 Agent 服务，暂定端口为 `18091`。
+- Java 与 Python executor 之间只传结构化 request/response，不传任意 shell。
+- Ryu 第一版只使用 `simple_switch_13` + `ofctl_rest`，不写自定义 Ryu app。
+- 默认自动化测试不启动真实 Mininet/Ryu，不进入默认 CI；默认使用结构校验和 fixture。
 
 验证前 SHOULD 检查：
 
@@ -462,4 +467,3 @@ ExecutionAdapter 接入后再启用 Mininet / Ryu 验证。
 - 不存在 `mac-tav-web` 本地扫描具体 Agent Bean 的启动路线。
 - 不存在 Controller 直接调用具体 Agent 的路线。
 - 不存在 Mock Agent / Mock Tool 替代业务主链路的验收路线。
-

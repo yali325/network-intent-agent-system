@@ -9,26 +9,26 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * Structured test request descriptor used by execution plans.
+ * Structured action that an ExecutionAdapter may translate into controlled runtime operations.
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class TestCommand {
+public class ExecutionAction {
 
-    private String testId;
+    private String actionId;
 
-    private TestResultType testType;
+    private Integer sequence;
 
-    private String sourceNode;
+    private ExecutionActionType actionType;
 
-    private String targetNode;
+    private String targetNodeId;
+
+    private String targetDeviceId;
 
     @Builder.Default
     private Map<String, Object> parameters = new HashMap<>();
-
-    private String expectedResult;
 
     private TraceRefs traceRefs;
 }

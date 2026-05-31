@@ -122,6 +122,17 @@ NetworkPlan
 
 Phase 6 只进入 ExecutionAdapter + Mininet/Ryu 或结构校验模式，不实现 Verification / Healing。
 
+Phase 6 P0-P4 已完成过渡准备：
+
+- 已确认 Phase 6 只做 Execution，不做 Verification / Healing，不判断业务意图是否达成。
+- 已记录 Java 侧以 `mac-tav-execution` 的 `ExecutionAdapter` 为核心。
+- 已记录 Python Mininet/Ryu executor 是受控内部执行器，不是对外业务 API，不是 Agent 服务，暂定端口 `18091`。
+- 已记录 Ryu 第一版只使用 `simple_switch_13` + `ofctl_rest`，不写自定义 Ryu app。
+- 已记录 Java 与 Python 之间只传结构化 request/response，不允许传任意 shell。
+- 已记录真实 Mininet/Ryu 集成测试不进入默认 CI，默认自动化测试走结构校验和 fixture。
+- 已校准 `mac-tav-execution` Maven 边界：移除未使用的 Qdrant vector store 和 `mac-tav-agent-core` 依赖，仅保留 `mac-tav-common`、`mac-tav-model`。
+- `mac-tav-orchestrator` 当前未提前接入 `mac-tav-execution`；`mac-tav-web` 不直接依赖 `mac-tav-execution`。
+
 Phase 6 应做：
 
 - 实现 `ExecutionAdapter`。
@@ -150,4 +161,5 @@ Phase 6 必须遵守：
 6. `docs/03_MODULE_DESIGN.md` 中 Execution Module、Orchestrator、Web Module 相关内容
 7. `docs/04_DATA_MODELS.md` 中 NetworkPlan、ConfigSet、ExecutionReport、NetworkWorkspace、NetworkArtifact 相关小节
 8. `docs/08_RUN_AND_TEST.md` 中测试命令、Mininet/Ryu、手动验证要求
-9. 直接相关源码：`mac-tav-execution`、`mac-tav-orchestrator`、`mac-tav-model`、`mac-tav-model-core`，必要时读取 `mac-tav-web`
+9. `docs/phase-handoffs/PHASE_06_P0_P4_NOTES.md`
+10. 直接相关源码：`mac-tav-execution`、`mac-tav-orchestrator`、`mac-tav-model`、`mac-tav-model-core`，必要时读取 `mac-tav-web`

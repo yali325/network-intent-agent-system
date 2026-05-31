@@ -17,11 +17,6 @@
     <name>mac-tav-execution</name>
 
     <dependencies>
-        <!--qdrant向量数据库集成-->
-        <dependency>
-            <groupId>org.springframework.ai</groupId>
-            <artifactId>spring-ai-starter-vector-store-qdrant</artifactId>
-        </dependency>
         <dependency>
             <groupId>com.yali</groupId>
             <artifactId>mac-tav-common</artifactId>
@@ -31,8 +26,14 @@
             <artifactId>mac-tav-model</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.yali</groupId>
-            <artifactId>mac-tav-agent-core</artifactId>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 </project>

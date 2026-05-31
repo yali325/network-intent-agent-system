@@ -22,7 +22,11 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class NetworkPlan {
 
+    private String planId;
+
     private String taskId;
+
+    private String intentId;
 
     private Integer intentVersion;
 

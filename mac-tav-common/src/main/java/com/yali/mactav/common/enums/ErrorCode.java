@@ -44,7 +44,12 @@ public enum ErrorCode {
     ARTIFACT_NOT_FOUND(40403, "ARTIFACT_NOT_FOUND", "Artifact not found"),
     ARTIFACT_INVALID(40011, "ARTIFACT_INVALID", "Artifact is invalid"),
     WORKSPACE_STATE_INVALID(40913, "WORKSPACE_STATE_INVALID", "Workspace state is invalid"),
-    STAGE_NOT_READY(40914, "STAGE_NOT_READY", "Required previous stage artifact is not present");
+    STAGE_NOT_READY(40914, "STAGE_NOT_READY", "Required previous stage artifact is not present"),
+
+    EXECUTION_ADAPTER_FAILED(60001, "EXECUTION_ADAPTER_FAILED", "Execution adapter failed"),
+    EXECUTION_FORBIDDEN_COMMAND(60002, "EXECUTION_FORBIDDEN_COMMAND", "Execution action is forbidden"),
+    EXECUTION_TIMEOUT(60003, "EXECUTION_TIMEOUT", "Execution timed out"),
+    EXECUTION_ADAPTER_NOT_FOUND(60004, "EXECUTION_ADAPTER_NOT_FOUND", "Execution adapter not found");
 
     private final int code;
 

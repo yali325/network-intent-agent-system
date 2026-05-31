@@ -1,6 +1,6 @@
 package com.yali.mactav.model.execution;
 
-import com.yali.mactav.model.enums.StageStatus;
+import com.yali.mactav.model.workspace.TraceRefs;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -9,9 +9,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/**
- * Execute 阶段产物对象
- */
 /**
  * Execution-stage artifact returned by controlled execution adapters.
  *
@@ -24,7 +21,13 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class ExecutionReport {
 
+    private String executionId;
+
     private String taskId;
+
+    private String planId;
+
+    private String configSetId;
 
     private Integer planVersion;
 
@@ -32,13 +35,14 @@ public class ExecutionReport {
 
     private Integer executionVersion;
 
-    private String executionMode;
+    private ExecutionEnvironmentType environmentType;
 
     private ExecutionPlan executionPlan;
 
     private RuntimeState runtimeState;
 
-    private TestResult testResult;
+    @Builder.Default
+    private List<TestResult> testResults = new ArrayList<>();
 
     @Builder.Default
     private List<ExecutionError> errors = new ArrayList<>();
@@ -46,9 +50,15 @@ public class ExecutionReport {
     @Builder.Default
     private List<String> warnings = new ArrayList<>();
 
-    private StageStatus stageStatus;
+    private ExecutionStatus overallStatus;
+
+    private TraceRefs traceRefs;
+
+    private LocalDateTime createTime;
 
     private LocalDateTime startTime;
 
-    private LocalDateTime finishTime;
+    private LocalDateTime endTime;
+
+    private LocalDateTime updateTime;
 }
