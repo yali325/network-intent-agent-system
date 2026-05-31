@@ -39,6 +39,7 @@
 | A2A / Nacos 任务 | 默认三件套 + `docs/09_AGENT_BUILD_GUIDE.md` + `docs/08_RUN_AND_TEST.md` + Agent/Orchestrator A2A 配置与 adapter |
 | 测试任务 | 默认三件套 + `docs/07_TEST_DATA_AND_SCENARIOS.md` + 目标模块测试 + 必要样例 JSON |
 | 审查任务 | 默认三件套 + `git diff` / `git status` + 与变更文件直接相关的专项文档和源码 |
+| 新阶段接手任务 | 默认三件套 + 最新的 `docs/phase-handoffs/PHASE_xx_HANDOFF.md` + 下一阶段直接相关专项文档和源码 |
 
 ## 5. 禁止事项
 

@@ -102,6 +102,61 @@ class PlanningOutputValidatorTest {
     }
 
     @Test
+    void validateShouldFailWhenTargetEnvironmentIsMissing() {
+        NetworkPlan plan = PlanningTestFixtures.validPlan();
+        plan.setTargetEnvironment(null);
+
+        ValidationResult result = validator.validate(plan);
+
+        assertFalse(result.isValid());
+        assertTrue(result.getMessages().stream().anyMatch(m -> m.contains("targetEnvironment")));
+    }
+
+    @Test
+    void validateShouldFailWhenAddressPlanIsEmpty() {
+        NetworkPlan plan = PlanningTestFixtures.validPlan();
+        plan.setAddressPlan(List.of());
+
+        ValidationResult result = validator.validate(plan);
+
+        assertFalse(result.isValid());
+        assertTrue(result.getMessages().stream().anyMatch(m -> m.contains("addressPlan")));
+    }
+
+    @Test
+    void validateShouldFailWhenVlanIdIsInvalid() {
+        NetworkPlan plan = PlanningTestFixtures.validPlan();
+        plan.getVlanPlan().get(0).setVlanId(4095);
+
+        ValidationResult result = validator.validate(plan);
+
+        assertFalse(result.isValid());
+        assertTrue(result.getMessages().stream().anyMatch(m -> m.contains("vlanId")));
+    }
+
+    @Test
+    void validateShouldFailWhenRoutingPlanIsMissing() {
+        NetworkPlan plan = PlanningTestFixtures.validPlan();
+        plan.setRoutingPlan(null);
+
+        ValidationResult result = validator.validate(plan);
+
+        assertFalse(result.isValid());
+        assertTrue(result.getMessages().stream().anyMatch(m -> m.contains("routingPlan")));
+    }
+
+    @Test
+    void validateShouldFailWhenTraceRefsAreMissing() {
+        NetworkPlan plan = PlanningTestFixtures.validPlan();
+        plan.setTraceRefs(null);
+
+        ValidationResult result = validator.validate(plan);
+
+        assertFalse(result.isValid());
+        assertTrue(result.getMessages().stream().anyMatch(m -> m.contains("traceRefs")));
+    }
+
+    @Test
     void validateAndReturnShouldThrowWhenInvalid() {
         NetworkPlan plan = PlanningTestFixtures.validPlan();
         plan.setTopology(null);

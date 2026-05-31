@@ -28,6 +28,8 @@ class PlanningResponseParserTest {
         assertEquals(1, plan.getIntentVersion());
         assertEquals(StageStatus.SUCCESS, plan.getStageStatus());
         assertNotNull(plan.getCreateTime());
+        assertNotNull(plan.getUpdateTime());
+        assertNotNull(plan.getCreatedBy());
         assertNotNull(plan.getPlanSummary());
 
         assertEquals(5, plan.getTopology().getNodes().size());
@@ -59,6 +61,23 @@ class PlanningResponseParserTest {
 
         assertEquals(1, plan.getPlanConstraints().size());
         assertNull(plan.getNatPlan());
+    }
+
+    @Test
+    void parseShouldSetCreatedByFromContext() {
+        var ctx = PlanningTestFixtures.context();
+        ctx.setCreatedBy("unit-test-user");
+        NetworkPlan plan = parser.parse(PlanningTestFixtures.enterprisePlanSchema(), ctx);
+
+        assertEquals("unit-test-user", plan.getCreatedBy());
+    }
+
+    @Test
+    void parseShouldUseDefaultCreatedByWhenContextHasNone() {
+        NetworkPlan plan = parser.parse(PlanningTestFixtures.enterprisePlanSchema(),
+                PlanningTestFixtures.context());
+
+        assertEquals("PlanningAgent", plan.getCreatedBy());
     }
 
     @Test

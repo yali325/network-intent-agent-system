@@ -4,11 +4,11 @@
 
 关键词含义：
 
-| 关键词    | 含义                     |  
-| ------ | ---------------------- |  
-| MUST   | Codex 生成代码时必须遵守        |  
-| SHOULD | 默认推荐做法，除非当前任务有明确理由才可偏离 |  
-| MAY    | 可选扩展，只有任务明确要求时再实现      |  
+| 关键词    | 含义                     |     |
+| ------ | ---------------------- | --- |
+| MUST   | Codex 生成代码时必须遵守        |     |
+| SHOULD | 默认推荐做法，除非当前任务有明确理由才可偏离 |     |
+| MAY    | 可选扩展，只有任务明确要求时再实现      |     |
 
 Mock JSON / 样例数据用于 Parser / Validator 固定样例回归测试，归 `docs/07_TEST_DATA_AND_SCENARIOS.md` 管理。真实业务主流程 MUST 面向真实 Spring AI Alibaba Agent + Nacos + Agent Card + A2A，Agent 测试时不引入独立离线调用链路。
   
@@ -24,7 +24,8 @@ Mock JSON / 样例数据用于 Parser / Validator 固定样例回归测试，归
 4. Spring AI `ChatClient` 文档：<https://docs.spring.io/spring-ai/reference/api/chatclient.html>
 5. Spring AI structured output 文档：<https://docs.spring.io/spring-ai/reference/api/structured-output-converter.html>
 6. Spring AI advisors 文档：<https://docs.spring.io/spring-ai/reference/api/advisors.html>
-7. Spring AI Alibaba 官方项目: <https://github.com/alibaba/spring-ai-alibaba>
+7. Spring AI Alibaba RAG 文档: [检索增强生成（RAG） | Spring AI Alibaba](https://java2ai.com/docs/frameworks/agent-framework/advanced/rag)
+8. Spring AI Alibaba A2A Agent 文档：[分布式智能体（A2A Agent） | Spring AI Alibaba](https://java2ai.com/docs/frameworks/agent-framework/advanced/a2a)
 
 ---  
 
@@ -369,8 +370,7 @@ public class IntentAgentConfiguration {
     @Bean    public IntentAgent intentAgent(ReactAgent intentReactAgent,                                   ObjectMapper objectMapper,                                   IntentResponseParser parser,                                   IntentOutputValidator validator,                                   IntentService intentService) {        return new IntentAgent(intentReactAgent, objectMapper, parser, validator, intentService);    }}  
 ```  
 
-### 7.2 XxxAgent（业务封装类，不再是 @Component）
-
+### 7.2 XxxAgent
 ```java  
 package com.yali.mactav.intent.agent;  
   

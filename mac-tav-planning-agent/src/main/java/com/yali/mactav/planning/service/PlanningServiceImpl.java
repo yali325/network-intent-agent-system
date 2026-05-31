@@ -47,6 +47,7 @@ public class PlanningServiceImpl implements PlanningService {
                 .traceId(request == null ? null : request.getTraceId())
                 .userInput(request == null ? null : request.getRawText())
                 .workspaceSnapshot(request == null ? null : request.getWorkspaceSnapshot())
+                .createdBy(request == null ? null : request.getCreatedBy())
                 .build();
     }
 }

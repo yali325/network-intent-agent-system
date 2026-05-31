@@ -17,6 +17,11 @@
     <name>mac-tav-configuration-agent</name>
 
     <dependencies>
+        <!--qdrant向量数据库集成-->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-vector-store-qdrant</artifactId>
+        </dependency>
         <dependency>
             <groupId>com.yali</groupId>
             <artifactId>mac-tav-common</artifactId>

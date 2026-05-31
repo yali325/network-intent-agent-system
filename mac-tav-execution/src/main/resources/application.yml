@@ -1,0 +1,12 @@
+server:
+  port: 18084
+
+spring:
+  ai:
+    vectorstore:
+      qdrant:
+        host: 127.0.0.1
+        port: 16334
+        collection-name: mactav_mininet_execution_kb
+        use-tls: false
+        initialize-schema: true

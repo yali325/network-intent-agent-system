@@ -2,8 +2,13 @@ package com.yali.mactav.planning.validator;
 
 import com.yali.mactav.agent.core.validator.AgentOutputValidator;
 import com.yali.mactav.agent.core.validator.ValidationResult;
+import com.yali.mactav.model.plan.AddressPlanItem;
 import com.yali.mactav.model.plan.NetworkPlan;
+import com.yali.mactav.model.plan.RoutingPlan;
 import com.yali.mactav.model.plan.SecurityPolicyPlanItem;
+import com.yali.mactav.model.plan.TargetEnvironment;
+import com.yali.mactav.model.plan.VlanPlanItem;
+import com.yali.mactav.model.workspace.TraceRefs;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -52,7 +57,12 @@ public class PlanningOutputValidator implements AgentOutputValidator<NetworkPlan
         }
 
         validateZones(messages, plan);
+        validateTargetEnvironment(messages, plan.getTargetEnvironment());
+        validateAddressPlan(messages, plan.getAddressPlan());
+        validateVlanPlan(messages, plan.getVlanPlan());
+        validateRoutingPlan(messages, plan.getRoutingPlan());
         validateSecurityPolicies(messages, plan);
+        validateTraceRefs(messages, "traceRefs", plan.getTraceRefs());
 
         if (plan.getPlanSummary() != null) {
             rejectCliContent(messages, "planSummary", plan.getPlanSummary());
@@ -120,6 +130,85 @@ public class PlanningOutputValidator implements AgentOutputValidator<NetworkPlan
         }
     }
 
+    private void validateTargetEnvironment(List<String> messages, TargetEnvironment targetEnvironment) {
+        if (targetEnvironment == null) {
+            messages.add("targetEnvironment must not be null");
+            return;
+        }
+        requireNotBlank(messages, "targetEnvironment.vendor", targetEnvironment.getVendor());
+        requireNotBlank(messages, "targetEnvironment.configStyle", targetEnvironment.getConfigStyle());
+        requireNotBlank(messages, "targetEnvironment.adapterType", targetEnvironment.getAdapterType());
+    }
+
+    private void validateAddressPlan(List<String> messages, List<AddressPlanItem> items) {
+        if (items == null || items.isEmpty()) {
+            messages.add("addressPlan must not be empty");
+            return;
+        }
+        Set<String> seen = new HashSet<>();
+        for (AddressPlanItem item : items) {
+            if (item == null) {
+                messages.add("addressPlan item must not be null");
+                continue;
+            }
+            if (isBlank(item.getId())) {
+                messages.add("addressPlan item id must not be blank");
+            }
+            else if (!seen.add(item.getId())) {
+                messages.add("addressPlan item id must be unique: " + item.getId());
+            }
+            requireNotBlank(messages, "addressPlan.subnet", item.getSubnet());
+            requireNotBlank(messages, "addressPlan.gateway", item.getGateway());
+            validateTraceRefs(messages, "addressPlan.traceRefs", item.getTraceRefs());
+        }
+    }
+
+    private void validateVlanPlan(List<String> messages, List<VlanPlanItem> items) {
+        if (items == null || items.isEmpty()) {
+            messages.add("vlanPlan must not be empty");
+            return;
+        }
+        Set<String> seenIds = new HashSet<>();
+        Set<Integer> seenVlans = new HashSet<>();
+        for (VlanPlanItem item : items) {
+            if (item == null) {
+                messages.add("vlanPlan item must not be null");
+                continue;
+            }
+            if (isBlank(item.getId())) {
+                messages.add("vlanPlan item id must not be blank");
+            }
+            else if (!seenIds.add(item.getId())) {
+                messages.add("vlanPlan item id must be unique: " + item.getId());
+            }
+            if (item.getVlanId() == null) {
+                messages.add("vlanPlan.vlanId must not be null");
+            }
+            else {
+                if (item.getVlanId() < 1 || item.getVlanId() > 4094) {
+                    messages.add("vlanPlan.vlanId must be between 1 and 4094: " + item.getVlanId());
+                }
+                if (!seenVlans.add(item.getVlanId())) {
+                    messages.add("vlanPlan.vlanId must be unique: " + item.getVlanId());
+                }
+            }
+            requireNotBlank(messages, "vlanPlan.zoneId", item.getZoneId());
+        }
+    }
+
+    private void validateRoutingPlan(List<String> messages, RoutingPlan routingPlan) {
+        if (routingPlan == null) {
+            messages.add("routingPlan must not be null");
+            return;
+        }
+        requireNotBlank(messages, "routingPlan.id", routingPlan.getId());
+        requireNotBlank(messages, "routingPlan.protocol", routingPlan.getProtocol());
+        if (routingPlan.getRouters() == null || routingPlan.getRouters().isEmpty()) {
+            messages.add("routingPlan.routers must not be empty");
+        }
+        validateTraceRefs(messages, "routingPlan.traceRefs", routingPlan.getTraceRefs());
+    }
+
     private void validateSecurityPolicies(List<String> messages, NetworkPlan plan) {
         List<SecurityPolicyPlanItem> policies = plan.getSecurityPolicyPlan();
         if (policies == null) {
@@ -143,6 +232,12 @@ public class PlanningOutputValidator implements AgentOutputValidator<NetworkPlan
                     messages.add("security policy action has unsupported value: " + policy.getAction());
                 }
             }
+        }
+    }
+
+    private void validateTraceRefs(List<String> messages, String fieldName, TraceRefs traceRefs) {
+        if (traceRefs == null || traceRefs.getIntentNodeIds() == null || traceRefs.getIntentNodeIds().isEmpty()) {
+            messages.add(fieldName + " must include at least one intentNodeId");
         }
     }
 

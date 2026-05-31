@@ -11,9 +11,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * Plan 阶段产物对象
- */
-/**
  * Planning-stage artifact describing network design decisions.
  *
  * <p>NetworkPlan may describe topology, zones, routing, addressing, and policy
@@ -63,4 +60,8 @@ public class NetworkPlan {
     private StageStatus stageStatus;
 
     private LocalDateTime createTime;
+
+    private LocalDateTime updateTime;
+
+    private String createdBy;
 }

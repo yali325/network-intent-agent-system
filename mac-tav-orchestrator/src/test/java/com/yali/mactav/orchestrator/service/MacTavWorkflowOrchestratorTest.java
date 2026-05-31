@@ -57,4 +57,61 @@ class MacTavWorkflowOrchestratorTest {
         assertEquals(1, res.getAgentExecutionRecords().size());
     }
 
+    @Test
+    void runPlanningStageShouldPersistNetworkPlanArtifactIntoWorkspace() {
+        var om = om();
+        var d = (AgentDiscoveryClient) t -> AgentCard.builder().agentName(t).serviceEndpoint("http://x/").healthStatus(AgentHealthStatus.UP).build();
+        var c = (A2aClient) (r, a) -> {
+            if (r.getStage() == WorkflowStage.INTENT) {
+                return A2aResponse.builder().success(true).taskId(r.getTaskId()).sourceAgent("IntentAgent")
+                        .targetAgent(r.getSourceAgent()).stage(WorkflowStage.INTENT).traceId(r.getTraceId())
+                        .timestamp(LocalDateTime.now()).payloadJson(j(NetworkIntent.builder()
+                                .taskId(r.getTaskId()).intentVersion(r.getArtifactVersion()).rawText("x")
+                                .semanticIntentGraph(SemanticIntentGraph.builder()
+                                        .nodes(java.util.List.of(IntentNode.builder().id("node-office").name("office").type("zone").build()))
+                                        .relations(java.util.List.of(IntentRelation.builder().id("rel-office-server").type("access")
+                                                .source("node-office").target("node-server").action("allow").build()))
+                                        .build())
+                                .stageStatus(StageStatus.SUCCESS).traceId(r.getTraceId())
+                                .createTime(LocalDateTime.now()).build())).build();
+            }
+            var plan = NetworkPlan.builder()
+                    .taskId(r.getTaskId())
+                    .intentVersion(1)
+                    .planVersion(r.getArtifactVersion())
+                    .planSummary("NetworkPlan for planning stage")
+                    .targetEnvironment(TargetEnvironment.builder().vendor("generic")
+                            .configStyle("structured").adapterType("structured-validation").build())
+                    .topology(Topology.builder()
+                            .nodes(java.util.List.of(TopologyNode.builder().id("sw-core").name("core").nodeType("SWITCH").build()))
+                            .links(java.util.List.of()).build())
+                    .zones(java.util.List.of(NetworkZone.builder().id("zone-office").name("office").build()))
+                    .addressPlan(java.util.List.of(AddressPlanItem.builder().id("addr-office").zoneId("zone-office")
+                            .subnet("10.1.0.0/24").gateway("10.1.0.1")
+                            .traceRefs(TraceRefs.builder().intentNodeIds(java.util.List.of("node-office")).build()).build()))
+                    .vlanPlan(java.util.List.of(VlanPlanItem.builder().id("vlan-office").vlanId(100).zoneId("zone-office").build()))
+                    .routingPlan(RoutingPlan.builder().id("routing-ospf").protocol("OSPF")
+                            .routers(java.util.List.of(RoutingRouter.builder().id("router-edge").deviceId("rtr-edge").build()))
+                            .traceRefs(TraceRefs.builder().intentNodeIds(java.util.List.of("node-office")).build()).build())
+                    .traceRefs(TraceRefs.builder().intentNodeIds(java.util.List.of("node-office")).build())
+                    .stageStatus(StageStatus.SUCCESS)
+                    .createTime(LocalDateTime.now())
+                    .updateTime(LocalDateTime.now())
+                    .createdBy("u")
+                    .build();
+            return A2aResponse.builder().success(true).taskId(r.getTaskId()).sourceAgent("PlanningAgent")
+                    .targetAgent(r.getSourceAgent()).stage(WorkflowStage.PLANNING).traceId(r.getTraceId())
+                    .timestamp(LocalDateTime.now()).payloadJson(j(plan)).build();
+        };
+        var w = ws(om); var rec = recS(rr, vv);
+        var o = new MacTavWorkflowOrchestrator(w, rec, new RemoteAgentInvoker(d, c, new A2aResponseValidator()), om);
+        var cr = o.createTask("x", "lab", "u");
+        o.runIntentStage(cr.getTask().getTaskId());
+        var res = o.runPlanningStage(cr.getTask().getTaskId());
+        assertNotNull(res.getCurrentPlan());
+        assertEquals(ArtifactType.NETWORK_PLAN, res.getArtifacts().get(1).getArtifactType());
+        assertEquals(2, res.getAgentExecutionRecords().size());
+        assertEquals("PlanningAgent", res.getAgentExecutionRecords().get(1).getTargetAgentName());
+    }
+
 }

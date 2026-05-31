@@ -20,9 +20,15 @@ import java.util.List;
  */
 public class PlanningResponseParser implements AgentResponseParser<PlanningResponseSchema, NetworkPlan> {
 
+    /** Default createdBy when context does not carry the field. */
+    private static final String DEFAULT_CREATED_BY = "PlanningAgent";
+
     @Override
     public NetworkPlan parse(PlanningResponseSchema schema, AgentRunContext context) {
         PlanningResponseSchema safeSchema = schema == null ? new PlanningResponseSchema() : schema;
+        LocalDateTime now = LocalDateTime.now();
+
+        String createdBy = resolveCreatedBy(context);
 
         return NetworkPlan.builder()
                 .taskId(context == null ? null : context.getTaskId())
@@ -41,8 +47,17 @@ public class PlanningResponseParser implements AgentResponseParser<PlanningRespo
                 .planConstraints(mapPlanConstraints(safeSchema.getPlanConstraints()))
                 .traceRefs(buildTraceRefs(safeSchema))
                 .stageStatus(StageStatus.SUCCESS)
-                .createTime(LocalDateTime.now())
+                .createTime(now)
+                .updateTime(now)
+                .createdBy(createdBy)
                 .build();
+    }
+
+    private String resolveCreatedBy(AgentRunContext context) {
+        if (context != null && context.getCreatedBy() != null && !context.getCreatedBy().isBlank()) {
+            return context.getCreatedBy();
+        }
+        return DEFAULT_CREATED_BY;
     }
 
     private SelectedArchitecture mapArchitecture(ArchitectureSchema schema) {
@@ -186,16 +201,16 @@ public class PlanningResponseParser implements AgentResponseParser<PlanningRespo
             return null;
         }
         List<RoutingRouter> routers = new ArrayList<>();
-        for (RoutingRouterSchema routerSchema : safeList(schema.getRouters())) {
-            if (routerSchema == null) {
+        for (RoutingRouterSchema rr : safeList(schema.getRouters())) {
+            if (rr == null) {
                 continue;
             }
             routers.add(RoutingRouter.builder()
-                    .id(routerSchema.getId())
-                    .deviceId(routerSchema.getDeviceId())
-                    .routerId(routerSchema.getRouterId())
-                    .advertisedNetworks(safeList(routerSchema.getAdvertisedNetworks()))
-                    .traceRefs(intentTraceRefs(routerSchema.getTraceIntentNodeIds()))
+                    .id(rr.getId())
+                    .deviceId(rr.getDeviceId())
+                    .routerId(rr.getRouterId())
+                    .advertisedNetworks(safeList(rr.getAdvertisedNetworks()))
+                    .traceRefs(intentTraceRefs(rr.getTraceIntentNodeIds()))
                     .build());
         }
         DefaultRoute defaultRoute = null;

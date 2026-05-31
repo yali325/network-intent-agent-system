@@ -158,6 +158,7 @@ public final class PlanningTestFixtures {
                         .id("routing-ospf")
                         .protocol("OSPF")
                         .area("0.0.0.0")
+                        .traceIntentNodeIds(List.of("node-office", "node-guest", "node-server"))
                         .routers(List.of(
                                 RoutingRouterSchema.builder().id("router-edge").deviceId("rtr-edge")
                                         .routerId("10.1.0.1")

@@ -30,4 +30,6 @@ public class AgentRunContext {
     private String userInput;
 
     private String workspaceSnapshot;
+
+    private String createdBy;
 }

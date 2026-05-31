@@ -1,0 +1,12 @@
+server:
+  port: 18083
+spring:
+  ai:
+    vectorstore:
+      qdrant:
+        host: 127.0.0.1
+        port: 16334
+        collection-name: mactav_huawei_command_kb
+        use-tls: false
+        initialize-schema: true
+
