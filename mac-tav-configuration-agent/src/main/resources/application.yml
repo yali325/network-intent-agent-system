@@ -1,7 +1,40 @@
 server:
   port: 18083
+
+mactav:
+  agents:
+    configuration:
+      enabled: true
+      run-limit: 8
+      prompt-path: prompts/configuration-agent-prompt.md
+      manual-model-validation-enabled: false
+
 spring:
   ai:
+    dashscope:
+      api-key: ${aliApi-key:}
+      chat:
+        options:
+          model: qwen-plus
+    alibaba:
+      a2a:
+        nacos:
+          server-addr: 127.0.0.1:18848
+          username: nacos
+          password: nacos
+          discovery:
+            enabled: false
+          registry:
+            enabled: true
+        server:
+          version: 1.0.0
+          card:
+            name: ConfigurationAgent
+            description: MAC-TAV structured network configuration generation agent
+            provider:
+              name: MAC-TAV
+              organization: yali
+              url: http://127.0.0.1:18083
     vectorstore:
       qdrant:
         host: 127.0.0.1
