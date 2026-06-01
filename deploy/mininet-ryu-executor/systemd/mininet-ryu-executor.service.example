@@ -1,0 +1,24 @@
+[Unit]
+Description=MAC-TAV Mininet/Ryu Executor
+After=network-online.target openvswitch-switch.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=mac-tav
+Group=mac-tav
+WorkingDirectory=/opt/mac-tav/mininet-ryu-executor
+Environment=EXECUTOR_HOST=0.0.0.0
+Environment=EXECUTOR_PORT=18091
+Environment=RYU_REST_URL=http://127.0.0.1:8080
+Environment=MAX_HOSTS=8
+Environment=MAX_SWITCHES=4
+Environment=MAX_LINKS=16
+Environment=MAX_TESTS=20
+Environment=DEFAULT_TIMEOUT_SECONDS=120
+ExecStart=/opt/mac-tav/mininet-ryu-executor/.venv/bin/uvicorn app.main:app --host ${EXECUTOR_HOST} --port ${EXECUTOR_PORT}
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

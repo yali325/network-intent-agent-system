@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Example only. Starts the first-version Ryu app set expected by MAC-TAV.
+
+ryu-manager ryu.app.simple_switch_13 ryu.app.ofctl_rest

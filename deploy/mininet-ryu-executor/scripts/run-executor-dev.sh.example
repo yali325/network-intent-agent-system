@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Example only. Starts the FastAPI executor for local development.
+
+export EXECUTOR_HOST="${EXECUTOR_HOST:-0.0.0.0}"
+export EXECUTOR_PORT="${EXECUTOR_PORT:-18091}"
+export RYU_REST_URL="${RYU_REST_URL:-http://127.0.0.1:8080}"
+
+uvicorn app.main:app --host "${EXECUTOR_HOST}" --port "${EXECUTOR_PORT}"
