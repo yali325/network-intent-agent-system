@@ -2,6 +2,7 @@ package com.yali.mactav.configuration.knowledge;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -9,6 +10,7 @@ import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.ai.vectorstore.filter.Filter;
+import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 
 /**
  * Offline tests for Huawei Markdown parsing and explicit VectorStore ingestion.
@@ -51,15 +53,37 @@ class HuaweiKnowledgeIngestionServiceTest {
         RecordingVectorStore vectorStore = new RecordingVectorStore();
         HuaweiKnowledgeIngestionService service = new HuaweiKnowledgeIngestionService(vectorStore);
 
-        var result = service.ingest("classpath*:knowledge/huawei/*.md");
+        var result = service.ingest("classpath*:knowledge/huawei/*fixture.md");
 
         assertEquals(1, result.ingestedCount());
         assertEquals(1, vectorStore.addCalls);
         assertEquals(1, vectorStore.addedDocuments.size());
-        assertEquals("ready-vlan-fixture", vectorStore.addedDocuments.get(0).getId());
+        assertNotEquals("ready-vlan-fixture", vectorStore.addedDocuments.get(0).getId());
         assertEquals("HUAWEI", vectorStore.addedDocuments.get(0).getMetadata().get("vendor"));
+        assertEquals("ready-vlan-fixture", vectorStore.addedDocuments.get(0).getMetadata().get("id"));
         assertTrue(result.skippedDocumentIds().contains("draft-fixture"));
         assertTrue(result.skippedDocumentIds().contains("todo-ready-fixture"));
+    }
+
+    @Test
+    void mainHuaweiKnowledgeDocumentsShouldHaveParsableFrontMatter() throws Exception {
+        var resolver = new PathMatchingResourcePatternResolver();
+        var parser = new HuaweiKnowledgeMarkdownParser();
+        var resources = resolver.getResources("classpath*:knowledge/huawei/*.md");
+
+        int parsedMainDocuments = 0;
+        for (var resource : resources) {
+            String filename = resource.getFilename();
+            if (filename != null && filename.contains("fixture")) {
+                continue;
+            }
+            HuaweiKnowledgeDocument document = parser.parse(resource.getContentAsString(StandardCharsets.UTF_8));
+            assertFalse(document.id().isBlank(), "knowledge document id must not be blank: " + filename);
+            assertFalse(document.status().isBlank(), "knowledge document status must not be blank: " + filename);
+            parsedMainDocuments++;
+        }
+
+        assertTrue(parsedMainDocuments >= 6, "expected Huawei command knowledge documents to be available");
     }
 
     private static final class RecordingVectorStore implements VectorStore {

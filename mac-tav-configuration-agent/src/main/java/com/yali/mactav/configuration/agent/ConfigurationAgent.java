@@ -19,6 +19,8 @@ public class ConfigurationAgent {
 
     public static final String AGENT_NAME = "ConfigurationAgent";
 
+    public static final String REACT_AGENT_BEAN_NAME = "configurationReactAgent";
+
     public static final String AGENT_DESCRIPTION = "MAC-TAV structured network configuration generation agent";
 
     private final ReactAgent reactAgent;

@@ -1,3 +1,4 @@
+---
 id: huawei-vlan-switching  
 title: Huawei VLAN And Switching Commands  
 vendor: HUAWEI  

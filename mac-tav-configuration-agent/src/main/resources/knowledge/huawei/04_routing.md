@@ -1,3 +1,4 @@
+---
 id: huawei-routing  
 title: Huawei Routing And OSPF Commands  
 vendor: HUAWEI  

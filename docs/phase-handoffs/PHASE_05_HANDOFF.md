@@ -145,7 +145,7 @@ mvn compile
 以下步骤尚未由自动化完成，需要用户准备环境后手动执行：
 
 1. 启动 Nacos。
-2. 配置真实模型 Key：`aliApi-key`。
+2. 配置真实模型 Key：`ALI_API_KEY`。
 3. 如要验证 RAG 检索，启动 Qdrant，并确认 configuration-agent 的 VectorStore 配置指向正确地址。
 4. 启动 `mac-tav-intent-agent`。
 5. 启动 `mac-tav-planning-agent`。

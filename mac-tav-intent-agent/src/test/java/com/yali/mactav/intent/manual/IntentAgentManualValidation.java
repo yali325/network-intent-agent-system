@@ -15,7 +15,7 @@ import org.springframework.context.annotation.Import;
  * One-shot manual validation entry for the real DashScope-backed IntentAgent.
  *
  * <p>This class is under test sources and is not executed by mvn test. Run it
- * manually only after setting aliApi-key as an environment variable. It must
+ * manually only after setting ALI_API_KEY as an environment variable. It must
  * not be used as an automated test or Web entry point.</p>
  */
 public final class IntentAgentManualValidation {
@@ -28,9 +28,9 @@ public final class IntentAgentManualValidation {
     }
 
     public static void main(String[] args) {
-        String apiKey = System.getenv("aliApi-key");
+        String apiKey = System.getenv("ALI_API_KEY");
         if (apiKey == null || apiKey.isBlank()) {
-            throw new IllegalStateException("Set aliApi-key before manual validation.");
+            throw new IllegalStateException("Set ALI_API_KEY before manual validation.");
         }
         String rawText = args == null || args.length == 0 ? DEFAULT_INPUT : String.join(" ", args);
 

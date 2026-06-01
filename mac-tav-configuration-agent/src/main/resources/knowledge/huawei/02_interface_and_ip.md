@@ -1,3 +1,4 @@
+---
 id: huawei-interface-ip  
 title: Huawei Interface And IP Configuration Commands  
 vendor: HUAWEI  

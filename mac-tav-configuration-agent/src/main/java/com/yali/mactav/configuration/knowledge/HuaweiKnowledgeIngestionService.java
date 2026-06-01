@@ -5,8 +5,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.core.io.support.ResourcePatternResolver;
@@ -26,6 +28,7 @@ public class HuaweiKnowledgeIngestionService {
 
     private final HuaweiKnowledgeMarkdownParser parser;
 
+    @Autowired
     public HuaweiKnowledgeIngestionService(VectorStore vectorStore) {
         this(vectorStore, new PathMatchingResourcePatternResolver(), new HuaweiKnowledgeMarkdownParser());
     }
@@ -54,7 +57,7 @@ public class HuaweiKnowledgeIngestionService {
                     continue;
                 }
                 documents.add(Document.builder()
-                        .id(knowledge.id())
+                        .id(stableVectorDocumentId(knowledge.id()))
                         .text(knowledge.body())
                         .metadata(knowledge.metadata())
                         .build());
@@ -78,6 +81,11 @@ public class HuaweiKnowledgeIngestionService {
                 && !normalizedBody.contains("todo")
                 && !normalizedBody.contains("待填写")
                 && !normalizedBody.contains("占位");
+    }
+
+    private String stableVectorDocumentId(String knowledgeId) {
+        String sourceId = knowledgeId == null ? "" : knowledgeId;
+        return UUID.nameUUIDFromBytes(("huawei-knowledge:" + sourceId).getBytes(StandardCharsets.UTF_8)).toString();
     }
 
     /**

@@ -62,15 +62,39 @@ Common variables:
 
 | Variable | Purpose |
 | --- | --- |
-| `aliApi-key` | DashScope API key for real manual Agent validation |
+| `ALI_API_KEY` | DashScope API key for real manual Agent validation |
+| `ALI_API_KEY` | Preferred DashScope API key alias for manual Agent/RAG validation |
+| `DASHSCOPE_API_KEY` | Alternative DashScope API key alias for manual Agent/RAG validation |
+| `SPRING_AI_DASHSCOPE_API_KEY` | Spring-style DashScope API key alias for manual Agent/RAG validation |
 | `DASHSCOPE_CHAT_MODEL` | DashScope model name |
 | `SERVER_PORT` | Web server port |
 | `VITE_API_BASE_URL` | Frontend API base URL |
 | `NACOS_SERVER_ADDR` | Nacos server address for A2A service mode |
+| `MACTAV_RUN_HUAWEI_KB_INGEST` | Opt-in flag for real Huawei command knowledge ingestion into Qdrant |
+| `MACTAV_QDRANT_HOST` / `MACTAV_QDRANT_PORT` / `MACTAV_QDRANT_COLLECTION` | Optional Qdrant overrides for manual Huawei knowledge ingestion |
 | `MACTAV_RUN_MININET_RYU_IT` | Opt-in flag for real Mininet/Ryu Java integration test |
 
 Do not commit API keys, server credentials, SSH keys, tokens, or real public
 server addresses.
+
+### 3.1 Huawei Command Knowledge Ingestion
+
+Default automated tests do not connect to real Qdrant or external embedding
+APIs. To explicitly ingest `mac-tav-configuration-agent` Huawei command
+Markdown documents into a local Qdrant instance, first provide a DashScope API
+key through an environment variable such as `ALI_API_KEY` or
+`SPRING_AI_DASHSCOPE_API_KEY`, then run:
+
+```powershell
+$env:MACTAV_RUN_HUAWEI_KB_INGEST="true"
+$env:MACTAV_QDRANT_HOST="127.0.0.1"
+$env:MACTAV_QDRANT_PORT="16334"
+mvn -pl mac-tav-configuration-agent -Dtest=HuaweiKnowledgeQdrantManualIT test
+```
+
+The current local Qdrant convention uses REST on `16333` for health checks and
+gRPC on `16334` for the Spring AI Qdrant client. Do not put real API keys in
+source files, fixtures, or command examples.
 
 ## 4. Agent Test Rules
 

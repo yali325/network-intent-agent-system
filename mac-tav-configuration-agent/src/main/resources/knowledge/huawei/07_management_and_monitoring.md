@@ -1,10 +1,11 @@
-id: huawei-troubleshooting  
-title: Huawei Troubleshooting Commands  
+---
+id: huawei-management-monitoring
+title: Huawei Management And Monitoring Commands
 vendor: HUAWEI  
 platform: VRP  
-feature: TROUBLESHOOTING  
-tags: [ping, tracert, display, arp, mac-address, troubleshooting]  
-knowledgeType: TROUBLESHOOTING_PLAYBOOK  
+feature: MANAGEMENT_MONITORING
+tags: [aaa, ssh, vty, ntp, display, monitoring, management]
+knowledgeType: COMMAND_REFERENCE
 generationSourceType: RAG  
 riskLevel: LOW  
 status: DISABLED  

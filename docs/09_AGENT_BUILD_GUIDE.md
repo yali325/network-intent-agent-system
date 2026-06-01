@@ -805,7 +805,7 @@ DashScope 配置 SHOULD 使用环境变量：
 
 ```yaml  
 spring:  
-  ai:    model:      chat: dashscope    dashscope:      api-key: ${aliApi-key}      chat:        options:          model: qwen-plus          temperature: 0.2  
+  ai:    model:      chat: dashscope    dashscope:      api-key: ${ALI_API_KEY}      chat:        options:          model: qwen-plus          temperature: 0.2  
 ```  
 
 长期标准 A2A Agent 服务化架构下，Agent 模块 MAY 增加 A2A、Nacos 和 Agent Card 配置，但不得在配置中硬编码 API Key、私有地址凭据或跨模块实现类绑定。
@@ -839,7 +839,7 @@ spring:
 13. 用 Mock Agent / Mock Tool 替代真实业务主链路。
 14. 用测试 Agent Bean 替代真实 Agent 验证 Orchestrator 到专业 Agent 的长期调用链。
 
-真实 DashScope / 外部 API MAY 作为手动集成验证，但 MUST 通过环境变量 `aliApi-key` 注入 API Key。手动集成验证要求 Agent 服务完整启动（含 Nacos 注册和 A2A 暴露），不通过独立离线调用绕过真实服务化链路。
+真实 DashScope / 外部 API MAY 作为手动集成验证，但 MUST 通过环境变量 `ALI_API_KEY` 注入 API Key。手动集成验证要求 Agent 服务完整启动（含 Nacos 注册和 A2A 暴露），不通过独立离线调用绕过真实服务化链路。
   
 ---  
 

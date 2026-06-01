@@ -1,3 +1,4 @@
+---
 id: huawei-troubleshooting  
 title: Huawei Troubleshooting Commands  
 vendor: HUAWEI  

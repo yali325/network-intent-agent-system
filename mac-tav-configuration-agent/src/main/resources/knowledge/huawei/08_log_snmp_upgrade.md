@@ -1,12 +1,13 @@
-id: huawei-troubleshooting  
-title: Huawei Troubleshooting Commands  
+---
+id: huawei-log-snmp-upgrade
+title: Huawei Log SNMP And Upgrade Commands
 vendor: HUAWEI  
 platform: VRP  
-feature: TROUBLESHOOTING  
-tags: [ping, tracert, display, arp, mac-address, troubleshooting]  
-knowledgeType: TROUBLESHOOTING_PLAYBOOK  
+feature: LOG_SNMP_UPGRADE
+tags: [log, snmp, trap, upgrade, display, monitoring]
+knowledgeType: COMMAND_REFERENCE
 generationSourceType: RAG  
-riskLevel: LOW  
+riskLevel: MEDIUM
 status: DISABLED  
 version: 0.1.0  
 updatedAt: 2026-06-02

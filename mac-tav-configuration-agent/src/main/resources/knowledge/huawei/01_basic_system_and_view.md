@@ -1,4 +1,4 @@
-
+---
 id: huawei-basic-system-view  
 title: Huawei Basic System And View Commands  
 vendor: HUAWEI  

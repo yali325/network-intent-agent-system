@@ -64,8 +64,8 @@ public class ConfigurationAgentConfiguration {
         return mapper;
     }
 
-    @Bean(name = ConfigurationAgent.AGENT_NAME)
-    @ConditionalOnMissingBean(name = ConfigurationAgent.AGENT_NAME)
+    @Bean(name = ConfigurationAgent.REACT_AGENT_BEAN_NAME)
+    @ConditionalOnMissingBean(name = ConfigurationAgent.REACT_AGENT_BEAN_NAME)
     public ReactAgent configurationReactAgent(ChatModel chatModel,
                                              ConfigTemplateTool configTemplateTool,
                                              RagCommandSearchTool ragCommandSearchTool,
@@ -92,7 +92,7 @@ public class ConfigurationAgentConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public ConfigurationAgent configurationAgent(
-            @Qualifier(ConfigurationAgent.AGENT_NAME) ReactAgent configurationReactAgent,
+            @Qualifier(ConfigurationAgent.REACT_AGENT_BEAN_NAME) ReactAgent configurationReactAgent,
             ObjectMapper objectMapper,
             ConfigurationService configurationService) {
         return new ConfigurationAgent(configurationReactAgent, objectMapper, configurationService);

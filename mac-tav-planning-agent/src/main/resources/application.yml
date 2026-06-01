@@ -12,7 +12,7 @@ mactav:
 spring:
   ai:
     dashscope:
-      api-key: ${aliApi-key:}
+      api-key: ${ALI_API_KEY:}
       chat:
         options:
           model: qwen-plus
