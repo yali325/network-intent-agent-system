@@ -128,6 +128,38 @@ ssh -L 18091:127.0.0.1:18091 user@server
 Replace placeholders locally. Do not commit real server IPs, usernames,
 passwords, SSH keys, API keys, or tokens.
 
+## Java Manual Integration
+
+Java-side Mininet/Ryu execution is enabled explicitly for manual validation. The
+default CI path remains structure validation and does not connect to `18091`.
+
+Use the following properties for a local tunnel or private executor endpoint:
+
+```properties
+mactav.execution.mode=MININET_RYU
+mactav.execution.mininet-ryu.enabled=true
+mactav.execution.mininet-ryu.base-url=http://127.0.0.1:18091
+mactav.execution.mininet-ryu.connect-timeout-ms=3000
+mactav.execution.mininet-ryu.read-timeout-ms=60000
+```
+
+Before running the Java manual integration test, check health:
+
+```bash
+curl http://127.0.0.1:18091/health
+```
+
+Then run the opt-in test from the repository root:
+
+```powershell
+$env:MACTAV_RUN_MININET_RYU_IT="true"
+mvn -pl mac-tav-execution -Dtest=MininetRyuExecutorManualIT test
+```
+
+The test uses `MininetRyuExecutionAdapter` with a minimal h1-s1-h2 topology and
+calls the executor cleanup endpoint after the run. Do not run it in default CI,
+and do not commit real server addresses or credentials.
+
 ## API Summary
 
 - `GET /health`
@@ -157,10 +189,12 @@ download commands.
 
 ## Current Limits
 
-- Phase 6 P9 implements Python executor internals only.
-- Java MininetRyuExecutorClient, Java MininetRyuExecutionAdapter,
-  ExecutionService, Orchestrator, and Controller integration are not implemented
-  here.
+- Java MininetRyuExecutorClient and MininetRyuExecutionAdapter exist for Phase 6
+  manual validation, but are disabled by default unless the execution properties
+  above explicitly enable `MININET_RYU`.
+- Web/Orchestrator integration remains controlled by MAC-TAV configuration; this
+  executor remains an internal structured execution service, not a public
+  business API.
 - Flow support is read-only through Ryu `ofctl_rest` query endpoints.
 - The executor runs one execution at a time in process and returns
   `EXECUTOR_BUSY` for concurrent run requests.

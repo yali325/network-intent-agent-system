@@ -4,6 +4,10 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yali.mactav.common.enums.ErrorCode;
 import com.yali.mactav.common.exception.BusinessException;
+import com.yali.mactav.execution.config.ExecutionProperties;
+import com.yali.mactav.execution.registry.ExecutionAdapterRegistryFactory;
+import com.yali.mactav.execution.service.DefaultExecutionService;
+import com.yali.mactav.execution.service.ExecutionService;
 import com.yali.mactav.model.a2a.A2aRequest;
 import com.yali.mactav.model.a2a.A2aResponse;
 import com.yali.mactav.model.enums.ArtifactType;
@@ -14,6 +18,10 @@ import com.yali.mactav.model.config.ConfigSet;
 import com.yali.mactav.model.config.ConfigurationAgentInvokePayload;
 import com.yali.mactav.model.config.DeviceConfig;
 import com.yali.mactav.model.config.GenerationSource;
+import com.yali.mactav.model.execution.ExecutionEnvironmentType;
+import com.yali.mactav.model.execution.ExecutionMode;
+import com.yali.mactav.model.execution.ExecutionReport;
+import com.yali.mactav.model.execution.ExecutionStatus;
 import com.yali.mactav.model.intent.IntentAgentInvokePayload;
 import com.yali.mactav.model.intent.IntentNode;
 import com.yali.mactav.model.intent.IntentRelation;
@@ -53,11 +61,17 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
 
     private static final String CONFIGURATION_AGENT = "ConfigurationAgent";
 
+    private static final String EXECUTION_MODULE = "ExecutionModule";
+
     private final NetworkWorkspaceService workspaceService;
 
     private final AgentExecutionRecordService executionRecordService;
 
     private final RemoteAgentInvoker remoteAgentInvoker;
+
+    private final ExecutionService executionService;
+
+    private final ExecutionProperties executionProperties;
 
     private final ObjectMapper objectMapper;
 
@@ -67,10 +81,36 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
                                       AgentExecutionRecordService executionRecordService,
                                       RemoteAgentInvoker remoteAgentInvoker,
                                       ObjectMapper objectMapper) {
+        this(
+                workspaceService,
+                executionRecordService,
+                remoteAgentInvoker,
+                objectMapper,
+                new DefaultExecutionService(ExecutionAdapterRegistryFactory.structureValidationRegistry()),
+                new ExecutionProperties());
+    }
+
+    public MacTavWorkflowOrchestrator(NetworkWorkspaceService workspaceService,
+                                      AgentExecutionRecordService executionRecordService,
+                                      RemoteAgentInvoker remoteAgentInvoker,
+                                      ObjectMapper objectMapper,
+                                      ExecutionService executionService) {
+        this(workspaceService, executionRecordService, remoteAgentInvoker, objectMapper, executionService,
+                new ExecutionProperties());
+    }
+
+    public MacTavWorkflowOrchestrator(NetworkWorkspaceService workspaceService,
+                                      AgentExecutionRecordService executionRecordService,
+                                      RemoteAgentInvoker remoteAgentInvoker,
+                                      ObjectMapper objectMapper,
+                                      ExecutionService executionService,
+                                      ExecutionProperties executionProperties) {
         this.workspaceService = workspaceService;
         this.executionRecordService = executionRecordService;
         this.remoteAgentInvoker = remoteAgentInvoker;
         this.objectMapper = objectMapper;
+        this.executionService = executionService;
+        this.executionProperties = executionProperties == null ? new ExecutionProperties() : executionProperties;
     }
 
     @Override
@@ -237,6 +277,77 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
     }
 
     @Override
+    public NetworkWorkspace runExecutionStage(String taskId) {
+        LocalDateTime startTime = LocalDateTime.now();
+        String traceId = "trace-" + UUID.randomUUID();
+        try {
+            NetworkWorkspace workspace = workspaceService.getWorkspaceOrThrow(taskId);
+            NetworkPlan currentPlan = workspace.getCurrentPlan();
+            if (currentPlan == null) {
+                throw new BusinessException(ErrorCode.STAGE_NOT_READY,
+                        "No current NetworkPlan found. Run planning stage first for task: " + taskId);
+            }
+            ConfigSet currentConfigSet = workspace.getCurrentConfigSet();
+            if (currentConfigSet == null) {
+                throw new BusinessException(ErrorCode.STAGE_NOT_READY,
+                        "No current ConfigSet found. Run configuration stage first for task: " + taskId);
+            }
+            if (workspace.getCurrentArtifactRefs() == null
+                    || !workspace.getCurrentArtifactRefs().containsKey(ArtifactType.NETWORK_PLAN)) {
+                throw new BusinessException(ErrorCode.ARTIFACT_NOT_FOUND,
+                        "No NETWORK_PLAN artifact found. Run planning stage first for task: " + taskId);
+            }
+            if (!workspace.getCurrentArtifactRefs().containsKey(ArtifactType.CONFIG_SET)) {
+                throw new BusinessException(ErrorCode.ARTIFACT_NOT_FOUND,
+                        "No CONFIG_SET artifact found. Run configuration stage first for task: " + taskId);
+            }
+            int executionVersion = nextExecutionVersion(workspace);
+            workspaceService.updateTaskStage(taskId, WorkflowStage.EXECUTION);
+            workspaceService.updateTaskStatus(taskId, TaskStatus.RUNNING);
+
+            ExecutionMode executionMode = executionProperties.effectiveMode();
+            ExecutionEnvironmentType environmentType = executionEnvironmentType(executionMode);
+            ExecutionReport report = executionService.execute(
+                    taskId,
+                    currentPlan,
+                    currentConfigSet,
+                    executionVersion,
+                    environmentType,
+                    executionMode,
+                    mergeTraceRefs(currentPlan.getTraceRefs(), currentConfigSet.getTraceRefs()),
+                    artifactRefsAsStrings(workspace));
+            normalizeExecutionReport(report, workspace, currentPlan, currentConfigSet, executionVersion);
+            NetworkArtifact artifact = workspaceService.saveStageArtifact(
+                    taskId,
+                    ArtifactType.EXECUTION_REPORT,
+                    WorkflowStage.EXECUTION,
+                    report,
+                    executionReportSummary(report),
+                    workspace.getTask().getCreatedBy(),
+                    report.getTraceRefs());
+            StageStatus recordStatus = report.getOverallStatus() == ExecutionStatus.FAILED
+                    ? StageStatus.FAILED : StageStatus.SUCCESS;
+            appendExecutionRecord(taskId, traceId, startTime, recordStatus,
+                    artifact, null, null, EXECUTION_MODULE, WorkflowStage.EXECUTION,
+                    "ExecutionService produced ExecutionReport via " + report.getEnvironmentType(),
+                    "Execution stage completed");
+            workspaceService.updateTaskStatus(taskId, TaskStatus.RUNNING);
+            return workspaceService.getWorkspaceOrThrow(taskId);
+        }
+        catch (BusinessException ex) {
+            markTaskErrorAndRecord(taskId, traceId, startTime,
+                    EXECUTION_MODULE, WorkflowStage.EXECUTION, ex.getErrorCode(), ex.getMessage());
+            throw ex;
+        }
+        catch (RuntimeException ex) {
+            markTaskErrorAndRecord(taskId, traceId, startTime,
+                    EXECUTION_MODULE, WorkflowStage.EXECUTION,
+                    ErrorCode.EXECUTION_ADAPTER_FAILED.getErrorCode(), ex.getMessage());
+            throw ex;
+        }
+    }
+
+    @Override
     public NetworkWorkspace getWorkspace(String taskId) {
         return workspaceService.getWorkspaceOrThrow(taskId);
     }
@@ -385,6 +496,17 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
         return current == null ? 1 : current + 1;
     }
 
+    private int nextExecutionVersion(NetworkWorkspace workspace) {
+        Integer current = workspace.getCurrentExecutionVersion();
+        return current == null ? 1 : current + 1;
+    }
+
+    private ExecutionEnvironmentType executionEnvironmentType(ExecutionMode executionMode) {
+        return executionMode == ExecutionMode.MININET_RYU
+                ? ExecutionEnvironmentType.MININET_RYU
+                : ExecutionEnvironmentType.STRUCTURE_VALIDATION;
+    }
+
     private void normalizeConfigSet(ConfigSet configSet, NetworkWorkspace workspace,
                                     NetworkPlan currentPlan, int configVersion) {
         if (configSet.getTaskId() == null || configSet.getTaskId().isBlank()) {
@@ -419,6 +541,88 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
                 + ", devices=" + deviceCount
                 + ", commandBlocks=" + commandBlockCount
                 + ", generationSources=" + sourceTypes;
+    }
+
+    private void normalizeExecutionReport(ExecutionReport report,
+                                          NetworkWorkspace workspace,
+                                          NetworkPlan currentPlan,
+                                          ConfigSet currentConfigSet,
+                                          int executionVersion) {
+        if (report.getTaskId() == null || report.getTaskId().isBlank()) {
+            report.setTaskId(workspace.getTask().getTaskId());
+        }
+        if (report.getPlanId() == null || report.getPlanId().isBlank()) {
+            report.setPlanId(currentPlan.getPlanId());
+        }
+        if (report.getConfigSetId() == null || report.getConfigSetId().isBlank()) {
+            report.setConfigSetId(currentConfigSet.getConfigSetId());
+        }
+        if (report.getPlanVersion() == null) {
+            report.setPlanVersion(workspace.getCurrentPlanVersion());
+        }
+        if (report.getConfigVersion() == null) {
+            report.setConfigVersion(workspace.getCurrentConfigVersion());
+        }
+        if (report.getExecutionVersion() == null) {
+            report.setExecutionVersion(executionVersion);
+        }
+        if (report.getTraceRefs() == null) {
+            report.setTraceRefs(mergeTraceRefs(currentPlan.getTraceRefs(), currentConfigSet.getTraceRefs()));
+        }
+    }
+
+    private String executionReportSummary(ExecutionReport report) {
+        int testCount = report.getTestResults() == null ? 0 : report.getTestResults().size();
+        int errorCount = report.getErrors() == null ? 0 : report.getErrors().size();
+        return "ExecutionReport version " + report.getExecutionVersion()
+                + ", status=" + report.getOverallStatus()
+                + ", environment=" + report.getEnvironmentType()
+                + ", tests=" + testCount
+                + ", errors=" + errorCount;
+    }
+
+    private java.util.Map<String, String> artifactRefsAsStrings(NetworkWorkspace workspace) {
+        java.util.Map<String, String> refs = new java.util.LinkedHashMap<>();
+        if (workspace.getCurrentArtifactRefs() == null) {
+            return refs;
+        }
+        workspace.getCurrentArtifactRefs().forEach((type, id) -> {
+            if (type != null && id != null && !id.isBlank()) {
+                refs.put(type.name(), id);
+            }
+        });
+        return refs;
+    }
+
+    private TraceRefs mergeTraceRefs(TraceRefs first, TraceRefs second) {
+        TraceRefs merged = TraceRefs.builder().build();
+        mergeInto(merged, first);
+        mergeInto(merged, second);
+        return merged;
+    }
+
+    private void mergeInto(TraceRefs target, TraceRefs source) {
+        if (source == null) {
+            return;
+        }
+        addAll(target.getIntentNodeIds(), source.getIntentNodeIds());
+        addAll(target.getIntentRelationIds(), source.getIntentRelationIds());
+        addAll(target.getPlanElementIds(), source.getPlanElementIds());
+        addAll(target.getConfigBlockIds(), source.getConfigBlockIds());
+        addAll(target.getTestIds(), source.getTestIds());
+        addAll(target.getValidationItemIds(), source.getValidationItemIds());
+        addAll(target.getRepairActionIds(), source.getRepairActionIds());
+    }
+
+    private void addAll(List<String> target, List<String> source) {
+        if (source == null) {
+            return;
+        }
+        for (String value : source) {
+            if (value != null && !value.isBlank() && !target.contains(value)) {
+                target.add(value);
+            }
+        }
     }
 
     private TraceRefs traceRefs(NetworkIntent intent) {

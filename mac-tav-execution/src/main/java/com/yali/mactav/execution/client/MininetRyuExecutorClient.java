@@ -49,6 +49,7 @@ public class MininetRyuExecutorClient {
         this.baseUrl = normalizeBaseUrl(mininetRyu.getBaseUrl());
         this.readTimeout = Duration.ofMillis(Math.max(1, mininetRyu.getReadTimeoutMs()));
         this.httpClient = HttpClient.newBuilder()
+                .version(HttpClient.Version.HTTP_1_1)
                 .connectTimeout(Duration.ofMillis(Math.max(1, mininetRyu.getConnectTimeoutMs())))
                 .build();
         this.objectMapper = objectMapper == null ? defaultObjectMapper() : objectMapper;
@@ -142,7 +143,10 @@ public class MininetRyuExecutorClient {
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 throw new BusinessException(
                         ErrorCode.EXECUTION_ADAPTER_FAILED,
-                        "Mininet/Ryu executor HTTP call failed with status=" + response.statusCode());
+                        "Mininet/Ryu executor HTTP call failed with status="
+                                + response.statusCode()
+                                + ", body="
+                                + summarizeBody(response.body()));
             }
             try {
                 return objectMapper.readValue(response.body(), responseType);
@@ -187,6 +191,14 @@ public class MininetRyuExecutorClient {
 
     private static <T> List<T> safeList(List<T> values) {
         return values == null ? List.of() : values;
+    }
+
+    private static String summarizeBody(String body) {
+        if (body == null || body.isBlank()) {
+            return "<empty>";
+        }
+        String compact = body.replaceAll("\\s+", " ").trim();
+        return compact.length() <= 300 ? compact : compact.substring(0, 300) + "...";
     }
 
     private static ObjectMapper defaultObjectMapper() {

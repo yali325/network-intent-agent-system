@@ -4,6 +4,11 @@ import com.alibaba.cloud.ai.graph.agent.a2a.AgentCardProvider;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.yali.mactav.execution.config.ExecutionProperties;
+import com.yali.mactav.execution.registry.ExecutionAdapterRegistry;
+import com.yali.mactav.execution.registry.ExecutionAdapterRegistryFactory;
+import com.yali.mactav.execution.service.DefaultExecutionService;
+import com.yali.mactav.execution.service.ExecutionService;
 import com.yali.mactav.modelcore.service.AgentExecutionRecordService;
 import com.yali.mactav.modelcore.service.NetworkWorkspaceService;
 import com.yali.mactav.orchestrator.remote.card.AgentCardRegistryClient;
@@ -20,6 +25,7 @@ import com.yali.mactav.orchestrator.service.WorkflowOrchestrator;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -32,6 +38,7 @@ import org.springframework.context.annotation.Configuration;
  * modules.</p>
  */
 @Configuration(proxyBeanMethods = false)
+@EnableConfigurationProperties(ExecutionProperties.class)
 public class OrchestratorConfiguration {
 
     @Bean
@@ -87,14 +94,30 @@ public class OrchestratorConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    public ExecutionAdapterRegistry executionAdapterRegistry(ExecutionProperties executionProperties) {
+        return ExecutionAdapterRegistryFactory.defaultRegistry(executionProperties);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ExecutionService executionService(ExecutionAdapterRegistry executionAdapterRegistry) {
+        return new DefaultExecutionService(executionAdapterRegistry);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
     public WorkflowOrchestrator workflowOrchestrator(NetworkWorkspaceService workspaceService,
                                                      AgentExecutionRecordService executionRecordService,
                                                      RemoteAgentInvoker remoteAgentInvoker,
-                                                     ObjectMapper objectMapper) {
+                                                     ObjectMapper objectMapper,
+                                                     ExecutionService executionService,
+                                                     ExecutionProperties executionProperties) {
         return new MacTavWorkflowOrchestrator(
                 workspaceService,
                 executionRecordService,
                 remoteAgentInvoker,
-                objectMapper);
+                objectMapper,
+                executionService,
+                executionProperties);
     }
 }

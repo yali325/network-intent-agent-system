@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.yali.mactav.common.result.ApiResponse;
 import com.yali.mactav.model.enums.TaskStatus;
 import com.yali.mactav.model.enums.WorkflowStage;
+import com.yali.mactav.model.execution.ExecutionReport;
+import com.yali.mactav.model.execution.ExecutionStatus;
 import com.yali.mactav.model.task.NetworkTask;
 import com.yali.mactav.model.workspace.NetworkWorkspace;
 import com.yali.mactav.orchestrator.service.WorkflowOrchestrator;
@@ -39,7 +41,7 @@ class WebControllerTest {
 
     @Test
     void workflowAndWorkspaceControllersShouldDelegateToOrchestrator() {
-        WorkflowOrchestrator orchestrator = orchestrator();
+        TestWorkflowOrchestrator orchestrator = orchestrator();
         WorkflowController workflowController = new WorkflowController(orchestrator);
         WorkspaceController workspaceController = new WorkspaceController(orchestrator);
 
@@ -55,34 +57,36 @@ class WebControllerTest {
         assertEquals("task-web-test", queryResponse.getData().getTask().getTaskId());
     }
 
-    private WorkflowOrchestrator orchestrator() {
+    @Test
+    void executionControllerShouldDelegateRunToOrchestrator() {
+        TestWorkflowOrchestrator orchestrator = orchestrator();
+        ExecutionController controller = new ExecutionController(orchestrator);
+
+        ApiResponse<ExecutionReport> response = controller.runExecutionStage("task-web-test");
+
+        assertTrue(response.isSuccess());
+        assertEquals("execution-web-test", response.getData().getExecutionId());
+        assertEquals(ExecutionStatus.SUCCESS, response.getData().getOverallStatus());
+        assertEquals(1, orchestrator.runExecutionCalls);
+        assertEquals("task-web-test", orchestrator.lastExecutionTaskId);
+    }
+
+    @Test
+    void executionControllerShouldReturnCurrentExecutionReport() {
+        TestWorkflowOrchestrator orchestrator = orchestrator();
+        ExecutionController controller = new ExecutionController(orchestrator);
+
+        ApiResponse<ExecutionReport> response = controller.getExecutionReport("task-web-test");
+
+        assertTrue(response.isSuccess());
+        assertEquals("execution-web-test", response.getData().getExecutionId());
+        assertEquals("task-web-test", response.getData().getTaskId());
+        assertEquals(1, orchestrator.getWorkspaceCalls);
+    }
+
+    private TestWorkflowOrchestrator orchestrator() {
         NetworkWorkspace workspace = workspace();
-        return new WorkflowOrchestrator() {
-            @Override
-            public NetworkWorkspace createTask(String rawText, String targetEnvironmentHint, String createdBy) {
-                return workspace;
-            }
-
-            @Override
-            public NetworkWorkspace runIntentStage(String taskId) {
-                return workspace;
-            }
-
-            @Override
-            public NetworkWorkspace runPlanningStage(String taskId) {
-                return workspace;
-            }
-
-            @Override
-            public NetworkWorkspace runConfigurationStage(String taskId) {
-                return workspace;
-            }
-
-            @Override
-            public NetworkWorkspace getWorkspace(String taskId) {
-                return workspace;
-            }
-        };
+        return new TestWorkflowOrchestrator(workspace);
     }
 
     private NetworkWorkspace workspace() {
@@ -94,7 +98,65 @@ class WebControllerTest {
                         .currentStage(WorkflowStage.INTENT)
                         .createTime(LocalDateTime.now())
                         .build())
+                .currentExecutionReport(ExecutionReport.builder()
+                        .executionId("execution-web-test")
+                        .taskId("task-web-test")
+                        .executionVersion(1)
+                        .overallStatus(ExecutionStatus.SUCCESS)
+                        .createTime(LocalDateTime.now())
+                        .startTime(LocalDateTime.now())
+                        .endTime(LocalDateTime.now())
+                        .updateTime(LocalDateTime.now())
+                        .build())
                 .workspaceStatus(TaskStatus.CREATED)
                 .build();
+    }
+
+    /**
+     * Minimal Orchestrator fixture for Web controller boundary tests.
+     */
+    private static class TestWorkflowOrchestrator implements WorkflowOrchestrator {
+
+        private final NetworkWorkspace workspace;
+        private int runExecutionCalls;
+        private int getWorkspaceCalls;
+        private String lastExecutionTaskId;
+
+        private TestWorkflowOrchestrator(NetworkWorkspace workspace) {
+            this.workspace = workspace;
+        }
+
+        @Override
+        public NetworkWorkspace createTask(String rawText, String targetEnvironmentHint, String createdBy) {
+            return workspace;
+        }
+
+        @Override
+        public NetworkWorkspace runIntentStage(String taskId) {
+            return workspace;
+        }
+
+        @Override
+        public NetworkWorkspace runPlanningStage(String taskId) {
+            return workspace;
+        }
+
+        @Override
+        public NetworkWorkspace runConfigurationStage(String taskId) {
+            return workspace;
+        }
+
+        @Override
+        public NetworkWorkspace runExecutionStage(String taskId) {
+            runExecutionCalls++;
+            lastExecutionTaskId = taskId;
+            return workspace;
+        }
+
+        @Override
+        public NetworkWorkspace getWorkspace(String taskId) {
+            getWorkspaceCalls++;
+            return workspace;
+        }
     }
 }

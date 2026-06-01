@@ -24,6 +24,14 @@ public class TopologyNode {
 
     private String role;
 
+    private String ipAddress;
+
+    private String ip;
+
+    private String mac;
+
+    private String defaultRoute;
+
     private String vendor;
 
     private String zoneId;

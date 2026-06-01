@@ -167,6 +167,85 @@ class MacTavWorkflowOrchestratorTest {
         assertTrue(res.getArtifacts().get(2).getPayloadSummary().contains("commandBlocks=2"));
     }
 
+    @Test
+    void runExecutionStageShouldPersistExecutionReportArtifactIntoWorkspace() {
+        var om = om();
+        var d = (AgentDiscoveryClient) t -> AgentCard.builder().agentName(t).serviceEndpoint("http://x/").healthStatus(AgentHealthStatus.UP).build();
+        var c = (A2aClient) (r, a) -> A2aResponse.builder().success(true).build();
+        var w = ws(om); var rec = recS(rr, vv);
+        var o = new MacTavWorkflowOrchestrator(w, rec, new RemoteAgentInvoker(d, c, new A2aResponseValidator()), om);
+        var created = o.createTask("x", "lab", "u");
+        String taskId = created.getTask().getTaskId();
+        var planArtifact = w.saveStageArtifact(
+                taskId,
+                ArtifactType.NETWORK_PLAN,
+                WorkflowStage.PLANNING,
+                executablePlan(taskId),
+                "NetworkPlan for execution",
+                "PlanningAgent",
+                executionTraceRefs());
+        var configArtifact = w.saveStageArtifact(
+                taskId,
+                ArtifactType.CONFIG_SET,
+                WorkflowStage.CONFIGURATION,
+                executableConfigSet(taskId),
+                "ConfigSet for execution",
+                "ConfigurationAgent",
+                executionTraceRefs());
+
+        var res = o.runExecutionStage(taskId);
+
+        assertNotNull(res.getCurrentExecutionReport());
+        assertEquals(1, res.getCurrentExecutionVersion());
+        assertEquals(ArtifactType.EXECUTION_REPORT, res.getArtifacts().get(2).getArtifactType());
+        assertEquals(res.getArtifacts().get(2).getArtifactId(), res.getCurrentArtifactRefs().get(ArtifactType.EXECUTION_REPORT));
+        assertEquals(planArtifact.getArtifactId(), res.getCurrentArtifactRefs().get(ArtifactType.NETWORK_PLAN));
+        assertEquals(configArtifact.getArtifactId(), res.getCurrentArtifactRefs().get(ArtifactType.CONFIG_SET));
+        assertEquals(1, res.getAgentExecutionRecords().size());
+        assertEquals("ExecutionModule", res.getAgentExecutionRecords().get(0).getTargetAgentName());
+        assertEquals(WorkflowStage.EXECUTION, res.getAgentExecutionRecords().get(0).getStage());
+        assertEquals(com.yali.mactav.model.execution.ExecutionEnvironmentType.STRUCTURE_VALIDATION,
+                res.getCurrentExecutionReport().getEnvironmentType());
+    }
+
+    @Test
+    void runExecutionStageShouldFailWhenNetworkPlanIsMissing() {
+        var om = om();
+        var d = (AgentDiscoveryClient) t -> AgentCard.builder().agentName(t).serviceEndpoint("http://x/").healthStatus(AgentHealthStatus.UP).build();
+        var c = (A2aClient) (r, a) -> A2aResponse.builder().success(true).build();
+        var w = ws(om); var rec = recS(rr, vv);
+        var o = new MacTavWorkflowOrchestrator(w, rec, new RemoteAgentInvoker(d, c, new A2aResponseValidator()), om);
+        var created = o.createTask("x", "lab", "u");
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> o.runExecutionStage(created.getTask().getTaskId()));
+
+        assertEquals(ErrorCode.STAGE_NOT_READY.getErrorCode(), ex.getErrorCode());
+    }
+
+    @Test
+    void runExecutionStageShouldFailWhenConfigSetIsMissing() {
+        var om = om();
+        var d = (AgentDiscoveryClient) t -> AgentCard.builder().agentName(t).serviceEndpoint("http://x/").healthStatus(AgentHealthStatus.UP).build();
+        var c = (A2aClient) (r, a) -> A2aResponse.builder().success(true).build();
+        var w = ws(om); var rec = recS(rr, vv);
+        var o = new MacTavWorkflowOrchestrator(w, rec, new RemoteAgentInvoker(d, c, new A2aResponseValidator()), om);
+        var created = o.createTask("x", "lab", "u");
+        String taskId = created.getTask().getTaskId();
+        w.saveStageArtifact(
+                taskId,
+                ArtifactType.NETWORK_PLAN,
+                WorkflowStage.PLANNING,
+                executablePlan(taskId),
+                "NetworkPlan for execution",
+                "PlanningAgent",
+                executionTraceRefs());
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> o.runExecutionStage(taskId));
+
+        assertEquals(ErrorCode.STAGE_NOT_READY.getErrorCode(), ex.getErrorCode());
+    }
+
     private static A2aResponse intentResponse(com.yali.mactav.model.a2a.A2aRequest r) {
         return A2aResponse.builder().success(true).taskId(r.getTaskId()).sourceAgent("IntentAgent")
                 .targetAgent(r.getSourceAgent()).stage(WorkflowStage.INTENT).traceId(r.getTraceId())
@@ -258,6 +337,57 @@ class MacTavWorkflowOrchestratorTest {
                 .createTime(LocalDateTime.now())
                 .updateTime(LocalDateTime.now())
                 .createdBy("ConfigurationAgent")
+                .build();
+    }
+
+    private static NetworkPlan executablePlan(String taskId) {
+        return NetworkPlan.builder()
+                .taskId(taskId)
+                .planId("plan-execution")
+                .planVersion(1)
+                .targetEnvironment(TargetEnvironment.builder()
+                        .adapterType("STRUCTURE_VALIDATION")
+                        .simulationTarget("STRUCTURE_VALIDATION")
+                        .build())
+                .topology(Topology.builder()
+                        .nodes(java.util.List.of(
+                                TopologyNode.builder().id("h1").nodeType("host").traceRefs(executionTraceRefs()).build(),
+                                TopologyNode.builder().id("h2").nodeType("host").traceRefs(executionTraceRefs()).build()))
+                        .links(java.util.List.of(TopologyLink.builder()
+                                .id("l1")
+                                .sourceNode("h1")
+                                .targetNode("h2")
+                                .traceRefs(executionTraceRefs())
+                                .build()))
+                        .build())
+                .traceRefs(executionTraceRefs())
+                .stageStatus(StageStatus.SUCCESS)
+                .createTime(LocalDateTime.now())
+                .updateTime(LocalDateTime.now())
+                .createdBy("PlanningAgent")
+                .build();
+    }
+
+    private static ConfigSet executableConfigSet(String taskId) {
+        return ConfigSet.builder()
+                .taskId(taskId)
+                .planId("plan-execution")
+                .configSetId("config-set-execution")
+                .planVersion(1)
+                .configVersion(1)
+                .traceRefs(executionTraceRefs())
+                .stageStatus(StageStatus.SUCCESS)
+                .createTime(LocalDateTime.now())
+                .updateTime(LocalDateTime.now())
+                .createdBy("ConfigurationAgent")
+                .build();
+    }
+
+    private static TraceRefs executionTraceRefs() {
+        return TraceRefs.builder()
+                .planElementIds(java.util.List.of("plan-execution-node"))
+                .configBlockIds(java.util.List.of("config-execution-block"))
+                .testIds(java.util.List.of("test-ping"))
                 .build();
     }
 
