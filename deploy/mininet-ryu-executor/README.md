@@ -153,7 +153,7 @@ Then run the opt-in test from the repository root:
 
 ```powershell
 $env:MACTAV_RUN_MININET_RYU_IT="true"
-mvn -pl mac-tav-execution -Dtest=MininetRyuExecutorManualIT test
+mvn -pl mac-tav-execution -am -Dtest=MininetRyuExecutorManualIT "-Dsurefire.failIfNoSpecifiedTests=false" test
 ```
 
 The test uses `MininetRyuExecutionAdapter` with a minimal h1-s1-h2 topology and
