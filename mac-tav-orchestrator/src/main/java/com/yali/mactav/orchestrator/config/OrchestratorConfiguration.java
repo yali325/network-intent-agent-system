@@ -11,6 +11,7 @@ import com.yali.mactav.execution.service.DefaultExecutionService;
 import com.yali.mactav.execution.service.ExecutionService;
 import com.yali.mactav.modelcore.service.AgentExecutionRecordService;
 import com.yali.mactav.modelcore.service.NetworkWorkspaceService;
+import com.yali.mactav.modelcore.service.WorkspaceChangeRecordService;
 import com.yali.mactav.orchestrator.remote.card.AgentCardRegistryClient;
 import com.yali.mactav.orchestrator.remote.card.OfficialAgentCardRegistryClient;
 import com.yali.mactav.orchestrator.remote.client.A2aClient;
@@ -108,6 +109,7 @@ public class OrchestratorConfiguration {
     @ConditionalOnMissingBean
     public WorkflowOrchestrator workflowOrchestrator(NetworkWorkspaceService workspaceService,
                                                      AgentExecutionRecordService executionRecordService,
+                                                     WorkspaceChangeRecordService changeRecordService,
                                                      RemoteAgentInvoker remoteAgentInvoker,
                                                      ObjectMapper objectMapper,
                                                      ExecutionService executionService,
@@ -115,6 +117,7 @@ public class OrchestratorConfiguration {
         return new MacTavWorkflowOrchestrator(
                 workspaceService,
                 executionRecordService,
+                changeRecordService,
                 remoteAgentInvoker,
                 objectMapper,
                 executionService,

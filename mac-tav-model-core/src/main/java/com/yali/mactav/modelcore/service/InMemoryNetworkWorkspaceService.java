@@ -153,6 +153,27 @@ public class InMemoryNetworkWorkspaceService implements NetworkWorkspaceService 
     }
 
     @Override
+    public NetworkWorkspace saveCurrentRepairPlan(String taskId, RepairPlan repairPlan) {
+        if (repairPlan == null) {
+            throw new BusinessException(ErrorCode.WORKSPACE_STATE_INVALID, "RepairPlan must not be null");
+        }
+        NetworkWorkspace workspace = getWorkspaceOrThrow(taskId);
+        if (repairPlan.getTaskId() == null || repairPlan.getTaskId().isBlank()) {
+            repairPlan.setTaskId(taskId);
+        }
+        workspace.setCurrentRepairPlan(repairPlan);
+        workspace.getTask().setUpdateTime(LocalDateTime.now());
+        return workspaceRepository.save(taskId, workspace);
+    }
+
+    @Override
+    public NetworkWorkspace appendWorkspaceEvent(String taskId, WorkspaceEvent event) {
+        NetworkWorkspace workspace = getWorkspaceOrThrow(taskId);
+        appendWorkspaceEvent(workspace, event);
+        return workspaceRepository.save(taskId, workspace);
+    }
+
+    @Override
     public NetworkArtifact saveStageArtifact(
             String taskId,
             ArtifactType artifactType,

@@ -4,16 +4,20 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.yali.mactav.common.result.ApiResponse;
+import com.yali.mactav.model.enums.RepairStatus;
 import com.yali.mactav.model.enums.TaskStatus;
 import com.yali.mactav.model.enums.WorkflowStage;
 import com.yali.mactav.model.execution.ExecutionReport;
 import com.yali.mactav.model.execution.ExecutionStatus;
+import com.yali.mactav.model.healing.RepairAction;
+import com.yali.mactav.model.healing.RepairPlan;
 import com.yali.mactav.model.task.NetworkTask;
 import com.yali.mactav.model.verification.ValidationItem;
 import com.yali.mactav.model.verification.ValidationReport;
 import com.yali.mactav.model.workspace.NetworkWorkspace;
 import com.yali.mactav.orchestrator.service.WorkflowOrchestrator;
 import com.yali.mactav.web.dto.CreateTaskRequest;
+import com.yali.mactav.web.dto.RepairActionDecisionRequest;
 import com.yali.mactav.web.dto.TaskSummaryResponse;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.Test;
@@ -111,6 +115,48 @@ class WebControllerTest {
         assertEquals("val-item-web-test", response.getData().get(0).getItemId());
     }
 
+    @Test
+    void repairControllerShouldDelegateAnalyzeAndGetToOrchestrator() {
+        TestWorkflowOrchestrator orchestrator = orchestrator();
+        RepairController controller = new RepairController(orchestrator);
+
+        ApiResponse<RepairPlan> analyzeResponse = controller.analyzeRepair("task-web-test");
+        ApiResponse<RepairPlan> getResponse = controller.getRepairPlan("task-web-test");
+
+        assertTrue(analyzeResponse.isSuccess());
+        assertTrue(getResponse.isSuccess());
+        assertEquals("repair-action-web-test", analyzeResponse.getData().getActions().get(0).getActionId());
+        assertEquals(1, orchestrator.runHealingCalls);
+        assertEquals(1, orchestrator.getWorkspaceCalls);
+        assertEquals("task-web-test", orchestrator.lastHealingTaskId);
+    }
+
+    @Test
+    void repairControllerShouldDelegateApproveRejectAndApplyToOrchestrator() {
+        TestWorkflowOrchestrator orchestrator = orchestrator();
+        RepairController controller = new RepairController(orchestrator);
+        RepairActionDecisionRequest request = new RepairActionDecisionRequest();
+        request.setActor("alice");
+        request.setComment("approved in web test");
+
+        ApiResponse<RepairPlan> approveResponse = controller.approveRepairAction(
+                "task-web-test", "repair-action-web-test", request);
+        ApiResponse<RepairPlan> rejectResponse = controller.rejectRepairAction(
+                "task-web-test", "repair-action-web-test", request);
+        ApiResponse<NetworkWorkspace> applyResponse = controller.applyRepairAction(
+                "task-web-test", "repair-action-web-test");
+
+        assertTrue(approveResponse.isSuccess());
+        assertTrue(rejectResponse.isSuccess());
+        assertTrue(applyResponse.isSuccess());
+        assertEquals(1, orchestrator.approveCalls);
+        assertEquals(1, orchestrator.rejectCalls);
+        assertEquals(1, orchestrator.applyCalls);
+        assertEquals("repair-action-web-test", orchestrator.lastRepairActionId);
+        assertEquals("alice", orchestrator.lastActor);
+        assertEquals("approved in web test", orchestrator.lastComment);
+    }
+
     private TestWorkflowOrchestrator orchestrator() {
         NetworkWorkspace workspace = workspace();
         return new TestWorkflowOrchestrator(workspace);
@@ -148,6 +194,21 @@ class WebControllerTest {
                                 .relatedTestId("test-web-test")
                                 .build()))
                         .build())
+                .currentRepairPlan(RepairPlan.builder()
+                        .taskId("task-web-test")
+                        .repairVersion(1)
+                        .validationVersion(1)
+                        .overallRepairStrategy("Web test repair plan")
+                        .actions(java.util.List.of(RepairAction.builder()
+                                .actionId("repair-action-web-test")
+                                .actionType("PATCH_CONFIG")
+                                .targetStage(WorkflowStage.CONFIGURATION)
+                                .description("Patch config in web test")
+                                .riskLevel("LOW")
+                                .requiresApproval(false)
+                                .status(RepairStatus.PROPOSED)
+                                .build()))
+                        .build())
                 .workspaceStatus(TaskStatus.CREATED)
                 .build();
     }
@@ -160,9 +221,17 @@ class WebControllerTest {
         private final NetworkWorkspace workspace;
         private int runExecutionCalls;
         private int runVerificationCalls;
+        private int runHealingCalls;
+        private int approveCalls;
+        private int rejectCalls;
+        private int applyCalls;
         private int getWorkspaceCalls;
         private String lastExecutionTaskId;
         private String lastVerificationTaskId;
+        private String lastHealingTaskId;
+        private String lastRepairActionId;
+        private String lastActor;
+        private String lastComment;
 
         private TestWorkflowOrchestrator(NetworkWorkspace workspace) {
             this.workspace = workspace;
@@ -199,6 +268,38 @@ class WebControllerTest {
         public NetworkWorkspace runVerificationStage(String taskId) {
             runVerificationCalls++;
             lastVerificationTaskId = taskId;
+            return workspace;
+        }
+
+        @Override
+        public NetworkWorkspace runHealingStage(String taskId) {
+            runHealingCalls++;
+            lastHealingTaskId = taskId;
+            return workspace;
+        }
+
+        @Override
+        public NetworkWorkspace approveRepairAction(String taskId, String actionId, String approvedBy, String comment) {
+            approveCalls++;
+            lastRepairActionId = actionId;
+            lastActor = approvedBy;
+            lastComment = comment;
+            return workspace;
+        }
+
+        @Override
+        public NetworkWorkspace rejectRepairAction(String taskId, String actionId, String rejectedBy, String comment) {
+            rejectCalls++;
+            lastRepairActionId = actionId;
+            lastActor = rejectedBy;
+            lastComment = comment;
+            return workspace;
+        }
+
+        @Override
+        public NetworkWorkspace applyRepairAction(String taskId, String actionId) {
+            applyCalls++;
+            lastRepairActionId = actionId;
             return workspace;
         }
 

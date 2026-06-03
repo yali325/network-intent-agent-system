@@ -42,8 +42,11 @@ import com.yali.mactav.model.workspace.AgentExecutionRecord;
 import com.yali.mactav.model.workspace.NetworkArtifact;
 import com.yali.mactav.model.workspace.NetworkWorkspace;
 import com.yali.mactav.model.workspace.TraceRefs;
+import com.yali.mactav.model.workspace.WorkspaceChangeRecord;
+import com.yali.mactav.modelcore.event.WorkspaceEventFactory;
 import com.yali.mactav.modelcore.service.AgentExecutionRecordService;
 import com.yali.mactav.modelcore.service.NetworkWorkspaceService;
+import com.yali.mactav.modelcore.service.WorkspaceChangeRecordService;
 import com.yali.mactav.orchestrator.remote.invoker.RemoteAgentInvoker;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -80,6 +83,8 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
 
     private final AgentExecutionRecordService executionRecordService;
 
+    private final WorkspaceChangeRecordService changeRecordService;
+
     private final RemoteAgentInvoker remoteAgentInvoker;
 
     private final ExecutionService executionService;
@@ -90,6 +95,8 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
 
     private final ConcurrentMap<String, String> targetEnvironmentHints = new ConcurrentHashMap<>();
 
+    private final ConcurrentMap<String, String> repairGuidanceHints = new ConcurrentHashMap<>();
+
     public MacTavWorkflowOrchestrator(NetworkWorkspaceService workspaceService,
                                       AgentExecutionRecordService executionRecordService,
                                       RemoteAgentInvoker remoteAgentInvoker,
@@ -97,6 +104,7 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
         this(
                 workspaceService,
                 executionRecordService,
+                null,
                 remoteAgentInvoker,
                 objectMapper,
                 new DefaultExecutionService(ExecutionAdapterRegistryFactory.structureValidationRegistry()),
@@ -108,7 +116,7 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
                                       RemoteAgentInvoker remoteAgentInvoker,
                                       ObjectMapper objectMapper,
                                       ExecutionService executionService) {
-        this(workspaceService, executionRecordService, remoteAgentInvoker, objectMapper, executionService,
+        this(workspaceService, executionRecordService, null, remoteAgentInvoker, objectMapper, executionService,
                 new ExecutionProperties());
     }
 
@@ -118,8 +126,20 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
                                       ObjectMapper objectMapper,
                                       ExecutionService executionService,
                                       ExecutionProperties executionProperties) {
+        this(workspaceService, executionRecordService, null, remoteAgentInvoker, objectMapper, executionService,
+                executionProperties);
+    }
+
+    public MacTavWorkflowOrchestrator(NetworkWorkspaceService workspaceService,
+                                      AgentExecutionRecordService executionRecordService,
+                                      WorkspaceChangeRecordService changeRecordService,
+                                      RemoteAgentInvoker remoteAgentInvoker,
+                                      ObjectMapper objectMapper,
+                                      ExecutionService executionService,
+                                      ExecutionProperties executionProperties) {
         this.workspaceService = workspaceService;
         this.executionRecordService = executionRecordService;
+        this.changeRecordService = changeRecordService;
         this.remoteAgentInvoker = remoteAgentInvoker;
         this.objectMapper = objectMapper;
         this.executionService = executionService;
@@ -507,6 +527,86 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
     }
 
     @Override
+    public NetworkWorkspace approveRepairAction(String taskId, String actionId, String approvedBy, String comment) {
+        RepairPlan repairPlan = requireCurrentRepairPlan(taskId);
+        RepairAction action = requireRepairAction(repairPlan, actionId);
+        action.setStatus(RepairStatus.APPROVED);
+        action.setApprovalStatus("APPROVED");
+        action.setApprovedBy(blankToDefault(approvedBy, "api"));
+        action.setApprovedAt(LocalDateTime.now());
+        action.setApprovalComment(comment);
+        NetworkWorkspace workspace = workspaceService.saveCurrentRepairPlan(taskId, repairPlan);
+        appendRepairChange(taskId, action, "REPAIR_APPROVED", comment, action.getApprovedBy());
+        workspace = workspaceService.appendWorkspaceEvent(
+                taskId,
+                WorkspaceEventFactory.repairApproved(taskId, action, comment));
+        return workspace;
+    }
+
+    @Override
+    public NetworkWorkspace rejectRepairAction(String taskId, String actionId, String rejectedBy, String comment) {
+        RepairPlan repairPlan = requireCurrentRepairPlan(taskId);
+        RepairAction action = requireRepairAction(repairPlan, actionId);
+        action.setStatus(RepairStatus.REJECTED);
+        action.setApprovalStatus("REJECTED");
+        action.setRejectedBy(blankToDefault(rejectedBy, "api"));
+        action.setRejectedAt(LocalDateTime.now());
+        action.setApprovalComment(comment);
+        NetworkWorkspace workspace = workspaceService.saveCurrentRepairPlan(taskId, repairPlan);
+        appendRepairChange(taskId, action, "REPAIR_REJECTED", comment, action.getRejectedBy());
+        workspace = workspaceService.appendWorkspaceEvent(
+                taskId,
+                WorkspaceEventFactory.repairRejected(taskId, action, comment));
+        return workspace;
+    }
+
+    @Override
+    public NetworkWorkspace applyRepairAction(String taskId, String actionId) {
+        RepairPlan repairPlan = requireCurrentRepairPlan(taskId);
+        RepairAction action = requireRepairAction(repairPlan, actionId);
+        validateRepairActionCanApply(action);
+        if (isRollback(action)) {
+            throw new BusinessException(ErrorCode.WORKSPACE_STATE_INVALID,
+                    "ROLLBACK repair action is not supported until artifact version switching is implemented");
+        }
+        WorkflowStage targetStage = repairTargetStage(action);
+        String guidance = repairGuidance(action);
+        action.setStatus(RepairStatus.APPLIED);
+        action.setAppliedAt(LocalDateTime.now());
+        workspaceService.saveCurrentRepairPlan(taskId, repairPlan);
+        appendRepairChange(taskId, action, "REPAIR_APPLIED", guidance, ORCHESTRATOR_AGENT);
+        workspaceService.appendWorkspaceEvent(taskId, WorkspaceEventFactory.repairApplied(taskId, action, guidance));
+
+        if (isAskUser(action)) {
+            workspaceService.updateTaskStatus(taskId, TaskStatus.WAITING_USER);
+            return workspaceService.appendWorkspaceEvent(
+                    taskId,
+                    WorkspaceEventFactory.repairWaitingUser(taskId, action, guidance));
+        }
+
+        repairGuidanceHints.put(taskId, guidance);
+        try {
+            if (targetStage == WorkflowStage.PLANNING) {
+                return runPlanningStage(taskId);
+            }
+            if (targetStage == WorkflowStage.CONFIGURATION) {
+                return runConfigurationStage(taskId);
+            }
+            if (targetStage == WorkflowStage.EXECUTION) {
+                return runExecutionStage(taskId);
+            }
+            if (targetStage == WorkflowStage.VERIFICATION) {
+                return runVerificationStage(taskId);
+            }
+            throw new BusinessException(ErrorCode.WORKSPACE_STATE_INVALID,
+                    "Unsupported repair target stage for action: " + actionId);
+        }
+        finally {
+            repairGuidanceHints.remove(taskId);
+        }
+    }
+
+    @Override
     public NetworkWorkspace getWorkspace(String taskId) {
         return workspaceService.getWorkspaceOrThrow(taskId);
     }
@@ -546,7 +646,7 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
                 .intentJson(intentJson)
                 .planVersion(planVersion)
                 .traceId(traceId)
-                .userContext(targetEnvironmentHints.get(workspace.getTask().getTaskId()))
+                .userContext(userContextWithRepairGuidance(workspace.getTask().getTaskId()))
                 .workspaceSnapshot(workspaceSnapshot(workspace))
                 .targetEnvironmentHint(targetEnvironmentHints.get(workspace.getTask().getTaskId()))
                 .createdBy(workspace.getTask().getCreatedBy())
@@ -577,7 +677,7 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
                 .planJson(planJson)
                 .configVersion(configVersion)
                 .traceId(traceId)
-                .userContext(targetEnvironmentHints.get(workspace.getTask().getTaskId()))
+                .userContext(userContextWithRepairGuidance(workspace.getTask().getTaskId()))
                 .workspaceSnapshot(workspaceSnapshot(workspace))
                 .targetEnvironmentHint(targetEnvironmentHints.get(workspace.getTask().getTaskId()))
                 .createdBy(workspace.getTask().getCreatedBy())
@@ -776,6 +876,124 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
         return status == ValidationStatus.FAILED
                 || status == ValidationStatus.PARTIAL
                 || status == ValidationStatus.UNKNOWN;
+    }
+
+    private RepairPlan requireCurrentRepairPlan(String taskId) {
+        NetworkWorkspace workspace = workspaceService.getWorkspaceOrThrow(taskId);
+        RepairPlan repairPlan = workspace.getCurrentRepairPlan();
+        if (repairPlan == null) {
+            throw new BusinessException(ErrorCode.REPAIR_PLAN_NOT_FOUND,
+                    "Current repair plan not found for task: " + taskId);
+        }
+        return repairPlan;
+    }
+
+    private RepairAction requireRepairAction(RepairPlan repairPlan, String actionId) {
+        if (actionId == null || actionId.isBlank()) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "repair actionId must not be blank");
+        }
+        if (repairPlan.getActions() == null) {
+            throw new BusinessException(ErrorCode.REPAIR_ACTION_NOT_FOUND,
+                    "Repair action not found: " + actionId);
+        }
+        return repairPlan.getActions().stream()
+                .filter(action -> action != null && actionId.equals(action.getActionId()))
+                .findFirst()
+                .orElseThrow(() -> new BusinessException(ErrorCode.REPAIR_ACTION_NOT_FOUND,
+                        "Repair action not found: " + actionId));
+    }
+
+    private void validateRepairActionCanApply(RepairAction action) {
+        if (action.getStatus() == RepairStatus.REJECTED) {
+            throw new BusinessException(ErrorCode.WORKSPACE_STATE_INVALID,
+                    "Rejected repair action cannot be applied: " + action.getActionId());
+        }
+        if (requiresApproval(action) && action.getStatus() != RepairStatus.APPROVED) {
+            throw new BusinessException(ErrorCode.REPAIR_ACTION_NOT_APPROVED,
+                    "Repair action requires approval before apply: " + action.getActionId());
+        }
+    }
+
+    private boolean requiresApproval(RepairAction action) {
+        return Boolean.TRUE.equals(action.getRequiresApproval())
+                || "HIGH".equalsIgnoreCase(action.getRiskLevel());
+    }
+
+    private WorkflowStage repairTargetStage(RepairAction action) {
+        if (action.getTargetStage() != null) {
+            return action.getTargetStage();
+        }
+        String actionType = normalizedActionType(action);
+        if ("REPLAN".equals(actionType)) {
+            return WorkflowStage.PLANNING;
+        }
+        if ("REGENERATE_CONFIG".equals(actionType) || "PATCH_CONFIG".equals(actionType)) {
+            return WorkflowStage.CONFIGURATION;
+        }
+        if ("REEXECUTE".equals(actionType)) {
+            return WorkflowStage.EXECUTION;
+        }
+        if ("ASK_USER".equals(actionType) || "ROLLBACK".equals(actionType)) {
+            return WorkflowStage.HEALING;
+        }
+        throw new BusinessException(ErrorCode.WORKSPACE_STATE_INVALID,
+                "Unsupported repair actionType: " + action.getActionType());
+    }
+
+    private boolean isAskUser(RepairAction action) {
+        return "ASK_USER".equals(normalizedActionType(action));
+    }
+
+    private boolean isRollback(RepairAction action) {
+        return "ROLLBACK".equals(normalizedActionType(action));
+    }
+
+    private String normalizedActionType(RepairAction action) {
+        return action.getActionType() == null ? "" : action.getActionType().trim().toUpperCase();
+    }
+
+    private String repairGuidance(RepairAction action) {
+        return "Repair guidance actionId=" + action.getActionId()
+                + ", actionType=" + action.getActionType()
+                + ", targetStage=" + action.getTargetStage()
+                + ", description=" + action.getDescription()
+                + ", riskLevel=" + action.getRiskLevel()
+                + ", relatedFailureAnalysisId=" + action.getRelatedFailureAnalysisId();
+    }
+
+    private String userContextWithRepairGuidance(String taskId) {
+        String base = targetEnvironmentHints.get(taskId);
+        String guidance = repairGuidanceHints.get(taskId);
+        if (guidance == null || guidance.isBlank()) {
+            return base;
+        }
+        if (base == null || base.isBlank()) {
+            return guidance;
+        }
+        return base + "\n" + guidance;
+    }
+
+    private void appendRepairChange(String taskId,
+                                    RepairAction action,
+                                    String changeType,
+                                    String reason,
+                                    String createdBy) {
+        if (changeRecordService == null) {
+            return;
+        }
+        changeRecordService.appendChange(taskId, WorkspaceChangeRecord.builder()
+                .changeId("change-" + UUID.randomUUID())
+                .taskId(taskId)
+                .stage(WorkflowStage.HEALING)
+                .changeType(changeType)
+                .reason(reason == null || reason.isBlank() ? repairGuidance(action) : reason)
+                .createTime(LocalDateTime.now())
+                .createdBy(blankToDefault(createdBy, ORCHESTRATOR_AGENT))
+                .build());
+    }
+
+    private String blankToDefault(String value, String defaultValue) {
+        return value == null || value.isBlank() ? defaultValue : value;
     }
 
     private ExecutionEnvironmentType executionEnvironmentType(ExecutionMode executionMode) {

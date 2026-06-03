@@ -25,5 +25,11 @@ public interface WorkflowOrchestrator {
 
     NetworkWorkspace runHealingStage(String taskId);
 
+    NetworkWorkspace approveRepairAction(String taskId, String actionId, String approvedBy, String comment);
+
+    NetworkWorkspace rejectRepairAction(String taskId, String actionId, String rejectedBy, String comment);
+
+    NetworkWorkspace applyRepairAction(String taskId, String actionId);
+
     NetworkWorkspace getWorkspace(String taskId);
 }

@@ -6,6 +6,9 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.yali.mactav.common.enums.ErrorCode;
 import com.yali.mactav.common.exception.BusinessException;
+import com.yali.mactav.execution.config.ExecutionProperties;
+import com.yali.mactav.execution.registry.ExecutionAdapterRegistryFactory;
+import com.yali.mactav.execution.service.DefaultExecutionService;
 import com.yali.mactav.model.a2a.A2aResponse;
 import com.yali.mactav.model.agent.AgentCard;
 import com.yali.mactav.model.agent.AgentHealthStatus;
@@ -45,6 +48,24 @@ class MacTavWorkflowOrchestratorTest {
         return new InMemoryAgentExecutionRecordService(new InMemoryAgentExecutionRecordRepository(), r, v);
     }
 
+    private WorkspaceChangeRecordService changeS() {
+        return new InMemoryWorkspaceChangeRecordService(new InMemoryWorkspaceChangeRecordRepository(), rr, vv);
+    }
+
+    private MacTavWorkflowOrchestrator orchestratorWithChanges(
+            NetworkWorkspaceService w,
+            AgentExecutionRecordService rec,
+            RemoteAgentInvoker invoker,
+            ObjectMapper om) {
+        return new MacTavWorkflowOrchestrator(
+                w,
+                rec,
+                changeS(),
+                invoker,
+                om,
+                new DefaultExecutionService(ExecutionAdapterRegistryFactory.structureValidationRegistry()),
+                new ExecutionProperties());
+    }
 
     @Test
     void runIntentStageShouldPersistNetworkIntentArtifactIntoWorkspace() {
@@ -405,6 +426,169 @@ class MacTavWorkflowOrchestratorTest {
         assertEquals(StageStatus.FAILED, workspace.getAgentExecutionRecords().get(0).getStageStatus());
         assertEquals("HealingAgent", workspace.getAgentExecutionRecords().get(0).getTargetAgentName());
         assertEquals(WorkflowStage.HEALING, workspace.getAgentExecutionRecords().get(0).getStage());
+    }
+
+    @Test
+    void approveRepairActionShouldUpdateActionAndRecordChangeEvent() {
+        var om = om();
+        var w = ws(om); var rec = recS(rr, vv);
+        var o = orchestratorWithChanges(w, rec, noOpInvoker(), om);
+        var created = o.createTask("x", "lab", "u");
+        String taskId = created.getTask().getTaskId();
+        saveRepairPlanFixture(w, taskId, repairPlanForAction(taskId, "PATCH_CONFIG", WorkflowStage.CONFIGURATION,
+                "HIGH", true, RepairStatus.PROPOSED));
+
+        var res = o.approveRepairAction(taskId, "repair-acl-direction", "alice", "approved for lab retry");
+
+        RepairAction action = res.getCurrentRepairPlan().getActions().get(0);
+        assertEquals(RepairStatus.APPROVED, action.getStatus());
+        assertEquals("APPROVED", action.getApprovalStatus());
+        assertEquals("alice", action.getApprovedBy());
+        assertEquals(1, res.getChangeHistory().size());
+        assertEquals("REPAIR_APPROVED", res.getChangeHistory().get(0).getChangeType());
+        assertTrue(res.getEvents().stream().anyMatch(event -> "repair.approved".equals(event.getEventType())));
+    }
+
+    @Test
+    void rejectRepairActionShouldUpdateActionAndRecordChangeEvent() {
+        var om = om();
+        var w = ws(om); var rec = recS(rr, vv);
+        var o = orchestratorWithChanges(w, rec, noOpInvoker(), om);
+        var created = o.createTask("x", "lab", "u");
+        String taskId = created.getTask().getTaskId();
+        saveRepairPlanFixture(w, taskId, repairPlanForAction(taskId, "PATCH_CONFIG", WorkflowStage.CONFIGURATION,
+                "HIGH", true, RepairStatus.PROPOSED));
+
+        var res = o.rejectRepairAction(taskId, "repair-acl-direction", "bob", "too risky");
+
+        RepairAction action = res.getCurrentRepairPlan().getActions().get(0);
+        assertEquals(RepairStatus.REJECTED, action.getStatus());
+        assertEquals("REJECTED", action.getApprovalStatus());
+        assertEquals("bob", action.getRejectedBy());
+        assertEquals(1, res.getChangeHistory().size());
+        assertEquals("REPAIR_REJECTED", res.getChangeHistory().get(0).getChangeType());
+        assertTrue(res.getEvents().stream().anyMatch(event -> "repair.rejected".equals(event.getEventType())));
+    }
+
+    @Test
+    void applyRepairActionShouldRejectUnapprovedHighRiskAction() {
+        var om = om();
+        var w = ws(om); var rec = recS(rr, vv);
+        var o = orchestratorWithChanges(w, rec, noOpInvoker(), om);
+        var created = o.createTask("x", "lab", "u");
+        String taskId = created.getTask().getTaskId();
+        saveRepairPlanFixture(w, taskId, repairPlanForAction(taskId, "PATCH_CONFIG", WorkflowStage.CONFIGURATION,
+                "HIGH", true, RepairStatus.PROPOSED));
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> o.applyRepairAction(taskId, "repair-acl-direction"));
+
+        assertEquals(ErrorCode.REPAIR_ACTION_NOT_APPROVED.getErrorCode(), ex.getErrorCode());
+        assertEquals(RepairStatus.PROPOSED,
+                w.getWorkspaceOrThrow(taskId).getCurrentRepairPlan().getActions().get(0).getStatus());
+    }
+
+    @Test
+    void applyRepairActionShouldDispatchApprovedConfigurationRepairWithGuidance() {
+        var om = om();
+        var d = (AgentDiscoveryClient) t -> AgentCard.builder().agentName(t).serviceEndpoint("http://x/").healthStatus(AgentHealthStatus.UP).build();
+        final java.util.List<com.yali.mactav.model.a2a.A2aRequest> requests = new java.util.ArrayList<>();
+        var c = (A2aClient) (r, a) -> {
+            requests.add(r);
+            return A2aResponse.builder().success(true).taskId(r.getTaskId()).sourceAgent("ConfigurationAgent")
+                    .targetAgent(r.getSourceAgent()).stage(WorkflowStage.CONFIGURATION).traceId(r.getTraceId())
+                    .timestamp(LocalDateTime.now()).payloadJson(j(configSet(r))).build();
+        };
+        var w = ws(om); var rec = recS(rr, vv);
+        var o = orchestratorWithChanges(w, rec, new RemoteAgentInvoker(d, c, new A2aResponseValidator()), om);
+        var created = o.createTask("x", "lab", "u");
+        String taskId = created.getTask().getTaskId();
+        w.saveStageArtifact(taskId, ArtifactType.NETWORK_PLAN, WorkflowStage.PLANNING,
+                executablePlan(taskId), "NetworkPlan for repair apply", "PlanningAgent", executionTraceRefs());
+        saveRepairPlanFixture(w, taskId, repairPlanForAction(taskId, "PATCH_CONFIG", WorkflowStage.CONFIGURATION,
+                "HIGH", true, RepairStatus.APPROVED));
+
+        var res = o.applyRepairAction(taskId, "repair-acl-direction");
+
+        assertEquals(1, requests.size());
+        assertEquals(WorkflowStage.CONFIGURATION, requests.get(0).getStage());
+        assertTrue(requests.get(0).getPayloadJson().contains("Repair guidance actionId=repair-acl-direction"));
+        assertNotNull(res.getCurrentConfigSet());
+        assertEquals(RepairStatus.APPLIED, res.getCurrentRepairPlan().getActions().get(0).getStatus());
+        assertTrue(res.getChangeHistory().stream().anyMatch(change -> "REPAIR_APPLIED".equals(change.getChangeType())));
+        assertTrue(res.getEvents().stream().anyMatch(event -> "repair.applied".equals(event.getEventType())));
+    }
+
+    @Test
+    void applyRepairActionShouldWaitForUserForAskUserAction() {
+        var om = om();
+        var w = ws(om); var rec = recS(rr, vv);
+        var o = orchestratorWithChanges(w, rec, noOpInvoker(), om);
+        var created = o.createTask("x", "lab", "u");
+        String taskId = created.getTask().getTaskId();
+        saveRepairPlanFixture(w, taskId, repairPlanForAction(taskId, "ASK_USER", null,
+                "LOW", false, RepairStatus.PROPOSED));
+
+        var res = o.applyRepairAction(taskId, "repair-acl-direction");
+
+        assertEquals(TaskStatus.WAITING_USER, res.getTask().getTaskStatus());
+        assertEquals(RepairStatus.APPLIED, res.getCurrentRepairPlan().getActions().get(0).getStatus());
+        assertTrue(res.getEvents().stream().anyMatch(event -> "repair.waiting_user".equals(event.getEventType())));
+    }
+
+    private static RemoteAgentInvoker noOpInvoker() {
+        AgentDiscoveryClient d = t -> AgentCard.builder()
+                .agentName(t)
+                .serviceEndpoint("http://x/")
+                .healthStatus(AgentHealthStatus.UP)
+                .build();
+        A2aClient c = (r, a) -> A2aResponse.builder().success(true).build();
+        return new RemoteAgentInvoker(d, c, new A2aResponseValidator());
+    }
+
+    private static void saveRepairPlanFixture(NetworkWorkspaceService w, String taskId, RepairPlan repairPlan) {
+        w.saveStageArtifact(taskId, ArtifactType.REPAIR_PLAN, WorkflowStage.HEALING,
+                repairPlan, "repair plan fixture", "HealingAgent", executionTraceRefs());
+    }
+
+    private static RepairPlan repairPlanForAction(String taskId,
+                                                  String actionType,
+                                                  WorkflowStage targetStage,
+                                                  String riskLevel,
+                                                  boolean requiresApproval,
+                                                  RepairStatus status) {
+        return RepairPlan.builder()
+                .taskId(taskId)
+                .validationVersion(1)
+                .repairVersion(1)
+                .overallRepairStrategy("Repair action fixture")
+                .failureAnalysis(java.util.List.of(FailureAnalysis.builder()
+                        .analysisId("failure-acl-direction")
+                        .failureType("ACL_DIRECTION_MISMATCH")
+                        .rootCauseSummary("ACL direction is likely wrong.")
+                        .relatedValidationItemIds(java.util.List.of("val-office-server"))
+                        .build()))
+                .actions(java.util.List.of(RepairAction.builder()
+                        .actionId("repair-acl-direction")
+                        .actionType(actionType)
+                        .targetStage(targetStage)
+                        .description("Use selected repair action to recover validation failure.")
+                        .relatedFailureAnalysisId("failure-acl-direction")
+                        .inputArtifactIds(java.util.List.of("val-office-server"))
+                        .expectedOutputArtifactType(ArtifactType.CONFIG_SET)
+                        .riskLevel(riskLevel)
+                        .riskReason("Unit test repair action")
+                        .requiresApproval(requiresApproval)
+                        .status(status)
+                        .traceRefs(TraceRefs.builder()
+                                .validationItemIds(java.util.List.of("val-office-server"))
+                                .repairActionIds(java.util.List.of("repair-acl-direction"))
+                                .build())
+                        .build()))
+                .requiresUserConfirmation(requiresApproval)
+                .stageStatus(StageStatus.SUCCESS)
+                .createTime(LocalDateTime.now())
+                .build();
     }
 
     private static A2aResponse intentResponse(com.yali.mactav.model.a2a.A2aRequest r) {

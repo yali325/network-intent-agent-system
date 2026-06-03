@@ -46,6 +46,10 @@ public enum ErrorCode {
     WORKSPACE_STATE_INVALID(40913, "WORKSPACE_STATE_INVALID", "Workspace state is invalid"),
     STAGE_NOT_READY(40914, "STAGE_NOT_READY", "Required previous stage artifact is not present"),
 
+    REPAIR_PLAN_NOT_FOUND(40461, "REPAIR_PLAN_NOT_FOUND", "Repair plan not found"),
+    REPAIR_ACTION_NOT_FOUND(40462, "REPAIR_ACTION_NOT_FOUND", "Repair action not found"),
+    REPAIR_ACTION_NOT_APPROVED(40961, "REPAIR_ACTION_NOT_APPROVED", "Repair action is not approved"),
+
     EXECUTION_ADAPTER_FAILED(60001, "EXECUTION_ADAPTER_FAILED", "Execution adapter failed"),
     EXECUTION_FORBIDDEN_COMMAND(60002, "EXECUTION_FORBIDDEN_COMMAND", "Execution action is forbidden"),
     EXECUTION_TIMEOUT(60003, "EXECUTION_TIMEOUT", "Execution timed out"),

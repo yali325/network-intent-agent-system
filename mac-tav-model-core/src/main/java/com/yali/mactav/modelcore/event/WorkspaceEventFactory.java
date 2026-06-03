@@ -2,6 +2,7 @@ package com.yali.mactav.modelcore.event;
 
 import com.yali.mactav.model.enums.TaskStatus;
 import com.yali.mactav.model.enums.WorkflowStage;
+import com.yali.mactav.model.healing.RepairAction;
 import com.yali.mactav.model.workspace.NetworkArtifact;
 import com.yali.mactav.model.workspace.NetworkWorkspace;
 import com.yali.mactav.model.workspace.WorkspaceEvent;
@@ -59,6 +60,36 @@ public final class WorkspaceEventFactory {
                 .message("Repair plan proposed from " + artifact.getArtifactType() + " v" + artifact.getVersion())
                 .relatedArtifactId(artifact.getArtifactId())
                 .payloadSummary(artifact.getPayloadSummary())
+                .build();
+    }
+
+    public static WorkspaceEvent repairApproved(String taskId, RepairAction action, String comment) {
+        return repairActionEvent(taskId, "repair.approved", "Repair approved", action, comment);
+    }
+
+    public static WorkspaceEvent repairRejected(String taskId, RepairAction action, String comment) {
+        return repairActionEvent(taskId, "repair.rejected", "Repair rejected", action, comment);
+    }
+
+    public static WorkspaceEvent repairApplied(String taskId, RepairAction action, String comment) {
+        return repairActionEvent(taskId, "repair.applied", "Repair applied", action, comment);
+    }
+
+    public static WorkspaceEvent repairWaitingUser(String taskId, RepairAction action, String comment) {
+        return repairActionEvent(taskId, "repair.waiting_user", "Repair waiting for user", action, comment);
+    }
+
+    private static WorkspaceEvent repairActionEvent(
+            String taskId,
+            String eventType,
+            String title,
+            RepairAction action,
+            String comment) {
+        String actionId = action == null ? null : action.getActionId();
+        return base(taskId, eventType, WorkflowStage.HEALING)
+                .title(title)
+                .message(title + (actionId == null ? "" : " for action " + actionId))
+                .payloadSummary(comment)
                 .build();
     }
 

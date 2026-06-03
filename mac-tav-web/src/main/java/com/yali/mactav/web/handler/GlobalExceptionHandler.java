@@ -57,9 +57,16 @@ public class GlobalExceptionHandler {
         }
         if (errorCode == ErrorCode.WORKSPACE_NOT_FOUND
                 || errorCode == ErrorCode.ARTIFACT_NOT_FOUND
+                || errorCode == ErrorCode.REPAIR_PLAN_NOT_FOUND
+                || errorCode == ErrorCode.REPAIR_ACTION_NOT_FOUND
                 || errorCode == ErrorCode.AGENT_CARD_NOT_FOUND
                 || errorCode == ErrorCode.RESOURCE_NOT_FOUND) {
             return HttpStatus.NOT_FOUND;
+        }
+        if (errorCode == ErrorCode.WORKSPACE_STATE_INVALID
+                || errorCode == ErrorCode.STAGE_NOT_READY
+                || errorCode == ErrorCode.REPAIR_ACTION_NOT_APPROVED) {
+            return HttpStatus.CONFLICT;
         }
         if (errorCode == ErrorCode.AGENT_SERVICE_UNAVAILABLE) {
             return HttpStatus.SERVICE_UNAVAILABLE;

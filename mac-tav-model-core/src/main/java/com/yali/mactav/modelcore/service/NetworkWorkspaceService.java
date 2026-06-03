@@ -4,9 +4,11 @@ import com.yali.mactav.model.enums.ArtifactType;
 import com.yali.mactav.model.enums.TaskStatus;
 import com.yali.mactav.model.enums.WorkflowStage;
 import com.yali.mactav.model.task.NetworkTask;
+import com.yali.mactav.model.healing.RepairPlan;
 import com.yali.mactav.model.workspace.NetworkArtifact;
 import com.yali.mactav.model.workspace.NetworkWorkspace;
 import com.yali.mactav.model.workspace.TraceRefs;
+import com.yali.mactav.model.workspace.WorkspaceEvent;
 import java.util.Optional;
 
 /**
@@ -28,6 +30,10 @@ public interface NetworkWorkspaceService {
     NetworkWorkspace updateTaskStatus(String taskId, TaskStatus status);
 
     NetworkWorkspace saveArtifact(String taskId, NetworkArtifact artifact);
+
+    NetworkWorkspace saveCurrentRepairPlan(String taskId, RepairPlan repairPlan);
+
+    NetworkWorkspace appendWorkspaceEvent(String taskId, WorkspaceEvent event);
 
     NetworkArtifact saveStageArtifact(
             String taskId,
