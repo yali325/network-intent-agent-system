@@ -1,0 +1,37 @@
+server:
+  port: ${SERVER_PORT:18085}
+
+mactav:
+  agents:
+    healing:
+      enabled: true
+      run-limit: 6
+      prompt-path: prompts/healing-agent-prompt.md
+
+spring:
+  ai:
+    dashscope:
+      api-key: ${SPRING_AI_DASHSCOPE_API_KEY:${ALI_API_KEY:${DASHSCOPE_API_KEY:}}}
+      chat:
+        options:
+          model: ${DASHSCOPE_CHAT_MODEL:qwen-plus}
+          temperature: 0.2
+    alibaba:
+      a2a:
+        nacos:
+          server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:18848}
+          username: ${NACOS_USERNAME:nacos}
+          password: ${NACOS_PASSWORD:nacos}
+          discovery:
+            enabled: false
+          registry:
+            enabled: true
+        server:
+          version: 1.0.0
+          card:
+            name: HealingAgent
+            description: MAC-TAV validation failure diagnosis and repair planning agent
+            provider:
+              name: MAC-TAV
+              organization: yali
+              url: http://127.0.0.1:${SERVER_PORT:18085}
