@@ -50,8 +50,10 @@ public class HealingAgentConfiguration {
     @ConditionalOnMissingBean
     public HealingService healingService(
             AgentResponseParser<HealingResponseSchema, RepairPlan> parser,
-            AgentOutputValidator<RepairPlan> validator) {
-        return new HealingServiceImpl(parser, validator);
+            AgentOutputValidator<RepairPlan> validator,
+            HealingDiagnosisTool healingDiagnosisTool,
+            ObjectMapper objectMapper) {
+        return new HealingServiceImpl(parser, validator, healingDiagnosisTool, objectMapper);
     }
 
     @Bean

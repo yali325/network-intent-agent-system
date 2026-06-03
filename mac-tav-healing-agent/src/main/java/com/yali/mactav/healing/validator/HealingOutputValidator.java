@@ -2,6 +2,7 @@ package com.yali.mactav.healing.validator;
 
 import com.yali.mactav.agent.core.validator.AgentOutputValidator;
 import com.yali.mactav.agent.core.validator.ValidationResult;
+import com.yali.mactav.model.enums.RepairStatus;
 import com.yali.mactav.model.healing.FailureAnalysis;
 import com.yali.mactav.model.healing.RepairAction;
 import com.yali.mactav.model.healing.RepairPlan;
@@ -31,14 +32,23 @@ public class HealingOutputValidator implements AgentOutputValidator<RepairPlan> 
             "modified workspace",
             "updated workspace",
             "pushed config",
+            "deployed config",
+            "changed config",
+            "issued command",
+            "ran command",
+            "run command",
             "shell",
             "bash",
             "powershell",
             "cmd.exe",
             "sudo ",
+            "sh ",
+            "python ",
             "mininet>",
             "ovs-vsctl",
-            "ryu-manager"
+            "ryu-manager",
+            "docker ",
+            "ssh "
     );
 
     @Override
@@ -52,6 +62,9 @@ public class HealingOutputValidator implements AgentOutputValidator<RepairPlan> 
         requireNotBlank(messages, "overallRepairStrategy", plan.getOverallRepairStrategy());
         if (plan.getActions() == null || plan.getActions().isEmpty()) {
             messages.add("actions must not be empty");
+        }
+        if (plan.getFailureAnalysis() == null || plan.getFailureAnalysis().isEmpty()) {
+            messages.add("failureAnalysis must not be empty");
         }
         validateFailureAnalysis(messages, plan.getFailureAnalysis());
         validateActions(messages, plan.getActions());
@@ -91,6 +104,12 @@ public class HealingOutputValidator implements AgentOutputValidator<RepairPlan> 
             requireNotBlank(messages, "actionType", action.getActionType());
             requireNotBlank(messages, "description", action.getDescription());
             requireNotBlank(messages, "riskLevel", action.getRiskLevel());
+            if (action.getStatus() == null) {
+                messages.add("action.status must not be null: " + action.getActionId());
+            }
+            if (RepairStatus.APPLIED.equals(action.getStatus())) {
+                messages.add("HealingAgent must not return an already applied action: " + action.getActionId());
+            }
             if (!isBlank(action.getActionId()) && !actionIds.add(action.getActionId())) {
                 messages.add("actionId must be unique: " + action.getActionId());
             }
@@ -98,7 +117,13 @@ public class HealingOutputValidator implements AgentOutputValidator<RepairPlan> 
                 messages.add("unsupported actionType: " + action.getActionType());
             }
             if (action.getTraceRefs() == null || isEmpty(action.getTraceRefs().getValidationItemIds())) {
-                messages.add("action must reference failed validation item context: " + action.getActionId());
+                if (isBlank(action.getRelatedFailureAnalysisId())) {
+                    messages.add("action must reference failed validation item context or failureAnalysis: "
+                            + action.getActionId());
+                }
+            }
+            if ("HIGH".equals(normalize(action.getRiskLevel())) && !Boolean.TRUE.equals(action.getRequiresApproval())) {
+                messages.add("high risk action must require approval: " + action.getActionId());
             }
         }
     }
@@ -118,6 +143,7 @@ public class HealingOutputValidator implements AgentOutputValidator<RepairPlan> 
                 if (action != null) {
                     texts.add(action.getDescription());
                     texts.add(action.getRiskReason());
+                    texts.add(action.getApprovalComment());
                 }
             }
         }
@@ -147,5 +173,9 @@ public class HealingOutputValidator implements AgentOutputValidator<RepairPlan> 
 
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
+    }
+
+    private String normalize(String value) {
+        return value == null ? "" : value.trim().replace('-', '_').replace(' ', '_').toUpperCase(Locale.ROOT);
     }
 }
