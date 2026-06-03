@@ -11,8 +11,10 @@ import com.yali.mactav.execution.service.ExecutionService;
 import com.yali.mactav.model.a2a.A2aRequest;
 import com.yali.mactav.model.a2a.A2aResponse;
 import com.yali.mactav.model.enums.ArtifactType;
+import com.yali.mactav.model.enums.RepairStatus;
 import com.yali.mactav.model.enums.StageStatus;
 import com.yali.mactav.model.enums.TaskStatus;
+import com.yali.mactav.model.enums.ValidationStatus;
 import com.yali.mactav.model.enums.WorkflowStage;
 import com.yali.mactav.model.config.ConfigSet;
 import com.yali.mactav.model.config.ConfigurationAgentInvokePayload;
@@ -26,9 +28,14 @@ import com.yali.mactav.model.intent.IntentAgentInvokePayload;
 import com.yali.mactav.model.intent.IntentNode;
 import com.yali.mactav.model.intent.IntentRelation;
 import com.yali.mactav.model.intent.NetworkIntent;
+import com.yali.mactav.model.healing.FailureAnalysis;
+import com.yali.mactav.model.healing.HealingAgentInvokePayload;
+import com.yali.mactav.model.healing.RepairAction;
+import com.yali.mactav.model.healing.RepairPlan;
 import com.yali.mactav.model.plan.NetworkPlan;
 import com.yali.mactav.model.plan.PlanningAgentInvokePayload;
 import com.yali.mactav.model.task.NetworkTask;
+import com.yali.mactav.model.verification.ValidationItem;
 import com.yali.mactav.model.verification.ValidationReport;
 import com.yali.mactav.model.verification.VerificationAgentInvokePayload;
 import com.yali.mactav.model.workspace.AgentExecutionRecord;
@@ -66,6 +73,8 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
     private static final String EXECUTION_MODULE = "ExecutionModule";
 
     private static final String VERIFICATION_AGENT = "VerificationAgent";
+
+    private static final String HEALING_AGENT = "HealingAgent";
 
     private final NetworkWorkspaceService workspaceService;
 
@@ -435,6 +444,69 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
     }
 
     @Override
+    public NetworkWorkspace runHealingStage(String taskId) {
+        LocalDateTime startTime = LocalDateTime.now();
+        String traceId = "trace-" + UUID.randomUUID();
+        try {
+            NetworkWorkspace workspace = workspaceService.getWorkspaceOrThrow(taskId);
+            ValidationReport validationReport = workspace.getCurrentValidationReport();
+            if (validationReport == null) {
+                throw new BusinessException(ErrorCode.STAGE_NOT_READY,
+                        "No current ValidationReport found. Run verification stage first for task: " + taskId);
+            }
+            if (!requiresHealing(validationReport.getOverallStatus())) {
+                throw new BusinessException(ErrorCode.STAGE_NOT_READY,
+                        "ValidationReport status " + validationReport.getOverallStatus()
+                                + " does not require healing for task: " + taskId);
+            }
+            requireArtifact(workspace, ArtifactType.VALIDATION_REPORT,
+                    "No VALIDATION_REPORT artifact found. Run verification stage first for task: " + taskId);
+
+            int repairVersion = nextRepairVersion(workspace);
+            workspaceService.updateTaskStage(taskId, WorkflowStage.HEALING);
+            workspaceService.updateTaskStatus(taskId, TaskStatus.RUNNING);
+
+            A2aRequest request = buildHealingRequest(workspace, validationReport, repairVersion, traceId);
+            A2aResponse response = remoteAgentInvoker.invoke(request);
+            if (!Boolean.TRUE.equals(response.getSuccess())) {
+                throw new BusinessException(
+                        response.getErrorCode(),
+                        response.getMessage() == null ? "Remote HealingAgent failed" : response.getMessage());
+            }
+            RepairPlan repairPlan = parseRepairPlan(response.getPayloadJson());
+            normalizeRepairPlan(repairPlan, workspace, validationReport, repairVersion);
+            NetworkArtifact artifact = workspaceService.saveStageArtifact(
+                    taskId,
+                    ArtifactType.REPAIR_PLAN,
+                    WorkflowStage.HEALING,
+                    repairPlan,
+                    repairPlanSummary(repairPlan),
+                    workspace.getTask().getCreatedBy(),
+                    repairTraceRefs(repairPlan, validationReport));
+            appendExecutionRecord(taskId, traceId, startTime, StageStatus.SUCCESS,
+                    artifact, null, null, HEALING_AGENT, WorkflowStage.HEALING,
+                    "HealingAgent A2A call succeeded",
+                    "Healing stage completed");
+            workspaceService.updateTaskStatus(taskId,
+                    Boolean.TRUE.equals(repairPlan.getRequiresUserConfirmation())
+                            ? TaskStatus.WAITING_USER
+                            : TaskStatus.RUNNING);
+            return workspaceService.getWorkspaceOrThrow(taskId);
+        }
+        catch (BusinessException ex) {
+            markTaskErrorAndRecord(taskId, traceId, startTime,
+                    HEALING_AGENT, WorkflowStage.HEALING, ex.getErrorCode(), ex.getMessage());
+            throw ex;
+        }
+        catch (RuntimeException ex) {
+            markTaskErrorAndRecord(taskId, traceId, startTime,
+                    HEALING_AGENT, WorkflowStage.HEALING,
+                    ErrorCode.AGENT_EXECUTION_FAILED.name(), ex.getMessage());
+            throw ex;
+        }
+    }
+
+    @Override
     public NetworkWorkspace getWorkspace(String taskId) {
         return workspaceService.getWorkspaceOrThrow(taskId);
     }
@@ -564,6 +636,49 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
                 .build();
     }
 
+    private A2aRequest buildHealingRequest(NetworkWorkspace workspace,
+                                           ValidationReport validationReport,
+                                           int repairVersion,
+                                           String traceId) {
+        List<ValidationItem> failedItems = failedValidationItems(validationReport);
+        HealingAgentInvokePayload payload = HealingAgentInvokePayload.builder()
+                .taskId(workspace.getTask().getTaskId())
+                .rawText(workspace.getTask().getRawText())
+                .validationVersion(validationReport.getValidationVersion() == null
+                        ? workspace.getCurrentValidationVersion()
+                        : validationReport.getValidationVersion())
+                .repairVersion(repairVersion)
+                .validationReportJson(serialize(validationReport, ErrorCode.AGENT_PARSE_FAILED,
+                        "Failed to serialize current ValidationReport for healing request"))
+                .workspaceSnapshot(workspaceSnapshot(workspace))
+                .failedValidationItemIds(failedItems.stream()
+                        .map(ValidationItem::getItemId)
+                        .filter(id -> id != null && !id.isBlank())
+                        .toList())
+                .failedValidationItemsJson(serialize(failedItems, ErrorCode.AGENT_PARSE_FAILED,
+                        "Failed to serialize failed validation items for healing request"))
+                .evidencesJson(serialize(validationReport.getEvidences(), ErrorCode.AGENT_PARSE_FAILED,
+                        "Failed to serialize validation evidences for healing request"))
+                .suggestions(validationReport.getSuggestions())
+                .traceRefsJson(serialize(validationReport.getTraceRefs(), ErrorCode.AGENT_PARSE_FAILED,
+                        "Failed to serialize validation trace refs for healing request"))
+                .traceId(traceId)
+                .userContext(targetEnvironmentHints.get(workspace.getTask().getTaskId()))
+                .createdBy(workspace.getTask().getCreatedBy())
+                .build();
+        return A2aRequest.builder()
+                .taskId(workspace.getTask().getTaskId())
+                .sourceAgent(ORCHESTRATOR_AGENT)
+                .targetAgent(HEALING_AGENT)
+                .stage(WorkflowStage.HEALING)
+                .artifactVersion(repairVersion)
+                .payloadJson(serialize(payload, ErrorCode.A2A_CALL_FAILED,
+                        "Healing A2A payload serialization failed"))
+                .traceId(traceId)
+                .timestamp(LocalDateTime.now())
+                .build();
+    }
+
     private NetworkIntent parseIntent(String payloadJson) {
         try {
             return objectMapper.readValue(payloadJson, NetworkIntent.class);
@@ -628,6 +743,15 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
         }
     }
 
+    private RepairPlan parseRepairPlan(String payloadJson) {
+        try {
+            return objectMapper.readValue(payloadJson, RepairPlan.class);
+        }
+        catch (JsonProcessingException ex) {
+            throw new BusinessException(ErrorCode.A2A_RESPONSE_INVALID, "HealingAgent payload JSON is invalid", ex);
+        }
+    }
+
     private int nextConfigVersion(NetworkWorkspace workspace) {
         Integer current = workspace.getCurrentConfigVersion();
         return current == null ? 1 : current + 1;
@@ -641,6 +765,17 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
     private int nextValidationVersion(NetworkWorkspace workspace) {
         Integer current = workspace.getCurrentValidationVersion();
         return current == null ? 1 : current + 1;
+    }
+
+    private int nextRepairVersion(NetworkWorkspace workspace) {
+        Integer current = workspace.getCurrentRepairVersion();
+        return current == null ? 1 : current + 1;
+    }
+
+    private boolean requiresHealing(ValidationStatus status) {
+        return status == ValidationStatus.FAILED
+                || status == ValidationStatus.PARTIAL
+                || status == ValidationStatus.UNKNOWN;
     }
 
     private ExecutionEnvironmentType executionEnvironmentType(ExecutionMode executionMode) {
@@ -763,6 +898,113 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
                 + ", status=" + report.getOverallStatus()
                 + ", items=" + itemCount
                 + ", evidences=" + evidenceCount;
+    }
+
+    private void normalizeRepairPlan(RepairPlan repairPlan,
+                                     NetworkWorkspace workspace,
+                                     ValidationReport validationReport,
+                                     int repairVersion) {
+        if (repairPlan == null) {
+            throw new BusinessException(ErrorCode.A2A_RESPONSE_INVALID, "HealingAgent returned empty RepairPlan");
+        }
+        if (repairPlan.getTaskId() == null || repairPlan.getTaskId().isBlank()) {
+            repairPlan.setTaskId(workspace.getTask().getTaskId());
+        }
+        if (repairPlan.getValidationVersion() == null) {
+            repairPlan.setValidationVersion(validationReport.getValidationVersion() == null
+                    ? workspace.getCurrentValidationVersion()
+                    : validationReport.getValidationVersion());
+        }
+        if (repairPlan.getRepairVersion() == null) {
+            repairPlan.setRepairVersion(repairVersion);
+        }
+        if (repairPlan.getStageStatus() == null) {
+            repairPlan.setStageStatus(StageStatus.SUCCESS);
+        }
+        if (repairPlan.getCreateTime() == null) {
+            repairPlan.setCreateTime(LocalDateTime.now());
+        }
+        if (repairPlan.getFailureAnalysis() == null) {
+            repairPlan.setFailureAnalysis(new java.util.ArrayList<>());
+        }
+        if (repairPlan.getActions() == null) {
+            repairPlan.setActions(new java.util.ArrayList<>());
+        }
+        for (int i = 0; i < repairPlan.getActions().size(); i++) {
+            normalizeRepairAction(repairPlan.getActions().get(i), repairPlan, validationReport, i + 1);
+        }
+        if (repairPlan.getRequiresUserConfirmation() == null) {
+            repairPlan.setRequiresUserConfirmation(repairPlan.getActions().stream()
+                    .anyMatch(action -> Boolean.TRUE.equals(action.getRequiresApproval())));
+        }
+    }
+
+    private void normalizeRepairAction(RepairAction action,
+                                       RepairPlan repairPlan,
+                                       ValidationReport validationReport,
+                                       int index) {
+        if (action == null) {
+            return;
+        }
+        if (action.getActionId() == null || action.getActionId().isBlank()) {
+            action.setActionId("repair-action-" + index);
+        }
+        if (action.getStatus() == null) {
+            action.setStatus(RepairStatus.PROPOSED);
+        }
+        if (action.getExpectedOutputArtifactType() == null) {
+            action.setExpectedOutputArtifactType(ArtifactType.REPAIR_PLAN);
+        }
+        if (action.getTraceRefs() == null) {
+            action.setTraceRefs(repairTraceRefs(repairPlan, validationReport));
+        }
+        addOne(action.getTraceRefs().getRepairActionIds(), action.getActionId());
+        if (action.getRelatedFailureAnalysisId() == null || action.getRelatedFailureAnalysisId().isBlank()) {
+            repairPlan.getFailureAnalysis().stream()
+                    .map(FailureAnalysis::getAnalysisId)
+                    .filter(id -> id != null && !id.isBlank())
+                    .findFirst()
+                    .ifPresent(action::setRelatedFailureAnalysisId);
+        }
+        if ("HIGH".equalsIgnoreCase(action.getRiskLevel())) {
+            action.setRequiresApproval(true);
+        }
+    }
+
+    private String repairPlanSummary(RepairPlan repairPlan) {
+        int analysisCount = repairPlan.getFailureAnalysis() == null ? 0 : repairPlan.getFailureAnalysis().size();
+        int actionCount = repairPlan.getActions() == null ? 0 : repairPlan.getActions().size();
+        return "RepairPlan version " + repairPlan.getRepairVersion()
+                + ", validationVersion=" + repairPlan.getValidationVersion()
+                + ", analyses=" + analysisCount
+                + ", actions=" + actionCount
+                + ", requiresUserConfirmation=" + repairPlan.getRequiresUserConfirmation();
+    }
+
+    private TraceRefs repairTraceRefs(RepairPlan repairPlan, ValidationReport validationReport) {
+        TraceRefs refs = TraceRefs.builder().build();
+        mergeInto(refs, validationReport == null ? null : validationReport.getTraceRefs());
+        if (repairPlan == null) {
+            return refs;
+        }
+        if (repairPlan.getActions() != null) {
+            repairPlan.getActions().forEach(action -> {
+                if (action != null) {
+                    mergeInto(refs, action.getTraceRefs());
+                    addOne(refs.getRepairActionIds(), action.getActionId());
+                }
+            });
+        }
+        return refs;
+    }
+
+    private List<ValidationItem> failedValidationItems(ValidationReport validationReport) {
+        if (validationReport.getItems() == null) {
+            return List.of();
+        }
+        return validationReport.getItems().stream()
+                .filter(item -> item != null && !Boolean.TRUE.equals(item.getPassed()))
+                .toList();
     }
 
     private TraceRefs validationTraceRefs(ValidationReport report, ExecutionReport executionReport) {

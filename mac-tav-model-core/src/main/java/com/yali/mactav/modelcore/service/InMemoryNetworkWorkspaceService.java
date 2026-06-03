@@ -177,6 +177,9 @@ public class InMemoryNetworkWorkspaceService implements NetworkWorkspaceService 
         NetworkWorkspace refreshedWorkspace = getWorkspaceOrThrow(taskId);
         syncCurrentPayload(refreshedWorkspace, artifactType, payloadDto);
         appendWorkspaceEvent(refreshedWorkspace, WorkspaceEventFactory.artifactGenerated(artifact));
+        if (artifactType == ArtifactType.REPAIR_PLAN) {
+            appendWorkspaceEvent(refreshedWorkspace, WorkspaceEventFactory.repairProposed(artifact));
+        }
         workspaceRepository.save(taskId, refreshedWorkspace);
         return artifact;
     }

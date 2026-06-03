@@ -11,6 +11,7 @@ import com.yali.mactav.model.agent.AgentCard;
 import com.yali.mactav.model.agent.AgentHealthStatus;
 import com.yali.mactav.model.config.*;
 import com.yali.mactav.model.enums.*;
+import com.yali.mactav.model.healing.*;
 import com.yali.mactav.model.intent.*;
 import com.yali.mactav.model.plan.*;
 import com.yali.mactav.model.workspace.*;
@@ -305,6 +306,107 @@ class MacTavWorkflowOrchestratorTest {
         assertEquals(ErrorCode.STAGE_NOT_READY.getErrorCode(), ex.getErrorCode());
     }
 
+    @Test
+    void runHealingStageShouldPersistRepairPlanArtifactIntoWorkspace() {
+        var om = om();
+        var d = (AgentDiscoveryClient) t -> AgentCard.builder().agentName(t).serviceEndpoint("http://x/").healthStatus(AgentHealthStatus.UP).build();
+        final java.util.List<com.yali.mactav.model.a2a.A2aRequest> requests = new java.util.ArrayList<>();
+        var c = (A2aClient) (r, a) -> {
+            requests.add(r);
+            return A2aResponse.builder().success(true).taskId(r.getTaskId()).sourceAgent("HealingAgent")
+                    .targetAgent(r.getSourceAgent()).stage(WorkflowStage.HEALING).traceId(r.getTraceId())
+                    .timestamp(LocalDateTime.now()).payloadJson(j(repairPlan(r))).build();
+        };
+        var w = ws(om); var rec = recS(rr, vv);
+        var o = new MacTavWorkflowOrchestrator(w, rec, new RemoteAgentInvoker(d, c, new A2aResponseValidator()), om);
+        var created = o.createTask("x", "lab", "u");
+        String taskId = created.getTask().getTaskId();
+        saveFailedValidationFixture(w, taskId);
+
+        var res = o.runHealingStage(taskId);
+
+        assertEquals(WorkflowStage.HEALING, requests.get(0).getStage());
+        assertEquals("HealingAgent", requests.get(0).getTargetAgent());
+        assertNotNull(res.getCurrentRepairPlan());
+        assertEquals(1, res.getCurrentRepairVersion());
+        assertEquals(ArtifactType.REPAIR_PLAN, res.getArtifacts().get(5).getArtifactType());
+        assertEquals(res.getArtifacts().get(5).getArtifactId(), res.getCurrentArtifactRefs().get(ArtifactType.REPAIR_PLAN));
+        assertEquals(1, res.getAgentExecutionRecords().size());
+        assertEquals("HealingAgent", res.getAgentExecutionRecords().get(0).getTargetAgentName());
+        assertEquals(WorkflowStage.HEALING, res.getAgentExecutionRecords().get(0).getStage());
+        assertEquals(TaskStatus.WAITING_USER, res.getTask().getTaskStatus());
+        assertTrue(res.getArtifacts().get(5).getPayloadSummary().contains("actions=1"));
+    }
+
+    @Test
+    void runHealingStageShouldFailWhenValidationReportIsMissing() {
+        var om = om();
+        var d = (AgentDiscoveryClient) t -> AgentCard.builder().agentName(t).serviceEndpoint("http://x/").healthStatus(AgentHealthStatus.UP).build();
+        var c = (A2aClient) (r, a) -> A2aResponse.builder().success(true).build();
+        var w = ws(om); var rec = recS(rr, vv);
+        var o = new MacTavWorkflowOrchestrator(w, rec, new RemoteAgentInvoker(d, c, new A2aResponseValidator()), om);
+        var created = o.createTask("x", "lab", "u");
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> o.runHealingStage(created.getTask().getTaskId()));
+
+        assertEquals(ErrorCode.STAGE_NOT_READY.getErrorCode(), ex.getErrorCode());
+    }
+
+    @Test
+    void runHealingStageShouldRejectPassedValidationReport() {
+        var om = om();
+        var d = (AgentDiscoveryClient) t -> AgentCard.builder().agentName(t).serviceEndpoint("http://x/").healthStatus(AgentHealthStatus.UP).build();
+        final int[] remoteCalls = {0};
+        var c = (A2aClient) (r, a) -> {
+            remoteCalls[0]++;
+            return A2aResponse.builder().success(true).build();
+        };
+        var w = ws(om); var rec = recS(rr, vv);
+        var o = new MacTavWorkflowOrchestrator(w, rec, new RemoteAgentInvoker(d, c, new A2aResponseValidator()), om);
+        var created = o.createTask("x", "lab", "u");
+        String taskId = created.getTask().getTaskId();
+        w.saveStageArtifact(taskId, ArtifactType.VALIDATION_REPORT, WorkflowStage.VERIFICATION,
+                passedValidationReport(taskId), "passed validation", "VerificationAgent", executionTraceRefs());
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> o.runHealingStage(taskId));
+
+        assertEquals(ErrorCode.STAGE_NOT_READY.getErrorCode(), ex.getErrorCode());
+        assertEquals(0, remoteCalls[0]);
+    }
+
+    @Test
+    void runHealingStageShouldRecordFailureWhenRemoteHealingAgentFails() {
+        var om = om();
+        var d = (AgentDiscoveryClient) t -> AgentCard.builder().agentName(t).serviceEndpoint("http://x/").healthStatus(AgentHealthStatus.UP).build();
+        var c = (A2aClient) (r, a) -> A2aResponse.builder()
+                .success(false)
+                .taskId(r.getTaskId())
+                .sourceAgent("HealingAgent")
+                .targetAgent(r.getSourceAgent())
+                .stage(WorkflowStage.HEALING)
+                .traceId(r.getTraceId())
+                .timestamp(LocalDateTime.now())
+                .errorCode(ErrorCode.AGENT_EXECUTION_FAILED.getErrorCode())
+                .message("HealingAgent rejected invalid output")
+                .build();
+        var w = ws(om); var rec = recS(rr, vv);
+        var o = new MacTavWorkflowOrchestrator(w, rec, new RemoteAgentInvoker(d, c, new A2aResponseValidator()), om);
+        var created = o.createTask("x", "lab", "u");
+        String taskId = created.getTask().getTaskId();
+        saveFailedValidationFixture(w, taskId);
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> o.runHealingStage(taskId));
+
+        assertEquals(ErrorCode.AGENT_EXECUTION_FAILED.getErrorCode(), ex.getErrorCode());
+        NetworkWorkspace workspace = w.getWorkspaceOrThrow(taskId);
+        assertEquals(TaskStatus.ERROR, workspace.getTask().getTaskStatus());
+        assertEquals(1, workspace.getAgentExecutionRecords().size());
+        assertEquals(StageStatus.FAILED, workspace.getAgentExecutionRecords().get(0).getStageStatus());
+        assertEquals("HealingAgent", workspace.getAgentExecutionRecords().get(0).getTargetAgentName());
+        assertEquals(WorkflowStage.HEALING, workspace.getAgentExecutionRecords().get(0).getStage());
+    }
+
     private static A2aResponse intentResponse(com.yali.mactav.model.a2a.A2aRequest r) {
         return A2aResponse.builder().success(true).taskId(r.getTaskId()).sourceAgent("IntentAgent")
                 .targetAgent(r.getSourceAgent()).stage(WorkflowStage.INTENT).traceId(r.getTraceId())
@@ -490,6 +592,119 @@ class MacTavWorkflowOrchestratorTest {
                         .traceRefs(executionTraceRefs())
                         .build()))
                 .traceRefs(executionTraceRefs())
+                .createTime(LocalDateTime.now())
+                .build();
+    }
+
+    private static void saveFailedValidationFixture(NetworkWorkspaceService w, String taskId) {
+        w.saveStageArtifact(taskId, ArtifactType.NETWORK_INTENT, WorkflowStage.INTENT,
+                verificationIntent(taskId), "NetworkIntent for healing", "IntentAgent", executionTraceRefs());
+        w.saveStageArtifact(taskId, ArtifactType.NETWORK_PLAN, WorkflowStage.PLANNING,
+                executablePlan(taskId), "NetworkPlan for healing", "PlanningAgent", executionTraceRefs());
+        w.saveStageArtifact(taskId, ArtifactType.CONFIG_SET, WorkflowStage.CONFIGURATION,
+                executableConfigSet(taskId), "ConfigSet for healing", "ConfigurationAgent", executionTraceRefs());
+        w.saveStageArtifact(taskId, ArtifactType.EXECUTION_REPORT, WorkflowStage.EXECUTION,
+                executionReport(taskId), "ExecutionReport for healing", "ExecutionModule", executionTraceRefs());
+        w.saveStageArtifact(taskId, ArtifactType.VALIDATION_REPORT, WorkflowStage.VERIFICATION,
+                failedValidationReport(taskId), "failed validation", "VerificationAgent", executionTraceRefs());
+    }
+
+    private static RepairPlan repairPlan(com.yali.mactav.model.a2a.A2aRequest r) {
+        TraceRefs traceRefs = TraceRefs.builder()
+                .validationItemIds(java.util.List.of("val-office-server"))
+                .repairActionIds(java.util.List.of("repair-acl-direction"))
+                .build();
+        return RepairPlan.builder()
+                .taskId(r.getTaskId())
+                .validationVersion(1)
+                .repairVersion(r.getArtifactVersion())
+                .overallRepairStrategy("Propose correcting the ACL direction and rerunning verification after approval.")
+                .failureAnalysis(java.util.List.of(FailureAnalysis.builder()
+                        .analysisId("failure-acl-direction")
+                        .failureType("ACL_DIRECTION_MISMATCH")
+                        .rootCauseSummary("The ACL appears to block the intended office to server path.")
+                        .confidence(0.91)
+                        .evidenceIds(java.util.List.of("evidence-test-ping"))
+                        .build()))
+                .actions(java.util.List.of(RepairAction.builder()
+                        .actionId("repair-acl-direction")
+                        .actionType("PATCH_CONFIG")
+                        .targetStage(WorkflowStage.CONFIGURATION)
+                        .description("Regenerate the affected ACL block with the intended source and destination direction.")
+                        .relatedFailureAnalysisId("failure-acl-direction")
+                        .inputArtifactIds(java.util.List.of("val-office-server"))
+                        .expectedOutputArtifactType(ArtifactType.CONFIG_SET)
+                        .riskLevel("HIGH")
+                        .riskReason("Configuration change should be reviewed before application.")
+                        .requiresApproval(true)
+                        .traceRefs(traceRefs)
+                        .build()))
+                .requiresUserConfirmation(true)
+                .stageStatus(StageStatus.SUCCESS)
+                .createTime(LocalDateTime.now())
+                .build();
+    }
+
+    private static com.yali.mactav.model.verification.ValidationReport passedValidationReport(String taskId) {
+        return com.yali.mactav.model.verification.ValidationReport.builder()
+                .validationId("validation-passed")
+                .taskId(taskId)
+                .validationVersion(1)
+                .overallStatus(ValidationStatus.PASSED)
+                .summary("Execution facts satisfy the intent.")
+                .items(java.util.List.of(com.yali.mactav.model.verification.ValidationItem.builder()
+                        .itemId("val-office-server")
+                        .expected("REACHABLE")
+                        .actual("REACHABLE")
+                        .passed(true)
+                        .relatedIntentRelationId("rel-office-server")
+                        .relatedPlanElementIds(java.util.List.of("plan-execution-node"))
+                        .relatedConfigBlockIds(java.util.List.of("config-execution-block"))
+                        .relatedTestId("test-ping")
+                        .build()))
+                .traceRefs(TraceRefs.builder()
+                        .validationItemIds(java.util.List.of("val-office-server"))
+                        .testIds(java.util.List.of("test-ping"))
+                        .build())
+                .stageStatus(StageStatus.SUCCESS)
+                .createTime(LocalDateTime.now())
+                .build();
+    }
+
+    private static com.yali.mactav.model.verification.ValidationReport failedValidationReport(String taskId) {
+        return com.yali.mactav.model.verification.ValidationReport.builder()
+                .validationId("validation-failed")
+                .taskId(taskId)
+                .validationVersion(1)
+                .overallStatus(ValidationStatus.FAILED)
+                .summary("Office to server connectivity failed.")
+                .items(java.util.List.of(com.yali.mactav.model.verification.ValidationItem.builder()
+                        .itemId("val-office-server")
+                        .expected("REACHABLE")
+                        .actual("UNREACHABLE")
+                        .passed(false)
+                        .relatedIntentRelationId("rel-office-server")
+                        .relatedPlanElementIds(java.util.List.of("plan-execution-node"))
+                        .relatedConfigBlockIds(java.util.List.of("config-execution-block"))
+                        .relatedTestId("test-ping")
+                        .build()))
+                .evidences(java.util.List.of(com.yali.mactav.model.verification.ValidationEvidence.builder()
+                        .evidenceId("evidence-test-ping")
+                        .evidenceType("PING_RESULT")
+                        .source("verification-agent")
+                        .rawValue("100% packet loss")
+                        .normalizedValue("UNREACHABLE")
+                        .relatedTestId("test-ping")
+                        .build()))
+                .suggestions(java.util.List.of("Inspect ACL direction for office to server access."))
+                .traceRefs(TraceRefs.builder()
+                        .validationItemIds(java.util.List.of("val-office-server"))
+                        .intentRelationIds(java.util.List.of("rel-office-server"))
+                        .planElementIds(java.util.List.of("plan-execution-node"))
+                        .configBlockIds(java.util.List.of("config-execution-block"))
+                        .testIds(java.util.List.of("test-ping"))
+                        .build())
+                .stageStatus(StageStatus.SUCCESS)
                 .createTime(LocalDateTime.now())
                 .build();
     }

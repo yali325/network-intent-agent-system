@@ -12,6 +12,7 @@ import com.yali.mactav.model.enums.ArtifactType;
 import com.yali.mactav.model.enums.StageStatus;
 import com.yali.mactav.model.enums.TaskStatus;
 import com.yali.mactav.model.enums.WorkflowStage;
+import com.yali.mactav.model.healing.RepairPlan;
 import com.yali.mactav.model.intent.NetworkIntent;
 import com.yali.mactav.model.task.NetworkTask;
 import com.yali.mactav.model.workspace.NetworkArtifact;
@@ -57,6 +58,37 @@ class InMemoryNetworkWorkspaceServiceTest {
         assertSame(intent, workspace.getCurrentIntent());
         assertEquals(2, workspace.getEvents().size());
         assertEquals("artifact.generated", workspace.getEvents().get(1).getEventType());
+    }
+
+    @Test
+    void saveStageArtifactShouldSyncRepairPlanAndAppendRepairEvent() {
+        ModelCoreTestFixture.Services services = ModelCoreTestFixture.services();
+        services.workspaceService().createWorkspace(task("task-repair-001"));
+        RepairPlan repairPlan = RepairPlan.builder()
+                .taskId("task-repair-001")
+                .validationVersion(1)
+                .repairVersion(1)
+                .overallRepairStrategy("Propose a minimal configuration correction.")
+                .stageStatus(StageStatus.SUCCESS)
+                .requiresUserConfirmation(true)
+                .build();
+
+        NetworkArtifact artifact = services.workspaceService().saveStageArtifact(
+                "task-repair-001",
+                ArtifactType.REPAIR_PLAN,
+                WorkflowStage.HEALING,
+                repairPlan,
+                "repair summary",
+                "HealingAgent",
+                TraceRefs.builder().build());
+
+        NetworkWorkspace workspace = services.workspaceService().getWorkspaceOrThrow("task-repair-001");
+        assertEquals(artifact.getArtifactId(), workspace.getCurrentArtifactRefs().get(ArtifactType.REPAIR_PLAN));
+        assertEquals(1, workspace.getCurrentRepairVersion());
+        assertSame(repairPlan, workspace.getCurrentRepairPlan());
+        assertEquals(3, workspace.getEvents().size());
+        assertEquals("artifact.generated", workspace.getEvents().get(1).getEventType());
+        assertEquals("repair.proposed", workspace.getEvents().get(2).getEventType());
     }
 
     @Test

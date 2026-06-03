@@ -53,6 +53,15 @@ public final class WorkspaceEventFactory {
                 .build();
     }
 
+    public static WorkspaceEvent repairProposed(NetworkArtifact artifact) {
+        return base(artifact.getTaskId(), "repair.proposed", artifact.getStage())
+                .title("Repair proposed")
+                .message("Repair plan proposed from " + artifact.getArtifactType() + " v" + artifact.getVersion())
+                .relatedArtifactId(artifact.getArtifactId())
+                .payloadSummary(artifact.getPayloadSummary())
+                .build();
+    }
+
     private static WorkspaceEvent.WorkspaceEventBuilder base(String taskId, String eventType, WorkflowStage stage) {
         return WorkspaceEvent.builder()
                 .eventId("event-" + UUID.randomUUID())

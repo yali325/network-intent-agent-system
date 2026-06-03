@@ -23,5 +23,7 @@ public interface WorkflowOrchestrator {
 
     NetworkWorkspace runVerificationStage(String taskId);
 
+    NetworkWorkspace runHealingStage(String taskId);
+
     NetworkWorkspace getWorkspace(String taskId);
 }
