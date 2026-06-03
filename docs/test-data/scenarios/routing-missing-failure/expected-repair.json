@@ -1,0 +1,43 @@
+{
+  "taskId": "task-routing-missing",
+  "validationVersion": 1,
+  "repairVersion": 1,
+  "overallRepairStrategy": "Regenerate route-related configuration from the existing plan, then re-execute and verify.",
+  "failureAnalysis": [
+    {
+      "analysisId": "analysis-routing-missing",
+      "failureType": "ROUTING_REACHABILITY_FAILURE",
+      "rootCauseSummary": "The execution evidence indicates missing or inconsistent routing for the office-to-server path.",
+      "relatedValidationItemIds": ["val-office-server-reachability"],
+      "relatedIntentRelationIds": ["rel-office-server-allow"],
+      "relatedPlanElementIds": ["routing-office-server"],
+      "relatedConfigBlockIds": ["R1-ROUTE-OFFICE-SERVER"],
+      "confidence": 0.82,
+      "evidenceIds": ["evidence-office-server-ping"]
+    }
+  ],
+  "actions": [
+    {
+      "actionId": "repair-routing-regenerate-config",
+      "actionType": "REGENERATE_CONFIG",
+      "targetStage": "CONFIGURATION",
+      "description": "Regenerate route configuration for the affected office-to-server path using current planning artifacts.",
+      "relatedFailureAnalysisId": "analysis-routing-missing",
+      "inputArtifactIds": ["val-office-server-reachability"],
+      "expectedOutputArtifactType": "CONFIG_SET",
+      "riskLevel": "MEDIUM",
+      "riskReason": "Routing changes can affect traffic reachability and should be reviewed in context.",
+      "requiresApproval": false,
+      "traceRefs": {
+        "intentRelationIds": ["rel-office-server-allow"],
+        "planElementIds": ["routing-office-server"],
+        "configBlockIds": ["R1-ROUTE-OFFICE-SERVER"],
+        "validationItemIds": ["val-office-server-reachability"],
+        "repairActionIds": ["repair-routing-regenerate-config"]
+      },
+      "status": "PROPOSED"
+    }
+  ],
+  "requiresUserConfirmation": false,
+  "stageStatus": "SUCCESS"
+}

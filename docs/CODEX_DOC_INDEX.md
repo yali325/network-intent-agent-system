@@ -36,6 +36,8 @@ Then read only the task-specific documents and directly related source files.
 | Phase 5 | `docs/phase-handoffs/PHASE_05_HANDOFF.md` |
 | Phase 6 P0-P4 notes | `docs/phase-handoffs/PHASE_06_P0_P4_NOTES.md` |
 | Phase 6 complete handoff | `docs/phase-handoffs/PHASE_06_HANDOFF.md` |
+| Phase 7 | `docs/phase-handoffs/PHASE_07_HANDOFF.md` |
+| Phase 8 | `docs/phase-handoffs/PHASE_08_HANDOFF.md` |
 
 ## 4. Common Task Reading Suggestions
 

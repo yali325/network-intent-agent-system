@@ -1,0 +1,43 @@
+{
+  "taskId": "task-guest-pass",
+  "validationVersion": 1,
+  "repairVersion": 1,
+  "overallRepairStrategy": "Review the guest-to-server isolation policy and propose a controlled ACL configuration correction.",
+  "failureAnalysis": [
+    {
+      "analysisId": "analysis-guest-server-unexpected-pass",
+      "failureType": "POLICY_ENFORCEMENT_FAILURE",
+      "rootCauseSummary": "Guest-to-server traffic was reachable although the validation expected it to be blocked.",
+      "relatedValidationItemIds": ["val-guest-server-block"],
+      "relatedIntentRelationIds": ["rel-guest-server-deny"],
+      "relatedPlanElementIds": ["policy-guest-server-deny"],
+      "relatedConfigBlockIds": ["R1-ACL-GUEST-SERVER"],
+      "confidence": 0.86,
+      "evidenceIds": ["evidence-guest-server-ping"]
+    }
+  ],
+  "actions": [
+    {
+      "actionId": "repair-guest-server-acl",
+      "actionType": "PATCH_CONFIG",
+      "targetStage": "CONFIGURATION",
+      "description": "Propose a traceable ACL patch so guest traffic remains blocked from the server segment.",
+      "relatedFailureAnalysisId": "analysis-guest-server-unexpected-pass",
+      "inputArtifactIds": ["val-guest-server-block"],
+      "expectedOutputArtifactType": "CONFIG_SET",
+      "riskLevel": "HIGH",
+      "riskReason": "Isolation policy changes can affect security boundaries.",
+      "requiresApproval": true,
+      "traceRefs": {
+        "intentRelationIds": ["rel-guest-server-deny"],
+        "planElementIds": ["policy-guest-server-deny"],
+        "configBlockIds": ["R1-ACL-GUEST-SERVER"],
+        "validationItemIds": ["val-guest-server-block"],
+        "repairActionIds": ["repair-guest-server-acl"]
+      },
+      "status": "PROPOSED"
+    }
+  ],
+  "requiresUserConfirmation": true,
+  "stageStatus": "SUCCESS"
+}

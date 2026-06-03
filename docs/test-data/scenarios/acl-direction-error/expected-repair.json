@@ -1,0 +1,43 @@
+{
+  "taskId": "task-acl-direction",
+  "validationVersion": 1,
+  "repairVersion": 1,
+  "overallRepairStrategy": "Patch the affected ACL direction while preserving approval and traceability.",
+  "failureAnalysis": [
+    {
+      "analysisId": "analysis-acl-direction",
+      "failureType": "ACL_DIRECTION_MISMATCH",
+      "rootCauseSummary": "The validation evidence points to a source/destination direction mismatch in the ACL policy.",
+      "relatedValidationItemIds": ["val-acl-direction"],
+      "relatedIntentRelationIds": ["rel-guest-server-deny"],
+      "relatedPlanElementIds": ["policy-guest-server-deny"],
+      "relatedConfigBlockIds": ["R1-ACL-DIRECTION"],
+      "confidence": 0.9,
+      "evidenceIds": ["evidence-acl-direction"]
+    }
+  ],
+  "actions": [
+    {
+      "actionId": "repair-acl-direction",
+      "actionType": "PATCH_CONFIG",
+      "targetStage": "CONFIGURATION",
+      "description": "Propose correcting the ACL source and destination direction for the affected policy block.",
+      "relatedFailureAnalysisId": "analysis-acl-direction",
+      "inputArtifactIds": ["val-acl-direction"],
+      "expectedOutputArtifactType": "CONFIG_SET",
+      "riskLevel": "HIGH",
+      "riskReason": "Policy direction changes can open or close access paths.",
+      "requiresApproval": true,
+      "traceRefs": {
+        "intentRelationIds": ["rel-guest-server-deny"],
+        "planElementIds": ["policy-guest-server-deny"],
+        "configBlockIds": ["R1-ACL-DIRECTION"],
+        "validationItemIds": ["val-acl-direction"],
+        "repairActionIds": ["repair-acl-direction"]
+      },
+      "status": "PROPOSED"
+    }
+  ],
+  "requiresUserConfirmation": true,
+  "stageStatus": "SUCCESS"
+}
