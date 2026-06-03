@@ -1,188 +1,234 @@
 # CODEX_CURRENT_STATE
 
-Last updated: Phase 6 P16 documentation closeout.
+Last updated: Phase 7 P16 documentation closeout.
 
 ## 1. Current Project Phase
 
-MAC-TAV has completed the main implementation work for Phase 1 through Phase 6.
+MAC-TAV has completed the main implementation work for Phase 1 through Phase 7
+for the current milestone.
 
-Phase 6 is now considered functionally complete for the current milestone:
+Phase 7 is functionally complete in code for the current offline acceptance
+scope:
 
 ```text
-NetworkPlan + ConfigSet
-  -> NetworkExecutionPlanConverter
-  -> ExecutionPlan
-  -> ExecutionService
-  -> ExecutionAdapter
-  -> ExecutionReport
+NetworkIntent + NetworkPlan + ConfigSet + ExecutionReport
+  -> VerificationAgent
+  -> ValidationReport
+  -> Orchestrator
   -> NetworkWorkspace / NetworkArtifact
 ```
 
-The real Mininet/Ryu path has also been manually validated through:
+Real A2A / Nacos / DashScope manual validation for VerificationAgent has not
+been executed in Codex. It remains the main Phase 7 runtime TODO before treating
+the service chain as manually accepted.
 
-```text
-MininetRyuExecutionAdapter
-  -> MininetRyuExecutorClient
-  -> Python executor on 127.0.0.1:18091
-  -> Ryu REST + Mininet
-```
-
-The next main phase is Phase 7: implement the real `VerificationAgent`.
+The next implementation phase is Phase 8: HealingAgent. Phase 8 must start from
+the existing `ValidationReport`, workspace state, and failure evidence. It must
+not let HealingAgent directly mutate workspace state or execute repairs.
 
 ## 2. Current Main Architecture
 
-- `mac-tav-web` remains the Web/API entry module. Controllers call `WorkflowOrchestrator` or read workspace state; they do not call concrete agents, model APIs, execution clients, or shell commands.
-- `mac-tav-orchestrator` remains the deterministic workflow coordinator. It writes `NetworkWorkspace`, `NetworkArtifact`, `WorkspaceEvent`, and `AgentExecutionRecord` state through Model Core.
-- Professional agents remain responsible only for their own stage DTOs. They do not mutate workspace state directly.
-- `mac-tav-execution` is not an LLM Agent. It owns controlled Java execution boundaries, adapter selection, safety validation, conversion, client calls, and `ExecutionReport` generation.
-- `deploy/mininet-ryu-executor` is an internal Python executor, not a public business API and not an Agent service.
+- `mac-tav-web` remains the Web/API entry module. Controllers call
+  `WorkflowOrchestrator` or read workspace state; they do not call concrete
+  agents, model APIs, execution clients, or shell commands.
+- `mac-tav-orchestrator` remains the deterministic workflow coordinator. It
+  calls professional agents through the remote Agent invocation boundary, then
+  writes `NetworkWorkspace`, `NetworkArtifact`, `WorkspaceEvent`, and
+  `AgentExecutionRecord` state through Model Core.
+- Professional agents remain responsible only for their own stage DTOs. They do
+  not mutate workspace state directly.
+- `mac-tav-execution` is not an LLM Agent. It owns controlled Java execution
+  boundaries, adapter selection, safety validation, conversion, client calls,
+  and `ExecutionReport` generation.
+- `mac-tav-verification-agent` is now a real Agent module for intent
+  satisfaction verification. It returns `ValidationReport`; it does not modify
+  configuration, rerun execution, or generate repair plans.
 
-## 3. Phase 6 Completed Capabilities
+## 3. Phase 7 Completed Capabilities
 
 ### 3.1 Model / DTO Contract
 
-- `mac-tav-model` contains execution DTOs and enums for:
-  - `ExecutionReport`
-  - `ExecutionPlan`
-  - `ExecutionAction`
-  - `TestCommand`
-  - `RuntimeState`
-  - `TestResult`
-  - `ExecutionError`
-  - `ExecutionStatus`
-  - `ExecutionMode`
-  - `ExecutionEnvironmentType`
-  - `ExecutionActionType`
-  - `TestResultType`
-  - `TestResultStatus`
-- `NetworkWorkspace`, `NetworkArtifact`, `ArtifactType`, `WorkflowStage`, and `StageStatus` support the execution stage.
-- `TopologyNode` includes structured runtime fields such as `ipAddress`, `ip`, `mac`, and `defaultRoute` for Mininet/Ryu topology exchange.
+- `ValidationReport` carries validation identity, task identity, execution
+  identity, versions, overall status, summary, validation items, evidences,
+  suggestions, trace refs, stage status, and timestamps.
+- `VerificationAgentInvokePayload` carries the VerificationAgent input:
+  `NetworkIntent`, `NetworkPlan`, `ConfigSet`, `ExecutionReport`, raw task text,
+  versions, trace id, and workspace summary.
+- `NetworkWorkspace` supports `currentValidationReport` and
+  `currentValidationVersion`.
+- `ArtifactType.VALIDATION_REPORT` and `WorkflowStage.VERIFICATION` are used by
+  the orchestrated verification stage.
 
-### 3.2 Java Execution Module
+### 3.2 VerificationAgent Module
 
-- `ExecutionAdapter` defines the Java-side controlled execution boundary.
-- `ExecutionAdapterRegistry` and `ExecutionAdapterRegistryFactory` support adapter selection by `ExecutionEnvironmentType + ExecutionMode`.
-- `ExecutionProperties` provides the configuration contract:
-  - `mactav.execution.mode`
-  - `mactav.execution.dry-run-enabled`
-  - `mactav.execution.mininet-ryu.enabled`
-  - `mactav.execution.mininet-ryu.base-url`
-  - `mactav.execution.mininet-ryu.connect-timeout-ms`
-  - `mactav.execution.mininet-ryu.read-timeout-ms`
-- `ExecutionSafetyPolicy`, `ExecutionActionValidator`, `ExecutionCommandClassifier`, and `AllowedExecutionActionRegistry` enforce structured action allow-lists and reject shell-like semantics.
-- `NetworkExecutionPlanConverter` converts `NetworkPlan + ConfigSet` into a controlled `ExecutionPlan`.
-- `StructureValidationExecutionAdapter` remains the default CI-safe adapter.
-- `MininetRyuExecutorClient` calls the Python executor API.
-- `MininetRyuExecutionAdapter` maps executor responses to `ExecutionReport`.
-- `ExecutionService` and `DefaultExecutionService` convert inputs, select an adapter, and return `ExecutionReport`.
+`mac-tav-verification-agent` now contains:
 
-### 3.3 Python Executor
+- `VerificationAgentApplication`
+- `VerificationAgent`
+- `VerificationAgentConfiguration`
+- `VerificationAgentProperties`
+- `VerificationAgentRequest`
+- `VerificationResponseSchema`
+- `VerificationResponseParser`
+- `VerificationService` and `VerificationServiceImpl`
+- `VerificationOutputValidator`
+- `VerificationFactTool`
+- `src/main/resources/prompts/verification-agent-prompt.md`
+- `src/main/resources/application.yml`
 
-- `deploy/mininet-ryu-executor` implements a FastAPI executor for native Ubuntu 22.04 deployment.
-- The executor listens on port `18091`.
-- Ryu first version is fixed to `ryu.app.simple_switch_13 + ryu.app.ofctl_rest`.
-- The executor supports:
-  - `GET /health`
-  - `GET /api/v1/ryu/status`
-  - `GET /api/v1/mininet/status`
-  - `POST /api/v1/executions/run`
-  - `POST /api/v1/executions/cleanup`
-- It accepts structured topology/actions/tests only. It does not accept arbitrary shell, Huawei CLI, custom Ryu apps, or uploaded topology scripts.
-- It executes one run at a time and returns structured errors such as `EXECUTOR_BUSY`, `RYU_REST_UNAVAILABLE`, `MININET_START_FAILED`, `TEST_FAILED`, and `FLOW_QUERY_FAILED`.
+The module input is:
+
+```text
+NetworkIntent + NetworkPlan + ConfigSet + ExecutionReport
+```
+
+The module output is:
+
+```text
+ValidationReport
+```
+
+The Agent follows the required boundary:
+
+```text
+ReactAgent -> VerificationResponseSchema -> Parser/Service -> ValidationReport -> Validator
+```
+
+### 3.3 Service Configuration Review
+
+`mac-tav-verification-agent/src/main/resources/application.yml` has been
+reviewed against the existing Agent modules.
+
+- The service port, `mactav.agents.verification` prefix, prompt path, DashScope
+  section, A2A/Nacos section, and Agent Card section follow the same general
+  style as the existing Agent modules.
+- The Agent Card name is `VerificationAgent`.
+- Orchestrator discovers/invokes the same target name: `VerificationAgent`.
+- The ReactAgent Bean is a single bean with two names/aliases:
+  `VerificationAgent` and `verificationReactAgent`.
+- This dual name shape is intended to satisfy both project target-name matching
+  and the Spring AI Alibaba starter convention for lowercase ReactAgent bean
+  names. It does not create two ReactAgent instances.
+- No hand-written A2A HTTP Controller, Agent Card publisher, Nacos registration
+  code, or new legacy HTTP fallback was added in the VerificationAgent module.
+- No environment variable names were added or changed during this closeout pass.
+- The VerificationAgent `application.yml` was reviewed but not modified during
+  this closeout pass.
 
 ### 3.4 Orchestrator / Web Integration
 
-- `WorkflowOrchestrator#runExecutionStage(taskId)` is available.
-- `MacTavWorkflowOrchestrator#runExecutionStage` reads current `NetworkPlan` and `ConfigSet`, calls `ExecutionService`, and writes:
-  - `currentExecutionReport`
-  - `currentExecutionVersion`
-  - `EXECUTION_REPORT` artifact
-  - execution-stage `AgentExecutionRecord`
+- `WorkflowOrchestrator#runVerificationStage(taskId)` is available.
+- `MacTavWorkflowOrchestrator#runVerificationStage` reads current
+  `NetworkIntent`, `NetworkPlan`, `ConfigSet`, and `ExecutionReport`, invokes
+  `VerificationAgent`, normalizes the returned `ValidationReport`, and writes:
+  - `currentValidationReport`
+  - `currentValidationVersion`
+  - `VALIDATION_REPORT` artifact
+  - verification-stage `AgentExecutionRecord`
 - `mac-tav-web` exposes:
-  - `POST /api/v1/executions/{taskId}/run`
-  - `GET /api/v1/executions/{taskId}`
-- Web controllers do not depend on `mac-tav-execution` directly.
+  - `POST /api/v1/validations/{taskId}/run`
+  - `GET /api/v1/validations/{taskId}`
+  - `GET /api/v1/validations/{taskId}/items`
+- Web controllers do not depend on `mac-tav-verification-agent` directly.
 
-## 4. Real Mininet/Ryu Validation Result
+## 4. Automated Test Result
 
-Manual validation has succeeded through the real Java-to-Python execution chain:
-
-```text
-MininetRyuExecutionAdapter
-  -> MininetRyuExecutorClient
-  -> Python executor
-  -> Ryu REST
-  -> Mininet
-```
-
-Validated scenario:
-
-- Minimal `h1-s1-h2` topology.
-- `RYU_CONTROLLER_CHECK` passed.
-- `TOPOLOGY_STATE_CHECK` passed.
-- `PING_TEST` passed.
-- Cleanup succeeded.
-- Post-run Mininet status confirmed `networkRunning=false`.
-
-Executor health during successful validation:
-
-- `GET http://127.0.0.1:18091/health` returned `status=ok`.
-- `GET /api/v1/ryu/status` returned `status=available`.
-- `GET /api/v1/mininet/status` returned `status=available`.
-
-## 5. Default Test Policy
-
-Default automated tests must stay offline:
+The previous Phase 7 implementation pass reported these tests as passing:
 
 ```bash
 mvn compile
-mvn -pl mac-tav-execution -am test
+mvn -pl mac-tav-verification-agent -am test
+mvn -pl mac-tav-orchestrator -am test
+mvn -pl mac-tav-web -am test
 ```
 
-Default execution mode remains `STRUCTURE_VALIDATION`.
+This closeout pass should at minimum rerun:
 
-Real Mininet/Ryu validation is opt-in only:
-
-```powershell
-$env:MACTAV_RUN_MININET_RYU_IT="true"
-mvn -pl mac-tav-execution -am -Dtest=MininetRyuExecutorManualIT "-Dsurefire.failIfNoSpecifiedTests=false" test
+```bash
+mvn compile
+mvn -pl mac-tav-verification-agent -am test
 ```
 
-The real executor URL is configured for manual validation as:
+Default automated tests must stay offline. They must not call real external
+model APIs, real Nacos, real Qdrant, real Mininet/Ryu, or the real Python
+executor.
 
-```properties
-mactav.execution.mode=MININET_RYU
-mactav.execution.mininet-ryu.enabled=true
-mactav.execution.mininet-ryu.base-url=http://127.0.0.1:18091
-```
+## 5. VerificationAgent Manual Acceptance Checklist
 
-Do not enable the manual integration test in default CI.
+Do not run long-lived services from Codex unless explicitly requested.
+
+Manual acceptance steps:
+
+1. Start Nacos.
+2. Start `mac-tav-verification-agent`:
+
+   ```bash
+   mvn -pl mac-tav-verification-agent -am spring-boot:run
+   ```
+
+3. Check that the VerificationAgent Agent Card is discoverable.
+4. Check that Nacos has registered `VerificationAgent`.
+5. Start `mac-tav-web`:
+
+   ```bash
+   mvn -pl mac-tav-web -am spring-boot:run
+   ```
+
+6. Prepare a task that already has `NetworkIntent`, `NetworkPlan`, `ConfigSet`,
+   and `ExecutionReport` in its workspace.
+7. Trigger and read verification:
+
+   ```text
+   POST /api/v1/validations/{taskId}/run
+   GET /api/v1/validations/{taskId}
+   ```
+
+8. Confirm the API returns a `ValidationReport`.
+9. Confirm the workspace contains `currentValidationReport`.
+10. Confirm a `VALIDATION_REPORT` artifact was written.
+11. Confirm `AgentExecutionRecord` and `WorkspaceEvent` record the Verification
+    stage.
+
+Do not write real API key values into commands, source files, fixtures, logs, or
+documentation.
 
 ## 6. Current TODO
 
-- Phase 7: implement the real `VerificationAgent`.
-- Define and validate `ValidationReport` production from `NetworkIntent + NetworkPlan + ConfigSet + ExecutionReport`.
-- Add verification prompts, response schema, parser, validator, and service boundary.
-- Connect `WorkflowOrchestrator#runVerificationStage(taskId)` after Phase 7 implementation.
-- Keep Verification responsible for deciding whether the original intent is satisfied. Execution must only report execution facts.
-- Long-term: persistence, SSE/event history hardening, UI execution/verification views, and production deployment automation remain later work.
+- Manually validate real VerificationAgent A2A / Nacos / Agent Card discovery.
+- Manually validate real DashScope-backed VerificationAgent invocation through
+  `POST /api/v1/validations/{taskId}/run`.
+- Confirm the returned `ValidationReport` is written to
+  `currentValidationReport`.
+- Confirm the `VALIDATION_REPORT` artifact, `AgentExecutionRecord`, and
+  `WorkspaceEvent` are written for the Verification stage.
+- Phase 8: implement HealingAgent only after the Phase 7 manual service chain is
+  accepted or explicitly waived.
+- Long-term: persistence, SSE/event history hardening, UI verification/healing
+  views, and production deployment automation remain later work.
 
-## 7. Phase 7 Handoff Reading Scope
+## 7. Phase 8 Starting Boundary
 
-For a new Codex window starting Phase 7, read:
+Phase 8 should begin with HealingAgent contracts and boundaries:
 
-1. `AGENTS.md`
-2. `docs/CODEX_CURRENT_STATE.md`
-3. `docs/CODEX_DOC_INDEX.md`
-4. `docs/phase-handoffs/PHASE_06_HANDOFF.md`
-5. `docs/06_DEV_PLAN.md` Phase 7
-6. `docs/03_MODULE_DESIGN.md` Verification / Orchestrator / Web sections
-7. `docs/04_DATA_MODELS.md` `NetworkIntent`, `NetworkPlan`, `ConfigSet`, `ExecutionReport`, `ValidationReport`, `NetworkWorkspace`
-8. `docs/07_TEST_DATA_AND_SCENARIOS.md` verification scenarios
-9. `docs/08_RUN_AND_TEST.md` testing and manual validation rules
-10. `docs/09_AGENT_BUILD_GUIDE.md` for real Agent implementation rules
+- Input: `ValidationReport`, `NetworkWorkspace`, failed validation items,
+  evidences, suggestions, and trace refs.
+- Output: `RepairPlan`.
+- HealingAgent must not directly modify `NetworkWorkspace`.
+- HealingAgent must not execute repair commands.
+- HealingAgent must not bypass Orchestrator.
+- Orchestrator remains responsible for writing artifacts, advancing state, and
+  deciding whether to re-enter planning, configuration, execution, or
+  verification.
 
-## 8. Known Documentation Notes
+## 8. Known Architecture Debt
 
-- Older sections in broad docs may still mention Docker/WSL2 for Mininet/Ryu as historical or generic environment notes. The validated Phase 6 executor path is Ubuntu 22.04 native deployment plus local tunnel/private access to port `18091`.
-- Do not commit real server IPs, usernames, passwords, SSH keys, API keys, or tokens.
+- Legacy remote invocation support such as `RemoteAgentInvoker`,
+  `HttpA2aClient`, or `NacosAgentCardRegistryClient` may still exist from
+  earlier transition phases. This is an architecture debt and must not be copied
+  as a template for new Agents.
+- The VerificationAgent service configuration follows the official starter
+  direction through `application.yml` plus a named `ReactAgent` Bean, and this
+  closeout pass did not add legacy fallback code.
+- If `docs/phase-handoffs/PHASE_06_P0_P4_NOTES.md` is absent from the worktree,
+  that absence is treated as pre-existing worktree state for this handoff and
+  must not be restored unless explicitly requested.

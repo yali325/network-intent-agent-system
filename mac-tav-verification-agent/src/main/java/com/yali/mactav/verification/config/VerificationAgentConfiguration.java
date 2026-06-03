@@ -69,8 +69,8 @@ public class VerificationAgentConfiguration {
         return mapper;
     }
 
-    @Bean(name = VerificationAgent.REACT_AGENT_BEAN_NAME)
-    @ConditionalOnMissingBean(name = VerificationAgent.REACT_AGENT_BEAN_NAME)
+    @Bean(name = {VerificationAgent.AGENT_NAME, VerificationAgent.REACT_AGENT_BEAN_NAME})
+    @ConditionalOnMissingBean(name = VerificationAgent.AGENT_NAME)
     public ReactAgent verificationReactAgent(ChatModel chatModel,
                                              VerificationFactTool verificationFactTool,
                                              VerificationAgentProperties properties) {
