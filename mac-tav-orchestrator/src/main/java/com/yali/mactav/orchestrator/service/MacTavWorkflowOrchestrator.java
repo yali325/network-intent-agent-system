@@ -29,6 +29,8 @@ import com.yali.mactav.model.intent.NetworkIntent;
 import com.yali.mactav.model.plan.NetworkPlan;
 import com.yali.mactav.model.plan.PlanningAgentInvokePayload;
 import com.yali.mactav.model.task.NetworkTask;
+import com.yali.mactav.model.verification.ValidationReport;
+import com.yali.mactav.model.verification.VerificationAgentInvokePayload;
 import com.yali.mactav.model.workspace.AgentExecutionRecord;
 import com.yali.mactav.model.workspace.NetworkArtifact;
 import com.yali.mactav.model.workspace.NetworkWorkspace;
@@ -62,6 +64,8 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
     private static final String CONFIGURATION_AGENT = "ConfigurationAgent";
 
     private static final String EXECUTION_MODULE = "ExecutionModule";
+
+    private static final String VERIFICATION_AGENT = "VerificationAgent";
 
     private final NetworkWorkspaceService workspaceService;
 
@@ -348,6 +352,89 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
     }
 
     @Override
+    public NetworkWorkspace runVerificationStage(String taskId) {
+        LocalDateTime startTime = LocalDateTime.now();
+        String traceId = "trace-" + UUID.randomUUID();
+        try {
+            NetworkWorkspace workspace = workspaceService.getWorkspaceOrThrow(taskId);
+            NetworkIntent currentIntent = workspace.getCurrentIntent();
+            if (currentIntent == null) {
+                throw new BusinessException(ErrorCode.STAGE_NOT_READY,
+                        "No current NetworkIntent found. Run intent stage first for task: " + taskId);
+            }
+            NetworkPlan currentPlan = workspace.getCurrentPlan();
+            if (currentPlan == null) {
+                throw new BusinessException(ErrorCode.STAGE_NOT_READY,
+                        "No current NetworkPlan found. Run planning stage first for task: " + taskId);
+            }
+            ConfigSet currentConfigSet = workspace.getCurrentConfigSet();
+            if (currentConfigSet == null) {
+                throw new BusinessException(ErrorCode.STAGE_NOT_READY,
+                        "No current ConfigSet found. Run configuration stage first for task: " + taskId);
+            }
+            ExecutionReport currentExecutionReport = workspace.getCurrentExecutionReport();
+            if (currentExecutionReport == null) {
+                throw new BusinessException(ErrorCode.STAGE_NOT_READY,
+                        "No current ExecutionReport found. Run execution stage first for task: " + taskId);
+            }
+            requireArtifact(workspace, ArtifactType.NETWORK_INTENT,
+                    "No NETWORK_INTENT artifact found. Run intent stage first for task: " + taskId);
+            requireArtifact(workspace, ArtifactType.NETWORK_PLAN,
+                    "No NETWORK_PLAN artifact found. Run planning stage first for task: " + taskId);
+            requireArtifact(workspace, ArtifactType.CONFIG_SET,
+                    "No CONFIG_SET artifact found. Run configuration stage first for task: " + taskId);
+            requireArtifact(workspace, ArtifactType.EXECUTION_REPORT,
+                    "No EXECUTION_REPORT artifact found. Run execution stage first for task: " + taskId);
+
+            int validationVersion = nextValidationVersion(workspace);
+            workspaceService.updateTaskStage(taskId, WorkflowStage.VERIFICATION);
+            workspaceService.updateTaskStatus(taskId, TaskStatus.RUNNING);
+
+            A2aRequest request = buildVerificationRequest(
+                    workspace,
+                    currentIntent,
+                    currentPlan,
+                    currentConfigSet,
+                    currentExecutionReport,
+                    validationVersion,
+                    traceId);
+            A2aResponse response = remoteAgentInvoker.invoke(request);
+            if (!Boolean.TRUE.equals(response.getSuccess())) {
+                throw new BusinessException(
+                        response.getErrorCode(),
+                        response.getMessage() == null ? "Remote VerificationAgent failed" : response.getMessage());
+            }
+            ValidationReport report = parseValidationReport(response.getPayloadJson());
+            normalizeValidationReport(report, workspace, currentExecutionReport, validationVersion);
+            NetworkArtifact artifact = workspaceService.saveStageArtifact(
+                    taskId,
+                    ArtifactType.VALIDATION_REPORT,
+                    WorkflowStage.VERIFICATION,
+                    report,
+                    validationReportSummary(report),
+                    workspace.getTask().getCreatedBy(),
+                    report.getTraceRefs());
+            appendExecutionRecord(taskId, traceId, startTime, StageStatus.SUCCESS,
+                    artifact, null, null, VERIFICATION_AGENT, WorkflowStage.VERIFICATION,
+                    "VerificationAgent A2A call succeeded",
+                    "Verification stage completed");
+            workspaceService.updateTaskStatus(taskId, TaskStatus.RUNNING);
+            return workspaceService.getWorkspaceOrThrow(taskId);
+        }
+        catch (BusinessException ex) {
+            markTaskErrorAndRecord(taskId, traceId, startTime,
+                    VERIFICATION_AGENT, WorkflowStage.VERIFICATION, ex.getErrorCode(), ex.getMessage());
+            throw ex;
+        }
+        catch (RuntimeException ex) {
+            markTaskErrorAndRecord(taskId, traceId, startTime,
+                    VERIFICATION_AGENT, WorkflowStage.VERIFICATION,
+                    ErrorCode.AGENT_EXECUTION_FAILED.name(), ex.getMessage());
+            throw ex;
+        }
+    }
+
+    @Override
     public NetworkWorkspace getWorkspace(String taskId) {
         return workspaceService.getWorkspaceOrThrow(taskId);
     }
@@ -436,6 +523,47 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
                 .build();
     }
 
+    private A2aRequest buildVerificationRequest(NetworkWorkspace workspace,
+                                                NetworkIntent currentIntent,
+                                                NetworkPlan currentPlan,
+                                                ConfigSet currentConfigSet,
+                                                ExecutionReport currentExecutionReport,
+                                                int validationVersion,
+                                                String traceId) {
+        VerificationAgentInvokePayload payload = VerificationAgentInvokePayload.builder()
+                .taskId(workspace.getTask().getTaskId())
+                .rawText(workspace.getTask().getRawText())
+                .intentVersion(workspace.getCurrentIntentVersion())
+                .planVersion(workspace.getCurrentPlanVersion())
+                .configVersion(workspace.getCurrentConfigVersion())
+                .executionVersion(workspace.getCurrentExecutionVersion())
+                .validationVersion(validationVersion)
+                .intentJson(serialize(currentIntent, ErrorCode.AGENT_PARSE_FAILED,
+                        "Failed to serialize current NetworkIntent for verification request"))
+                .planJson(serialize(currentPlan, ErrorCode.AGENT_PARSE_FAILED,
+                        "Failed to serialize current NetworkPlan for verification request"))
+                .configSetJson(serialize(currentConfigSet, ErrorCode.AGENT_PARSE_FAILED,
+                        "Failed to serialize current ConfigSet for verification request"))
+                .executionReportJson(serialize(currentExecutionReport, ErrorCode.AGENT_PARSE_FAILED,
+                        "Failed to serialize current ExecutionReport for verification request"))
+                .traceId(traceId)
+                .userContext(targetEnvironmentHints.get(workspace.getTask().getTaskId()))
+                .workspaceSnapshot(workspaceSnapshot(workspace))
+                .createdBy(workspace.getTask().getCreatedBy())
+                .build();
+        return A2aRequest.builder()
+                .taskId(workspace.getTask().getTaskId())
+                .sourceAgent(ORCHESTRATOR_AGENT)
+                .targetAgent(VERIFICATION_AGENT)
+                .stage(WorkflowStage.VERIFICATION)
+                .artifactVersion(validationVersion)
+                .payloadJson(serialize(payload, ErrorCode.A2A_CALL_FAILED,
+                        "Verification A2A payload serialization failed"))
+                .traceId(traceId)
+                .timestamp(LocalDateTime.now())
+                .build();
+    }
+
     private NetworkIntent parseIntent(String payloadJson) {
         try {
             return objectMapper.readValue(payloadJson, NetworkIntent.class);
@@ -491,6 +619,15 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
         return current == null ? 1 : current + 1;
     }
 
+    private ValidationReport parseValidationReport(String payloadJson) {
+        try {
+            return objectMapper.readValue(payloadJson, ValidationReport.class);
+        }
+        catch (JsonProcessingException ex) {
+            throw new BusinessException(ErrorCode.A2A_RESPONSE_INVALID, "VerificationAgent payload JSON is invalid", ex);
+        }
+    }
+
     private int nextConfigVersion(NetworkWorkspace workspace) {
         Integer current = workspace.getCurrentConfigVersion();
         return current == null ? 1 : current + 1;
@@ -498,6 +635,11 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
 
     private int nextExecutionVersion(NetworkWorkspace workspace) {
         Integer current = workspace.getCurrentExecutionVersion();
+        return current == null ? 1 : current + 1;
+    }
+
+    private int nextValidationVersion(NetworkWorkspace workspace) {
+        Integer current = workspace.getCurrentValidationVersion();
         return current == null ? 1 : current + 1;
     }
 
@@ -581,6 +723,72 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
                 + ", errors=" + errorCount;
     }
 
+    private void normalizeValidationReport(ValidationReport report,
+                                           NetworkWorkspace workspace,
+                                           ExecutionReport currentExecutionReport,
+                                           int validationVersion) {
+        if (report.getTaskId() == null || report.getTaskId().isBlank()) {
+            report.setTaskId(workspace.getTask().getTaskId());
+        }
+        if (report.getExecutionId() == null || report.getExecutionId().isBlank()) {
+            report.setExecutionId(currentExecutionReport.getExecutionId());
+        }
+        if (report.getIntentVersion() == null) {
+            report.setIntentVersion(workspace.getCurrentIntentVersion());
+        }
+        if (report.getPlanVersion() == null) {
+            report.setPlanVersion(workspace.getCurrentPlanVersion());
+        }
+        if (report.getConfigVersion() == null) {
+            report.setConfigVersion(workspace.getCurrentConfigVersion());
+        }
+        if (report.getExecutionVersion() == null) {
+            report.setExecutionVersion(workspace.getCurrentExecutionVersion());
+        }
+        if (report.getValidationVersion() == null) {
+            report.setValidationVersion(validationVersion);
+        }
+        if (report.getValidationId() == null || report.getValidationId().isBlank()) {
+            report.setValidationId("validation-" + workspace.getTask().getTaskId() + "-v" + report.getValidationVersion());
+        }
+        if (report.getTraceRefs() == null) {
+            report.setTraceRefs(validationTraceRefs(report, currentExecutionReport));
+        }
+    }
+
+    private String validationReportSummary(ValidationReport report) {
+        int itemCount = report.getItems() == null ? 0 : report.getItems().size();
+        int evidenceCount = report.getEvidences() == null ? 0 : report.getEvidences().size();
+        return "ValidationReport version " + report.getValidationVersion()
+                + ", status=" + report.getOverallStatus()
+                + ", items=" + itemCount
+                + ", evidences=" + evidenceCount;
+    }
+
+    private TraceRefs validationTraceRefs(ValidationReport report, ExecutionReport executionReport) {
+        TraceRefs refs = TraceRefs.builder().build();
+        mergeInto(refs, executionReport == null ? null : executionReport.getTraceRefs());
+        if (report.getItems() != null) {
+            report.getItems().forEach(item -> {
+                if (item != null) {
+                    addOne(refs.getValidationItemIds(), item.getItemId());
+                    addOne(refs.getIntentRelationIds(), item.getRelatedIntentRelationId());
+                    addAll(refs.getPlanElementIds(), item.getRelatedPlanElementIds());
+                    addAll(refs.getConfigBlockIds(), item.getRelatedConfigBlockIds());
+                    addOne(refs.getTestIds(), item.getRelatedTestId());
+                }
+            });
+        }
+        return refs;
+    }
+
+    private void requireArtifact(NetworkWorkspace workspace, ArtifactType artifactType, String message) {
+        if (workspace.getCurrentArtifactRefs() == null
+                || !workspace.getCurrentArtifactRefs().containsKey(artifactType)) {
+            throw new BusinessException(ErrorCode.ARTIFACT_NOT_FOUND, message);
+        }
+    }
+
     private java.util.Map<String, String> artifactRefsAsStrings(NetworkWorkspace workspace) {
         java.util.Map<String, String> refs = new java.util.LinkedHashMap<>();
         if (workspace.getCurrentArtifactRefs() == null) {
@@ -619,9 +827,13 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
             return;
         }
         for (String value : source) {
-            if (value != null && !value.isBlank() && !target.contains(value)) {
-                target.add(value);
-            }
+            addOne(target, value);
+        }
+    }
+
+    private void addOne(List<String> target, String value) {
+        if (target != null && value != null && !value.isBlank() && !target.contains(value)) {
+            target.add(value);
         }
     }
 

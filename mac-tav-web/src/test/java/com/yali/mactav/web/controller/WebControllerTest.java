@@ -9,6 +9,8 @@ import com.yali.mactav.model.enums.WorkflowStage;
 import com.yali.mactav.model.execution.ExecutionReport;
 import com.yali.mactav.model.execution.ExecutionStatus;
 import com.yali.mactav.model.task.NetworkTask;
+import com.yali.mactav.model.verification.ValidationItem;
+import com.yali.mactav.model.verification.ValidationReport;
 import com.yali.mactav.model.workspace.NetworkWorkspace;
 import com.yali.mactav.orchestrator.service.WorkflowOrchestrator;
 import com.yali.mactav.web.dto.CreateTaskRequest;
@@ -84,6 +86,31 @@ class WebControllerTest {
         assertEquals(1, orchestrator.getWorkspaceCalls);
     }
 
+    @Test
+    void validationControllerShouldDelegateRunToOrchestrator() {
+        TestWorkflowOrchestrator orchestrator = orchestrator();
+        ValidationController controller = new ValidationController(orchestrator);
+
+        ApiResponse<ValidationReport> response = controller.runVerificationStage("task-web-test");
+
+        assertTrue(response.isSuccess());
+        assertEquals("validation-web-test", response.getData().getValidationId());
+        assertEquals(1, orchestrator.runVerificationCalls);
+        assertEquals("task-web-test", orchestrator.lastVerificationTaskId);
+    }
+
+    @Test
+    void validationControllerShouldReturnCurrentItems() {
+        TestWorkflowOrchestrator orchestrator = orchestrator();
+        ValidationController controller = new ValidationController(orchestrator);
+
+        ApiResponse<java.util.List<ValidationItem>> response = controller.getValidationItems("task-web-test");
+
+        assertTrue(response.isSuccess());
+        assertEquals(1, response.getData().size());
+        assertEquals("val-item-web-test", response.getData().get(0).getItemId());
+    }
+
     private TestWorkflowOrchestrator orchestrator() {
         NetworkWorkspace workspace = workspace();
         return new TestWorkflowOrchestrator(workspace);
@@ -108,6 +135,19 @@ class WebControllerTest {
                         .endTime(LocalDateTime.now())
                         .updateTime(LocalDateTime.now())
                         .build())
+                .currentValidationReport(ValidationReport.builder()
+                        .validationId("validation-web-test")
+                        .taskId("task-web-test")
+                        .validationVersion(1)
+                        .overallStatus(com.yali.mactav.model.enums.ValidationStatus.PASSED)
+                        .items(java.util.List.of(ValidationItem.builder()
+                                .itemId("val-item-web-test")
+                                .expected("REACHABLE")
+                                .actual("REACHABLE")
+                                .passed(true)
+                                .relatedTestId("test-web-test")
+                                .build()))
+                        .build())
                 .workspaceStatus(TaskStatus.CREATED)
                 .build();
     }
@@ -119,8 +159,10 @@ class WebControllerTest {
 
         private final NetworkWorkspace workspace;
         private int runExecutionCalls;
+        private int runVerificationCalls;
         private int getWorkspaceCalls;
         private String lastExecutionTaskId;
+        private String lastVerificationTaskId;
 
         private TestWorkflowOrchestrator(NetworkWorkspace workspace) {
             this.workspace = workspace;
@@ -150,6 +192,13 @@ class WebControllerTest {
         public NetworkWorkspace runExecutionStage(String taskId) {
             runExecutionCalls++;
             lastExecutionTaskId = taskId;
+            return workspace;
+        }
+
+        @Override
+        public NetworkWorkspace runVerificationStage(String taskId) {
+            runVerificationCalls++;
+            lastVerificationTaskId = taskId;
             return workspace;
         }
 

@@ -25,7 +25,11 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class ValidationReport {
 
+    private String validationId;
+
     private String taskId;
+
+    private String executionId;
 
     private Integer intentVersion;
 
@@ -50,7 +54,11 @@ public class ValidationReport {
     @Builder.Default
     private List<String> suggestions = new ArrayList<>();
 
+    private com.yali.mactav.model.workspace.TraceRefs traceRefs;
+
     private StageStatus stageStatus;
 
     private LocalDateTime createTime;
+
+    private LocalDateTime updateTime;
 }

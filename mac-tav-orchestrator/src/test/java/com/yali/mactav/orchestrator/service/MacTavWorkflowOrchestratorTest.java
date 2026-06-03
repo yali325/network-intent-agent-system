@@ -246,6 +246,65 @@ class MacTavWorkflowOrchestratorTest {
         assertEquals(ErrorCode.STAGE_NOT_READY.getErrorCode(), ex.getErrorCode());
     }
 
+    @Test
+    void runVerificationStageShouldPersistValidationReportArtifactIntoWorkspace() {
+        var om = om();
+        var d = (AgentDiscoveryClient) t -> AgentCard.builder().agentName(t).serviceEndpoint("http://x/").healthStatus(AgentHealthStatus.UP).build();
+        final java.util.List<com.yali.mactav.model.a2a.A2aRequest> requests = new java.util.ArrayList<>();
+        var c = (A2aClient) (r, a) -> {
+            requests.add(r);
+            return A2aResponse.builder().success(true).taskId(r.getTaskId()).sourceAgent("VerificationAgent")
+                    .targetAgent(r.getSourceAgent()).stage(WorkflowStage.VERIFICATION).traceId(r.getTraceId())
+                    .timestamp(LocalDateTime.now()).payloadJson(j(validationReport(r))).build();
+        };
+        var w = ws(om); var rec = recS(rr, vv);
+        var o = new MacTavWorkflowOrchestrator(w, rec, new RemoteAgentInvoker(d, c, new A2aResponseValidator()), om);
+        var created = o.createTask("x", "lab", "u");
+        String taskId = created.getTask().getTaskId();
+        w.saveStageArtifact(taskId, ArtifactType.NETWORK_INTENT, WorkflowStage.INTENT,
+                verificationIntent(taskId), "NetworkIntent for verification", "IntentAgent", executionTraceRefs());
+        w.saveStageArtifact(taskId, ArtifactType.NETWORK_PLAN, WorkflowStage.PLANNING,
+                executablePlan(taskId), "NetworkPlan for verification", "PlanningAgent", executionTraceRefs());
+        w.saveStageArtifact(taskId, ArtifactType.CONFIG_SET, WorkflowStage.CONFIGURATION,
+                executableConfigSet(taskId), "ConfigSet for verification", "ConfigurationAgent", executionTraceRefs());
+        w.saveStageArtifact(taskId, ArtifactType.EXECUTION_REPORT, WorkflowStage.EXECUTION,
+                executionReport(taskId), "ExecutionReport for verification", "ExecutionModule", executionTraceRefs());
+
+        var res = o.runVerificationStage(taskId);
+
+        assertEquals(WorkflowStage.VERIFICATION, requests.get(0).getStage());
+        assertEquals("VerificationAgent", requests.get(0).getTargetAgent());
+        assertNotNull(res.getCurrentValidationReport());
+        assertEquals(1, res.getCurrentValidationVersion());
+        assertEquals(ArtifactType.VALIDATION_REPORT, res.getArtifacts().get(4).getArtifactType());
+        assertEquals(res.getArtifacts().get(4).getArtifactId(), res.getCurrentArtifactRefs().get(ArtifactType.VALIDATION_REPORT));
+        assertEquals(1, res.getAgentExecutionRecords().size());
+        assertEquals("VerificationAgent", res.getAgentExecutionRecords().get(0).getTargetAgentName());
+        assertEquals(WorkflowStage.VERIFICATION, res.getAgentExecutionRecords().get(0).getStage());
+        assertTrue(res.getArtifacts().get(4).getPayloadSummary().contains("items=1"));
+    }
+
+    @Test
+    void runVerificationStageShouldFailWhenExecutionReportIsMissing() {
+        var om = om();
+        var d = (AgentDiscoveryClient) t -> AgentCard.builder().agentName(t).serviceEndpoint("http://x/").healthStatus(AgentHealthStatus.UP).build();
+        var c = (A2aClient) (r, a) -> A2aResponse.builder().success(true).build();
+        var w = ws(om); var rec = recS(rr, vv);
+        var o = new MacTavWorkflowOrchestrator(w, rec, new RemoteAgentInvoker(d, c, new A2aResponseValidator()), om);
+        var created = o.createTask("x", "lab", "u");
+        String taskId = created.getTask().getTaskId();
+        w.saveStageArtifact(taskId, ArtifactType.NETWORK_INTENT, WorkflowStage.INTENT,
+                verificationIntent(taskId), "NetworkIntent for verification", "IntentAgent", executionTraceRefs());
+        w.saveStageArtifact(taskId, ArtifactType.NETWORK_PLAN, WorkflowStage.PLANNING,
+                executablePlan(taskId), "NetworkPlan for verification", "PlanningAgent", executionTraceRefs());
+        w.saveStageArtifact(taskId, ArtifactType.CONFIG_SET, WorkflowStage.CONFIGURATION,
+                executableConfigSet(taskId), "ConfigSet for verification", "ConfigurationAgent", executionTraceRefs());
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> o.runVerificationStage(taskId));
+
+        assertEquals(ErrorCode.STAGE_NOT_READY.getErrorCode(), ex.getErrorCode());
+    }
+
     private static A2aResponse intentResponse(com.yali.mactav.model.a2a.A2aRequest r) {
         return A2aResponse.builder().success(true).taskId(r.getTaskId()).sourceAgent("IntentAgent")
                 .targetAgent(r.getSourceAgent()).stage(WorkflowStage.INTENT).traceId(r.getTraceId())
@@ -388,6 +447,80 @@ class MacTavWorkflowOrchestratorTest {
                 .planElementIds(java.util.List.of("plan-execution-node"))
                 .configBlockIds(java.util.List.of("config-execution-block"))
                 .testIds(java.util.List.of("test-ping"))
+                .build();
+    }
+
+    private static NetworkIntent verificationIntent(String taskId) {
+        return NetworkIntent.builder()
+                .taskId(taskId)
+                .intentVersion(1)
+                .rawText("office can access server")
+                .semanticIntentGraph(SemanticIntentGraph.builder()
+                        .nodes(java.util.List.of(
+                                IntentNode.builder().id("node-office").name("office").type("ZONE").build(),
+                                IntentNode.builder().id("node-server").name("server").type("SERVICE").build()))
+                        .relations(java.util.List.of(IntentRelation.builder()
+                                .id("rel-office-server")
+                                .type("ACCESS")
+                                .source("node-office")
+                                .target("node-server")
+                                .action("ALLOW")
+                                .build()))
+                        .build())
+                .stageStatus(StageStatus.SUCCESS)
+                .createTime(LocalDateTime.now())
+                .build();
+    }
+
+    private static com.yali.mactav.model.execution.ExecutionReport executionReport(String taskId) {
+        return com.yali.mactav.model.execution.ExecutionReport.builder()
+                .executionId("execution-verification")
+                .taskId(taskId)
+                .planId("plan-execution")
+                .configSetId("config-set-execution")
+                .planVersion(1)
+                .configVersion(1)
+                .executionVersion(1)
+                .overallStatus(com.yali.mactav.model.execution.ExecutionStatus.SUCCESS)
+                .testResults(java.util.List.of(com.yali.mactav.model.execution.TestResult.builder()
+                        .testId("test-ping")
+                        .status(com.yali.mactav.model.execution.TestResultStatus.PASSED)
+                        .expectedResult("REACHABLE")
+                        .actualResult("REACHABLE")
+                        .traceRefs(executionTraceRefs())
+                        .build()))
+                .traceRefs(executionTraceRefs())
+                .createTime(LocalDateTime.now())
+                .build();
+    }
+
+    private static com.yali.mactav.model.verification.ValidationReport validationReport(
+            com.yali.mactav.model.a2a.A2aRequest r) {
+        return com.yali.mactav.model.verification.ValidationReport.builder()
+                .validationId("validation-test")
+                .taskId(r.getTaskId())
+                .validationVersion(r.getArtifactVersion())
+                .overallStatus(ValidationStatus.PASSED)
+                .summary("Execution facts satisfy the intent.")
+                .items(java.util.List.of(com.yali.mactav.model.verification.ValidationItem.builder()
+                        .itemId("val-office-server")
+                        .expected("REACHABLE")
+                        .actual("REACHABLE")
+                        .passed(true)
+                        .relatedIntentRelationId("rel-office-server")
+                        .relatedPlanElementIds(java.util.List.of("plan-execution-node"))
+                        .relatedConfigBlockIds(java.util.List.of("config-execution-block"))
+                        .relatedTestId("test-ping")
+                        .build()))
+                .traceRefs(TraceRefs.builder()
+                        .validationItemIds(java.util.List.of("val-office-server"))
+                        .intentRelationIds(java.util.List.of("rel-office-server"))
+                        .planElementIds(java.util.List.of("plan-execution-node"))
+                        .configBlockIds(java.util.List.of("config-execution-block"))
+                        .testIds(java.util.List.of("test-ping"))
+                        .build())
+                .stageStatus(StageStatus.SUCCESS)
+                .createTime(LocalDateTime.now())
                 .build();
     }
 
