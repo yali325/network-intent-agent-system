@@ -43,6 +43,17 @@ public class ArtifactPayloadSerializer {
         return payloadDto.getClass().getName();
     }
 
+    public <T> T deserialize(String payloadJson, Class<T> targetType) {
+        if (payloadJson == null || payloadJson.isBlank()) {
+            throw new BusinessException(ErrorCode.ARTIFACT_INVALID, "payloadJson must not be blank");
+        }
+        try {
+            return objectMapper.readValue(payloadJson, targetType);
+        } catch (JsonProcessingException ex) {
+            throw new BusinessException(ErrorCode.ARTIFACT_INVALID, "Failed to deserialize artifact payload", ex);
+        }
+    }
+
     private static ObjectMapper defaultObjectMapper() {
         ObjectMapper mapper = new ObjectMapper();
         mapper.registerModule(new JavaTimeModule());

@@ -1,4 +1,14 @@
 spring:
+  datasource:
+    url: ${MACTAV_MYSQL_URL:jdbc:mysql://127.0.0.1:3306/mac_tav?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
+    username: ${MACTAV_MYSQL_USERNAME:root}
+    password: ${MACTAV_MYSQL_PASSWORD:}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+      timeout: 2s
   ai:
     alibaba:
       a2a:
@@ -10,3 +20,22 @@ spring:
             enabled: true
           registry:
             enabled: false
+
+mybatis:
+  mapper-locations: classpath*:mapper/**/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+
+mactav:
+  persistence:
+    type: ${MACTAV_PERSISTENCE_TYPE:mysql}
+  async:
+    core-pool-size: ${MACTAV_ASYNC_CORE_POOL_SIZE:4}
+    max-pool-size: ${MACTAV_ASYNC_MAX_POOL_SIZE:16}
+    queue-capacity: ${MACTAV_ASYNC_QUEUE_CAPACITY:200}
+    thread-name-prefix: ${MACTAV_ASYNC_THREAD_NAME_PREFIX:mactav-workflow-}
+  sse:
+    enabled: ${MACTAV_SSE_ENABLED:true}
+    heartbeat-interval: ${MACTAV_SSE_HEARTBEAT_INTERVAL:15s}
+    emitter-timeout: ${MACTAV_SSE_EMITTER_TIMEOUT:30m}
+    redis-topic-prefix: ${MACTAV_SSE_REDIS_TOPIC_PREFIX:mactav:sse:}

@@ -45,6 +45,7 @@
         <spring-ai-alibaba-a2a.version>1.1.2.0</spring-ai-alibaba-a2a.version>
         <lombok.version>1.18.38</lombok.version>
         <spring-ai.version>1.1.2</spring-ai.version>
+        <mybatis-spring-boot.version>3.0.5</mybatis-spring-boot.version>
     </properties>
 
     <dependencyManagement>
@@ -75,6 +76,12 @@
                 <groupId>com.alibaba.cloud.ai</groupId>
                 <artifactId>spring-ai-alibaba-starter-a2a-nacos</artifactId>
                 <version>${spring-ai-alibaba-a2a.version}</version>
+            </dependency>
+            <!-- MyBatis 3.0.x supports Spring Boot 3.2-3.5 and Java 17+. -->
+            <dependency>
+                <groupId>org.mybatis.spring.boot</groupId>
+                <artifactId>mybatis-spring-boot-starter</artifactId>
+                <version>${mybatis-spring-boot.version}</version>
             </dependency>
             <!--lombok-->
             <dependency>

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yali.mactav.modelcore.mapper.AgentExecutionRecordMapper">
+  <insert id="insert" parameterType="com.yali.mactav.modelcore.entity.AgentExecutionRecordEntity">
+    INSERT INTO agent_execution_record (
+      record_id, task_id, trace_id, agent_name, target_agent_name, remote_call_type,
+      agent_card_version, stage, stage_status, input_artifact_ids_json,
+      output_artifact_ids_json, tool_call_summaries_json, mcp_call_summaries_json,
+      a2a_call_summaries_json, model_call_count, start_time, finish_time,
+      duration_ms, input_summary, output_summary, error_code, error_message, message
+    ) VALUES (
+      #{recordId}, #{taskId}, #{traceId}, #{agentName}, #{targetAgentName}, #{remoteCallType},
+      #{agentCardVersion}, #{stage}, #{stageStatus}, #{inputArtifactIdsJson},
+      #{outputArtifactIdsJson}, #{toolCallSummariesJson}, #{mcpCallSummariesJson},
+      #{a2aCallSummariesJson}, #{modelCallCount}, #{startTime}, #{finishTime},
+      #{durationMs}, #{inputSummary}, #{outputSummary}, #{errorCode}, #{errorMessage}, #{message}
+    )
+  </insert>
+
+  <select id="listByTaskId" resultType="com.yali.mactav.modelcore.entity.AgentExecutionRecordEntity">
+    SELECT record_id, task_id, trace_id, agent_name, target_agent_name, remote_call_type,
+           agent_card_version, stage, stage_status, input_artifact_ids_json,
+           output_artifact_ids_json, tool_call_summaries_json, mcp_call_summaries_json,
+           a2a_call_summaries_json, model_call_count, start_time, finish_time,
+           duration_ms, input_summary, output_summary, error_code, error_message, message
+    FROM agent_execution_record
+    WHERE task_id = #{taskId}
+    ORDER BY start_time ASC, finish_time ASC
+  </select>
+</mapper>

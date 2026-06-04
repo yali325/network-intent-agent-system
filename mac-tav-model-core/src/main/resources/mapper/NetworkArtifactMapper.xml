@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yali.mactav.modelcore.mapper.NetworkArtifactMapper">
+  <insert id="insert" parameterType="com.yali.mactav.modelcore.entity.NetworkArtifactEntity">
+    INSERT INTO network_artifact (
+      artifact_id, task_id, artifact_type, version, stage, status, payload_type,
+      payload_json, payload_summary, trace_refs_json, created_by, create_time
+    ) VALUES (
+      #{artifactId}, #{taskId}, #{artifactType}, #{version}, #{stage}, #{status}, #{payloadType},
+      #{payloadJson}, #{payloadSummary}, #{traceRefsJson}, #{createdBy}, #{createTime}
+    )
+  </insert>
+
+  <update id="update" parameterType="com.yali.mactav.modelcore.entity.NetworkArtifactEntity">
+    UPDATE network_artifact
+    SET status = #{status},
+        payload_type = #{payloadType},
+        payload_json = #{payloadJson},
+        payload_summary = #{payloadSummary},
+        trace_refs_json = #{traceRefsJson},
+        created_by = #{createdBy},
+        create_time = #{createTime}
+    WHERE artifact_id = #{artifactId}
+  </update>
+
+  <update id="markSupersededExcept">
+    UPDATE network_artifact
+    SET status = 'SUPERSEDED'
+    WHERE task_id = #{taskId}
+      AND artifact_type = #{artifactType}
+      AND artifact_id &lt;&gt; #{artifactId}
+      AND status &lt;&gt; 'SUPERSEDED'
+  </update>
+
+  <select id="findByArtifactId" resultType="com.yali.mactav.modelcore.entity.NetworkArtifactEntity">
+    SELECT artifact_id, task_id, artifact_type, version, stage, status, payload_type,
+           payload_json, payload_summary, trace_refs_json, created_by, create_time
+    FROM network_artifact
+    WHERE artifact_id = #{artifactId}
+  </select>
+
+  <select id="findByTaskIdTypeVersion" resultType="com.yali.mactav.modelcore.entity.NetworkArtifactEntity">
+    SELECT artifact_id, task_id, artifact_type, version, stage, status, payload_type,
+           payload_json, payload_summary, trace_refs_json, created_by, create_time
+    FROM network_artifact
+    WHERE task_id = #{taskId}
+      AND artifact_type = #{artifactType}
+      AND version = #{version}
+  </select>
+
+  <select id="listByTaskId" resultType="com.yali.mactav.modelcore.entity.NetworkArtifactEntity">
+    SELECT artifact_id, task_id, artifact_type, version, stage, status, payload_type,
+           payload_json, payload_summary, trace_refs_json, created_by, create_time
+    FROM network_artifact
+    WHERE task_id = #{taskId}
+    ORDER BY create_time ASC, version ASC
+  </select>
+
+  <select id="listByTaskIdAndType" resultType="com.yali.mactav.modelcore.entity.NetworkArtifactEntity">
+    SELECT artifact_id, task_id, artifact_type, version, stage, status, payload_type,
+           payload_json, payload_summary, trace_refs_json, created_by, create_time
+    FROM network_artifact
+    WHERE task_id = #{taskId}
+      AND artifact_type = #{artifactType}
+    ORDER BY version ASC
+  </select>
+
+  <select id="findMaxVersion" resultType="java.lang.Integer">
+    SELECT MAX(version)
+    FROM network_artifact
+    WHERE task_id = #{taskId}
+      AND artifact_type = #{artifactType}
+  </select>
+</mapper>

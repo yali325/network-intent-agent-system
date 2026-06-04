@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yali.mactav.modelcore.mapper.WorkflowJobMapper">
+  <insert id="insert" parameterType="com.yali.mactav.modelcore.entity.WorkflowJobEntity">
+    INSERT INTO workflow_job (
+      job_id, task_id, requested_stage, job_type, job_status, requested_by,
+      request_payload_json, start_time, finish_time, error_code, error_message,
+      trace_id, create_time, update_time
+    ) VALUES (
+      #{jobId}, #{taskId}, #{requestedStage}, #{jobType}, #{jobStatus}, #{requestedBy},
+      #{requestPayloadJson}, #{startTime}, #{finishTime}, #{errorCode}, #{errorMessage},
+      #{traceId}, #{createTime}, #{updateTime}
+    )
+  </insert>
+
+  <update id="update" parameterType="com.yali.mactav.modelcore.entity.WorkflowJobEntity">
+    UPDATE workflow_job
+    SET task_id = #{taskId},
+        requested_stage = #{requestedStage},
+        job_type = #{jobType},
+        job_status = #{jobStatus},
+        requested_by = #{requestedBy},
+        request_payload_json = #{requestPayloadJson},
+        start_time = #{startTime},
+        finish_time = #{finishTime},
+        error_code = #{errorCode},
+        error_message = #{errorMessage},
+        trace_id = #{traceId},
+        create_time = #{createTime},
+        update_time = #{updateTime}
+    WHERE job_id = #{jobId}
+  </update>
+
+  <select id="findByJobId" resultType="com.yali.mactav.modelcore.entity.WorkflowJobEntity">
+    SELECT job_id, task_id, requested_stage, job_type, job_status, requested_by,
+           request_payload_json, start_time, finish_time, error_code, error_message,
+           trace_id, create_time, update_time
+    FROM workflow_job
+    WHERE job_id = #{jobId}
+  </select>
+
+  <select id="listByTaskId" resultType="com.yali.mactav.modelcore.entity.WorkflowJobEntity">
+    SELECT job_id, task_id, requested_stage, job_type, job_status, requested_by,
+           request_payload_json, start_time, finish_time, error_code, error_message,
+           trace_id, create_time, update_time
+    FROM workflow_job
+    WHERE task_id = #{taskId}
+    ORDER BY create_time ASC
+  </select>
+</mapper>

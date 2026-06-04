@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yali.mactav.modelcore.mapper.WorkspaceChangeRecordMapper">
+  <insert id="insert" parameterType="com.yali.mactav.modelcore.entity.WorkspaceChangeRecordEntity">
+    INSERT INTO workspace_change_record (
+      change_id, task_id, stage, change_type, from_artifact_id, to_artifact_id,
+      reason, created_by, create_time
+    ) VALUES (
+      #{changeId}, #{taskId}, #{stage}, #{changeType}, #{fromArtifactId}, #{toArtifactId},
+      #{reason}, #{createdBy}, #{createTime}
+    )
+  </insert>
+
+  <select id="listByTaskId" resultType="com.yali.mactav.modelcore.entity.WorkspaceChangeRecordEntity">
+    SELECT change_id, task_id, stage, change_type, from_artifact_id, to_artifact_id,
+           reason, created_by, create_time
+    FROM workspace_change_record
+    WHERE task_id = #{taskId}
+    ORDER BY create_time ASC
+  </select>
+</mapper>

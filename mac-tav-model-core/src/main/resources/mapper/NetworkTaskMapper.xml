@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yali.mactav.modelcore.mapper.NetworkTaskMapper">
+  <insert id="insert" parameterType="com.yali.mactav.modelcore.entity.NetworkTaskEntity">
+    INSERT INTO network_task (
+      task_id, raw_text, description, task_status, current_stage, created_by, create_time, update_time
+    ) VALUES (
+      #{taskId}, #{rawText}, #{description}, #{taskStatus}, #{currentStage}, #{createdBy}, #{createTime}, #{updateTime}
+    )
+  </insert>
+
+  <update id="update" parameterType="com.yali.mactav.modelcore.entity.NetworkTaskEntity">
+    UPDATE network_task
+    SET raw_text = #{rawText},
+        description = #{description},
+        task_status = #{taskStatus},
+        current_stage = #{currentStage},
+        created_by = #{createdBy},
+        create_time = #{createTime},
+        update_time = #{updateTime}
+    WHERE task_id = #{taskId}
+  </update>
+
+  <select id="findByTaskId" resultType="com.yali.mactav.modelcore.entity.NetworkTaskEntity">
+    SELECT task_id, raw_text, description, task_status, current_stage, created_by, create_time, update_time
+    FROM network_task
+    WHERE task_id = #{taskId}
+  </select>
+</mapper>

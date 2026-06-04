@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yali.mactav.modelcore.mapper.NetworkWorkspaceStateMapper">
+  <insert id="insert" parameterType="com.yali.mactav.modelcore.entity.NetworkWorkspaceStateEntity">
+    INSERT INTO network_workspace_state (
+      task_id, workspace_status, current_intent_version, current_plan_version,
+      current_config_version, current_execution_version, current_validation_version,
+      current_repair_version, current_artifact_refs_json, update_time
+    ) VALUES (
+      #{taskId}, #{workspaceStatus}, #{currentIntentVersion}, #{currentPlanVersion},
+      #{currentConfigVersion}, #{currentExecutionVersion}, #{currentValidationVersion},
+      #{currentRepairVersion}, #{currentArtifactRefsJson}, #{updateTime}
+    )
+  </insert>
+
+  <update id="update" parameterType="com.yali.mactav.modelcore.entity.NetworkWorkspaceStateEntity">
+    UPDATE network_workspace_state
+    SET workspace_status = #{workspaceStatus},
+        current_intent_version = #{currentIntentVersion},
+        current_plan_version = #{currentPlanVersion},
+        current_config_version = #{currentConfigVersion},
+        current_execution_version = #{currentExecutionVersion},
+        current_validation_version = #{currentValidationVersion},
+        current_repair_version = #{currentRepairVersion},
+        current_artifact_refs_json = #{currentArtifactRefsJson},
+        update_time = #{updateTime}
+    WHERE task_id = #{taskId}
+  </update>
+
+  <select id="findByTaskId" resultType="com.yali.mactav.modelcore.entity.NetworkWorkspaceStateEntity">
+    SELECT task_id, workspace_status, current_intent_version, current_plan_version,
+           current_config_version, current_execution_version, current_validation_version,
+           current_repair_version, current_artifact_refs_json, update_time
+    FROM network_workspace_state
+    WHERE task_id = #{taskId}
+  </select>
+</mapper>
