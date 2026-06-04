@@ -14,6 +14,8 @@ import com.yali.mactav.modelcore.query.WorkspaceEventQuery;
  */
 public interface WorkflowQueryService {
 
+    void requireWorkspace(String taskId);
+
     PageResult<NetworkArtifact> listArtifacts(String taskId, ArtifactQuery query);
 
     NetworkArtifact getArtifact(String taskId, String artifactId);

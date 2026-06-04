@@ -1,8 +1,11 @@
 package com.yali.mactav.web.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.yali.mactav.common.result.PageResult;
 import com.yali.mactav.model.enums.ArtifactStatus;
 import com.yali.mactav.model.enums.ArtifactType;
@@ -24,6 +27,7 @@ import com.yali.mactav.model.workspace.WorkspaceEvent;
 import com.yali.mactav.modelcore.query.ArtifactQuery;
 import com.yali.mactav.modelcore.query.WorkspaceChangeQuery;
 import com.yali.mactav.modelcore.query.WorkspaceEventQuery;
+import com.yali.mactav.modelcore.event.WorkspaceEventSummary;
 import com.yali.mactav.orchestrator.service.ArtifactDiffResult;
 import com.yali.mactav.orchestrator.service.WorkflowOrchestrator;
 import com.yali.mactav.orchestrator.service.WorkflowQueryService;
@@ -33,8 +37,14 @@ import com.yali.mactav.web.dto.TaskSummaryResponse;
 import com.yali.mactav.web.vo.ArtifactDiffResponse;
 import com.yali.mactav.web.vo.ArtifactPayloadResponse;
 import com.yali.mactav.web.vo.ArtifactSummaryResponse;
+import com.yali.mactav.web.sse.RedisWorkspaceEventSubscriber;
+import com.yali.mactav.web.sse.SseEmitterRegistry;
+import com.yali.mactav.web.sse.SseEventMapper;
+import com.yali.mactav.web.sse.SseProperties;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.redis.connection.DefaultMessage;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 /**
  * Offline controller tests for the minimal Web API layer.
@@ -228,6 +238,52 @@ class WebControllerTest {
         assertEquals(2, queryService.eventHistoryCalls);
     }
 
+    @Test
+    void sseControllerShouldValidateWorkspaceAndRegisterEmitter() {
+        TestWorkflowQueryService queryService = queryService();
+        SseEventMapper mapper = new SseEventMapper(objectMapper());
+        SseEmitterRegistry registry = new SseEmitterRegistry(mapper);
+        SseProperties properties = new SseProperties();
+        properties.setTimeoutMs(1000);
+        SseController controller = new SseController(queryService, registry, properties);
+
+        SseEmitter emitter = controller.connect("task-web-test");
+
+        assertNotNull(emitter);
+        assertEquals(1, queryService.requireWorkspaceCalls);
+        assertEquals(1, registry.emitterCount("task-web-test"));
+    }
+
+    @Test
+    void sseEventMapperShouldOnlySerializeSummaryFields() {
+        SseEventMapper mapper = new SseEventMapper(objectMapper());
+
+        String json = mapper.toJson(WorkspaceEventSummary.from(queryService().event()));
+
+        assertTrue(json.contains("\"eventId\""));
+        assertTrue(json.contains("\"payloadSummary\""));
+        assertTrue(!json.contains("payloadJson"));
+        assertTrue(!json.contains("apiKey"));
+        assertEquals("task-web-test", mapper.fromJson(json).taskId());
+    }
+
+    @Test
+    void redisWorkspaceEventSubscriberShouldDispatchByTaskId() {
+        SseEventMapper mapper = new SseEventMapper(objectMapper());
+        SseEmitterRegistry registry = new SseEmitterRegistry(mapper);
+        registry.register("task-web-test", 1000);
+        RedisWorkspaceEventSubscriber subscriber = new RedisWorkspaceEventSubscriber(registry, mapper);
+        String json = mapper.toJson(WorkspaceEventSummary.from(queryService().event()));
+
+        subscriber.onMessage(
+                new DefaultMessage(
+                        "mactav:events:task-web-test".getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                        json.getBytes(java.nio.charset.StandardCharsets.UTF_8)),
+                "mactav:events:*".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+
+        assertEquals(1, registry.emitterCount("task-web-test"));
+    }
+
     private TestWorkflowOrchestrator orchestrator() {
         NetworkWorkspace workspace = workspace();
         return new TestWorkflowOrchestrator(workspace);
@@ -235,6 +291,12 @@ class WebControllerTest {
 
     private TestWorkflowQueryService queryService() {
         return new TestWorkflowQueryService();
+    }
+
+    private ObjectMapper objectMapper() {
+        ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.registerModule(new JavaTimeModule());
+        return objectMapper;
     }
 
     private NetworkWorkspace workspace() {
@@ -390,7 +452,13 @@ class WebControllerTest {
      */
     private static class TestWorkflowQueryService implements WorkflowQueryService {
 
+        private int requireWorkspaceCalls;
         private int eventHistoryCalls;
+
+        @Override
+        public void requireWorkspace(String taskId) {
+            requireWorkspaceCalls++;
+        }
 
         @Override
         public PageResult<NetworkArtifact> listArtifacts(String taskId, ArtifactQuery query) {

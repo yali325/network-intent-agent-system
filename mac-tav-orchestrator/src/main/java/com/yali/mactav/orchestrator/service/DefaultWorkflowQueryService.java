@@ -37,14 +37,19 @@ public class DefaultWorkflowQueryService implements WorkflowQueryService {
     }
 
     @Override
+    public void requireWorkspace(String taskId) {
+        requireWorkspaceInternal(taskId);
+    }
+
+    @Override
     public PageResult<NetworkArtifact> listArtifacts(String taskId, ArtifactQuery query) {
-        requireWorkspace(taskId);
+        requireWorkspaceInternal(taskId);
         return artifactService.listArtifacts(taskId, query);
     }
 
     @Override
     public NetworkArtifact getArtifact(String taskId, String artifactId) {
-        requireWorkspace(taskId);
+        requireWorkspaceInternal(taskId);
         NetworkArtifact artifact = artifactService.findByArtifactId(artifactId)
                 .orElseThrow(() -> artifactNotFound(artifactId));
         if (!taskId.equals(artifact.getTaskId())) {
@@ -55,7 +60,7 @@ public class DefaultWorkflowQueryService implements WorkflowQueryService {
 
     @Override
     public NetworkArtifact getCurrentArtifact(String taskId, ArtifactType artifactType) {
-        NetworkWorkspace workspace = requireWorkspace(taskId);
+        NetworkWorkspace workspace = requireWorkspaceInternal(taskId);
         String artifactId = workspace.getCurrentArtifactRefs() == null
                 ? null
                 : workspace.getCurrentArtifactRefs().get(artifactType);
@@ -95,23 +100,23 @@ public class DefaultWorkflowQueryService implements WorkflowQueryService {
 
     @Override
     public PageResult<WorkspaceEvent> listTimeline(String taskId, WorkspaceEventQuery query) {
-        requireWorkspace(taskId);
+        requireWorkspaceInternal(taskId);
         return eventService.listEvents(taskId, query);
     }
 
     @Override
     public PageResult<WorkspaceChangeRecord> listChanges(String taskId, WorkspaceChangeQuery query) {
-        requireWorkspace(taskId);
+        requireWorkspaceInternal(taskId);
         return changeRecordService.listChanges(taskId, query);
     }
 
     @Override
     public PageResult<WorkspaceEvent> listEventHistory(String taskId, WorkspaceEventQuery query) {
-        requireWorkspace(taskId);
+        requireWorkspaceInternal(taskId);
         return eventService.listEvents(taskId, query);
     }
 
-    private NetworkWorkspace requireWorkspace(String taskId) {
+    private NetworkWorkspace requireWorkspaceInternal(String taskId) {
         return workspaceService.getWorkspaceOrThrow(taskId);
     }
 

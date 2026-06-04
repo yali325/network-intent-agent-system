@@ -4,6 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yali.mactav.modelcore.artifact.ArtifactPayloadSerializer;
 import com.yali.mactav.modelcore.artifact.NetworkArtifactFactory;
 import com.yali.mactav.modelcore.assembler.MyBatisModelCoreAssembler;
+import com.yali.mactav.modelcore.event.NoopWorkspaceEventPublisher;
+import com.yali.mactav.modelcore.event.WorkspaceEventPublisher;
+import com.yali.mactav.modelcore.event.redis.RedisWorkspaceEventPublisher;
 import com.yali.mactav.modelcore.mapper.AgentExecutionRecordMapper;
 import com.yali.mactav.modelcore.mapper.NetworkArtifactMapper;
 import com.yali.mactav.modelcore.mapper.NetworkTaskMapper;
@@ -44,9 +47,11 @@ import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+import org.springframework.data.redis.core.StringRedisTemplate;
 
 /**
  * Spring wiring for Model Core validators plus persistence-specific services.
@@ -80,6 +85,27 @@ public class ModelCoreConfiguration {
     @ConditionalOnMissingBean
     public NetworkArtifactFactory networkArtifactFactory(ArtifactPayloadSerializer serializer) {
         return new NetworkArtifactFactory(serializer);
+    }
+
+    @Bean
+    @Profile("!test & !inmemory")
+    @ConditionalOnProperty(name = "mactav.events.publisher", havingValue = "redis", matchIfMissing = true)
+    public WorkspaceEventPublisher redisWorkspaceEventPublisher(
+            StringRedisTemplate redisTemplate,
+            ObjectMapper objectMapper,
+            @Value("${mactav.sse.redis-channel-prefix:${mactav.sse.redis-topic-prefix:mactav:events:}}")
+            String channelPrefix) {
+        return new RedisWorkspaceEventPublisher(redisTemplate, objectMapper, channelPrefix);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(WorkspaceEventPublisher.class)
+    @ConditionalOnExpression(
+            "'${mactav.events.publisher:}' == 'noop' || "
+                    + "'${spring.profiles.active:}'.contains('test') || "
+                    + "'${spring.profiles.active:}'.contains('inmemory')")
+    public WorkspaceEventPublisher noopWorkspaceEventPublisher() {
+        return new NoopWorkspaceEventPublisher();
     }
 
     @Bean
@@ -138,8 +164,9 @@ public class ModelCoreConfiguration {
         @Bean
         public WorkspaceEventService workspaceEventService(MyBatisWorkspaceEventRepository repository,
                                                            WorkspaceStateValidator workspaceStateValidator,
-                                                           MyBatisModelCoreAssembler assembler) {
-            return new MyBatisWorkspaceEventService(repository, workspaceStateValidator, assembler);
+                                                           MyBatisModelCoreAssembler assembler,
+                                                           WorkspaceEventPublisher eventPublisher) {
+            return new MyBatisWorkspaceEventService(repository, workspaceStateValidator, assembler, eventPublisher);
         }
 
         @Bean

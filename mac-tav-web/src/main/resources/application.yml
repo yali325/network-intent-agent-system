@@ -27,6 +27,8 @@ mybatis:
     map-underscore-to-camel-case: true
 
 mactav:
+  events:
+    publisher: ${MACTAV_EVENTS_PUBLISHER:redis}
   persistence:
     type: ${MACTAV_PERSISTENCE_TYPE:mysql}
   async:
@@ -36,6 +38,8 @@ mactav:
     thread-name-prefix: ${MACTAV_ASYNC_THREAD_NAME_PREFIX:mactav-workflow-}
   sse:
     enabled: ${MACTAV_SSE_ENABLED:true}
+    timeout-ms: ${MACTAV_SSE_TIMEOUT_MS:1800000}
+    redis-channel-prefix: ${MACTAV_SSE_REDIS_CHANNEL_PREFIX:mactav:events:}
     heartbeat-interval: ${MACTAV_SSE_HEARTBEAT_INTERVAL:15s}
     emitter-timeout: ${MACTAV_SSE_EMITTER_TIMEOUT:30m}
     redis-topic-prefix: ${MACTAV_SSE_REDIS_TOPIC_PREFIX:mactav:sse:}

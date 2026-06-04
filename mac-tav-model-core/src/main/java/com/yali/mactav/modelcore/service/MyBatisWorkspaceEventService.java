@@ -5,27 +5,37 @@ import com.yali.mactav.common.exception.BusinessException;
 import com.yali.mactav.common.result.PageResult;
 import com.yali.mactav.model.workspace.WorkspaceEvent;
 import com.yali.mactav.modelcore.assembler.MyBatisModelCoreAssembler;
+import com.yali.mactav.modelcore.event.WorkspaceEventPublisher;
 import com.yali.mactav.modelcore.query.QueryPageSupport;
 import com.yali.mactav.modelcore.query.WorkspaceEventQuery;
 import com.yali.mactav.modelcore.repository.MyBatisWorkspaceEventRepository;
 import com.yali.mactav.modelcore.validator.WorkspaceStateValidator;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * MyBatis-backed event service for durable workspace timeline events.
  */
 public class MyBatisWorkspaceEventService implements WorkspaceEventService {
 
+    private static final Logger log = LoggerFactory.getLogger(MyBatisWorkspaceEventService.class);
+
     private final MyBatisWorkspaceEventRepository repository;
     private final WorkspaceStateValidator workspaceStateValidator;
     private final MyBatisModelCoreAssembler assembler;
+    private final WorkspaceEventPublisher eventPublisher;
 
     public MyBatisWorkspaceEventService(MyBatisWorkspaceEventRepository repository,
                                         WorkspaceStateValidator workspaceStateValidator,
-                                        MyBatisModelCoreAssembler assembler) {
+                                        MyBatisModelCoreAssembler assembler,
+                                        WorkspaceEventPublisher eventPublisher) {
         this.repository = repository;
         this.workspaceStateValidator = workspaceStateValidator;
         this.assembler = assembler;
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
@@ -38,6 +48,7 @@ public class MyBatisWorkspaceEventService implements WorkspaceEventService {
             event.setTaskId(taskId);
         }
         repository.append(assembler.toEntity(event));
+        publishAfterCommit(event);
         return event;
     }
 
@@ -76,5 +87,32 @@ public class MyBatisWorkspaceEventService implements WorkspaceEventService {
                 .size(size)
                 .total(total)
                 .build();
+    }
+
+    private void publishAfterCommit(WorkspaceEvent event) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()
+                && TransactionSynchronizationManager.isActualTransactionActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    publishSafely(event);
+                }
+            });
+            return;
+        }
+        publishSafely(event);
+    }
+
+    private void publishSafely(WorkspaceEvent event) {
+        try {
+            eventPublisher.publish(event);
+        } catch (RuntimeException exception) {
+            log.warn(
+                    "Workspace event persisted but Redis publish failed: taskId={}, eventId={}, eventType={}",
+                    event.getTaskId(),
+                    event.getEventId(),
+                    event.getEventType(),
+                    exception);
+        }
     }
 }
