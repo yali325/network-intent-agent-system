@@ -38,6 +38,7 @@ Then read only the task-specific documents and directly related source files.
 | Phase 6 complete handoff | `docs/phase-handoffs/PHASE_06_HANDOFF.md` |
 | Phase 7 | `docs/phase-handoffs/PHASE_07_HANDOFF.md` |
 | Phase 8 | `docs/phase-handoffs/PHASE_08_HANDOFF.md` |
+| Phase 9 | `docs/phase-handoffs/PHASE_09_HANDOFF.md` |
 
 ## 4. Common Task Reading Suggestions
 
@@ -52,7 +53,21 @@ Then read only the task-specific documents and directly related source files.
 | Code review | Default 3 docs + `git diff` / `git status` + docs and files directly related to changed files |
 | New phase handoff | Default 3 docs + latest `docs/phase-handoffs/PHASE_xx_HANDOFF.md` + next phase docs/source |
 
-## 5. Phase 7 Starting Scope
+## 5. Phase 10 Starting Scope
+
+For a new Codex window after Phase 9, read:
+
+1. `AGENTS.md`
+2. `docs/CODEX_CURRENT_STATE.md`
+3. `docs/CODEX_DOC_INDEX.md`
+4. `docs/phase-handoffs/PHASE_09_HANDOFF.md`
+5. Task-specific API / model / module docs only as needed.
+
+Phase 9 completed durable persistence, SSE, async job submission, artifact
+version switching, and startup job convergence. Later phases should treat MySQL
+as authoritative state and Redis as realtime/lock infrastructure only.
+
+## 6. Phase 7 Historical Scope
 
 For a new Codex window implementing Phase 7 VerificationAgent, read:
 
@@ -71,7 +86,7 @@ Phase 7 must consume execution facts and decide intent satisfaction in
 `ValidationReport`. It must not rerun tests, execute shell, modify configs, or
 perform Healing.
 
-## 6. Prohibited Reading Patterns
+## 7. Prohibited Reading Patterns
 
 - Do not read all `docs/00-09` by default.
 - Do not scan the whole repository just in case.

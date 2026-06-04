@@ -60,6 +60,17 @@ public class MyBatisWorkflowJobService implements WorkflowJobService {
     }
 
     @Override
+    public WorkflowJob markInterrupted(String jobId, String errorCode, String errorMessage) {
+        WorkflowJob job = require(jobId);
+        job.setJobStatus(WorkflowJobStatus.INTERRUPTED);
+        job.setErrorCode(errorCode);
+        job.setErrorMessage(errorMessage);
+        job.setFinishTime(LocalDateTime.now());
+        job.setUpdateTime(LocalDateTime.now());
+        return update(job);
+    }
+
+    @Override
     public Optional<WorkflowJob> findByJobId(String jobId) {
         return repository.findByJobId(jobId).map(WorkflowJobAssembler::toDto);
     }

@@ -34,9 +34,12 @@ import com.yali.mactav.model.workflow.job.WorkflowJobStatus;
 import com.yali.mactav.model.workflow.job.WorkflowJobType;
 import com.yali.mactav.orchestrator.job.WorkflowJobSubmitResponse;
 import com.yali.mactav.orchestrator.service.ArtifactDiffResult;
+import com.yali.mactav.orchestrator.service.ArtifactVersionSwitchResult;
+import com.yali.mactav.orchestrator.service.ArtifactVersionSwitchService;
 import com.yali.mactav.orchestrator.service.WorkflowAsyncService;
 import com.yali.mactav.orchestrator.service.WorkflowOrchestrator;
 import com.yali.mactav.orchestrator.service.WorkflowQueryService;
+import com.yali.mactav.web.dto.ArtifactSwitchRequest;
 import com.yali.mactav.web.dto.CreateTaskRequest;
 import com.yali.mactav.web.dto.RepairActionDecisionRequest;
 import com.yali.mactav.web.dto.TaskSummaryResponse;
@@ -184,7 +187,7 @@ class WebControllerTest {
 
     @Test
     void artifactControllerShouldKeepPayloadOutOfSummaryResponses() {
-        ArtifactController controller = new ArtifactController(queryService());
+        ArtifactController controller = new ArtifactController(queryService(), artifactSwitchService());
 
         ApiResponse<PageResult<ArtifactSummaryResponse>> listResponse = controller.listArtifacts(
                 "task-web-test", "NETWORK_INTENT", null, 1, 20);
@@ -202,7 +205,7 @@ class WebControllerTest {
 
     @Test
     void artifactControllerShouldReturnCurrentVersionsAndDiff() {
-        ArtifactController controller = new ArtifactController(queryService());
+        ArtifactController controller = new ArtifactController(queryService(), artifactSwitchService());
 
         ApiResponse<ArtifactSummaryResponse> currentResponse = controller.getCurrentArtifact(
                 "task-web-test", "NETWORK_INTENT");
@@ -216,6 +219,25 @@ class WebControllerTest {
         assertEquals(2, versionsResponse.getData().getItems().size());
         assertEquals("{\"version\":1}", diffResponse.getData().getFrom().getPayloadJson());
         assertEquals("{\"version\":2}", diffResponse.getData().getTo().getPayloadJson());
+    }
+
+    @Test
+    void artifactControllerShouldSwitchCurrentArtifactThroughFacade() {
+        ArtifactController controller = new ArtifactController(queryService(), artifactSwitchService());
+        ArtifactSwitchRequest request = new ArtifactSwitchRequest();
+        request.setArtifactType("NETWORK_INTENT");
+        request.setReason("manual version switch");
+        request.setActor("alice");
+
+        ApiResponse<ArtifactVersionSwitchResult> response = controller.switchCurrentArtifact(
+                "task-web-test",
+                "artifact-web-test-v1",
+                request);
+
+        assertTrue(response.isSuccess());
+        assertEquals("artifact-web-test-v2", response.getData().fromArtifactId());
+        assertEquals("artifact-web-test-v1", response.getData().toArtifactId());
+        assertEquals("alice", response.getData().actor());
     }
 
     @Test
@@ -296,6 +318,18 @@ class WebControllerTest {
 
     private TestWorkflowAsyncService asyncService() {
         return new TestWorkflowAsyncService();
+    }
+
+    private ArtifactVersionSwitchService artifactSwitchService() {
+        return (taskId, artifactType, targetArtifactId, reason, actor) -> new ArtifactVersionSwitchResult(
+                taskId,
+                artifactType,
+                "artifact-web-test-v2",
+                targetArtifactId,
+                1,
+                WorkflowStage.INTENT,
+                reason,
+                actor);
     }
 
     private ObjectMapper objectMapper() {

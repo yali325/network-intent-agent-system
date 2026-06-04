@@ -9,5 +9,7 @@ public interface TaskRunLockService {
 
     Optional<TaskRunLock> tryLock(String taskId, String token);
 
+    boolean isLocked(String taskId);
+
     void unlock(TaskRunLock lock);
 }

@@ -82,6 +82,25 @@ public final class WorkspaceEventFactory {
         return repairActionEvent(taskId, "repair.waiting_user", "Repair waiting for user", action, comment);
     }
 
+    public static WorkspaceEvent artifactVersionSwitched(
+            NetworkArtifact targetArtifact,
+            String fromArtifactId,
+            String reason,
+            String actor) {
+        String summary = "artifactType=" + targetArtifact.getArtifactType()
+                + ", fromArtifactId=" + fromArtifactId
+                + ", toArtifactId=" + targetArtifact.getArtifactId()
+                + ", version=" + targetArtifact.getVersion()
+                + ", actor=" + actor
+                + ", reason=" + reason;
+        return base(targetArtifact.getTaskId(), WorkspaceEventTypes.ARTIFACT_VERSION_SWITCHED, targetArtifact.getStage())
+                .title("Artifact version switched")
+                .message("Current " + targetArtifact.getArtifactType() + " switched to v" + targetArtifact.getVersion())
+                .relatedArtifactId(targetArtifact.getArtifactId())
+                .payloadSummary(summary)
+                .build();
+    }
+
     private static WorkspaceEvent repairActionEvent(
             String taskId,
             String eventType,

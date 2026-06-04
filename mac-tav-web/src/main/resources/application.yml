@@ -37,6 +37,8 @@ mactav:
     queue-capacity: ${MACTAV_ASYNC_QUEUE_CAPACITY:200}
     thread-name-prefix: ${MACTAV_ASYNC_THREAD_NAME_PREFIX:mactav-workflow-}
     task-lock-ttl-ms: ${MACTAV_ASYNC_TASK_LOCK_TTL_MS:3600000}
+    recovery:
+      enabled: ${MACTAV_ASYNC_RECOVERY_ENABLED:true}
   task-lock:
     type: ${MACTAV_TASK_LOCK_TYPE:redis}
   sse:

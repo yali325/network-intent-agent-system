@@ -4,12 +4,15 @@ import com.yali.mactav.modelcore.artifact.ArtifactPayloadSerializer;
 import com.yali.mactav.modelcore.artifact.NetworkArtifactFactory;
 import com.yali.mactav.modelcore.repository.InMemoryNetworkArtifactRepository;
 import com.yali.mactav.modelcore.repository.InMemoryNetworkWorkspaceRepository;
+import com.yali.mactav.modelcore.repository.InMemoryWorkspaceChangeRecordRepository;
 import com.yali.mactav.modelcore.repository.InMemoryWorkspaceEventRepository;
 import com.yali.mactav.modelcore.service.InMemoryNetworkArtifactService;
 import com.yali.mactav.modelcore.service.InMemoryNetworkWorkspaceService;
+import com.yali.mactav.modelcore.service.InMemoryWorkspaceChangeRecordService;
 import com.yali.mactav.modelcore.service.InMemoryWorkspaceEventService;
 import com.yali.mactav.modelcore.service.NetworkArtifactService;
 import com.yali.mactav.modelcore.service.NetworkWorkspaceService;
+import com.yali.mactav.modelcore.service.WorkspaceChangeRecordService;
 import com.yali.mactav.modelcore.service.WorkspaceEventService;
 import com.yali.mactav.modelcore.validator.ArtifactValidator;
 import com.yali.mactav.modelcore.validator.WorkspaceStateValidator;
@@ -29,6 +32,10 @@ public final class ModelCoreTestFixture {
         WorkspaceEventService eventService = new InMemoryWorkspaceEventService(
                 new InMemoryWorkspaceEventRepository(),
                 workspaceStateValidator);
+        WorkspaceChangeRecordService changeRecordService = new InMemoryWorkspaceChangeRecordService(
+                new InMemoryWorkspaceChangeRecordRepository(),
+                workspaceRepository,
+                workspaceStateValidator);
         NetworkArtifactService artifactService = new InMemoryNetworkArtifactService(
                 artifactRepository,
                 artifactFactory,
@@ -38,14 +45,16 @@ public final class ModelCoreTestFixture {
                 workspaceRepository,
                 artifactService,
                 eventService,
+                changeRecordService,
                 workspaceStateValidator,
                 artifactValidator);
-        return new Services(workspaceService, artifactService, eventService);
+        return new Services(workspaceService, artifactService, eventService, changeRecordService);
     }
 
     public record Services(
             NetworkWorkspaceService workspaceService,
             NetworkArtifactService artifactService,
-            WorkspaceEventService eventService) {
+            WorkspaceEventService eventService,
+            WorkspaceChangeRecordService changeRecordService) {
     }
 }

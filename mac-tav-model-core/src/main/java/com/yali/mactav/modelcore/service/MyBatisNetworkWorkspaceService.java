@@ -15,6 +15,7 @@ import com.yali.mactav.model.verification.ValidationReport;
 import com.yali.mactav.model.workspace.NetworkArtifact;
 import com.yali.mactav.model.workspace.NetworkWorkspace;
 import com.yali.mactav.model.workspace.TraceRefs;
+import com.yali.mactav.model.workspace.WorkspaceChangeRecord;
 import com.yali.mactav.model.workspace.WorkspaceEvent;
 import com.yali.mactav.modelcore.artifact.ArtifactPayloadSerializer;
 import com.yali.mactav.modelcore.assembler.MyBatisModelCoreAssembler;
@@ -29,6 +30,7 @@ import java.time.LocalDateTime;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -203,6 +205,67 @@ public class MyBatisNetworkWorkspaceService implements NetworkWorkspaceService {
 
     @Override
     @Transactional
+    public NetworkWorkspace switchCurrentArtifact(
+            String taskId,
+            ArtifactType artifactType,
+            String targetArtifactId,
+            String reason,
+            String actor) {
+        workspaceStateValidator.validateTaskId(taskId);
+        if (artifactType == null) {
+            throw new BusinessException(ErrorCode.ARTIFACT_INVALID, "artifactType must not be null");
+        }
+        if (targetArtifactId == null || targetArtifactId.isBlank()) {
+            throw new BusinessException(ErrorCode.ARTIFACT_NOT_FOUND, "targetArtifactId must not be blank");
+        }
+        taskRepository.findByTaskId(taskId).orElseThrow(() -> workspaceStateValidator.workspaceNotFound(taskId));
+        NetworkArtifact targetArtifact = artifactRepository.findByArtifactId(targetArtifactId)
+                .map(assembler::toArtifact)
+                .orElseThrow(() -> new BusinessException(
+                        ErrorCode.ARTIFACT_NOT_FOUND,
+                        "Artifact not found: " + targetArtifactId));
+        if (!taskId.equals(targetArtifact.getTaskId())) {
+            throw new BusinessException(ErrorCode.ARTIFACT_NOT_FOUND, "Artifact not found: " + targetArtifactId);
+        }
+        if (targetArtifact.getArtifactType() != artifactType) {
+            throw new BusinessException(
+                    ErrorCode.ARTIFACT_INVALID,
+                    "Artifact type mismatch: expected " + artifactType + ", actual " + targetArtifact.getArtifactType());
+        }
+
+        NetworkWorkspaceStateEntity state = stateOrThrow(taskId);
+        Map<ArtifactType, String> refs = assembler.artifactRefs(state.getCurrentArtifactRefsJson());
+        if (refs == null) {
+            refs = new EnumMap<>(ArtifactType.class);
+        }
+        String fromArtifactId = refs.get(artifactType);
+        refs.put(artifactType, targetArtifactId);
+        state.setCurrentArtifactRefsJson(assembler.artifactRefsJson(refs));
+        updateStateVersion(state, targetArtifact);
+        state.setUpdateTime(LocalDateTime.now());
+        stateRepository.update(state);
+
+        changeRecordService.appendChange(taskId, WorkspaceChangeRecord.builder()
+                .changeId("change-" + UUID.randomUUID())
+                .taskId(taskId)
+                .stage(targetArtifact.getStage())
+                .changeType("VERSION_SWITCH")
+                .fromArtifactId(fromArtifactId)
+                .toArtifactId(targetArtifactId)
+                .reason(reason)
+                .createdBy(actor == null || actor.isBlank() ? "api" : actor)
+                .createTime(LocalDateTime.now())
+                .build());
+        eventService.appendEvent(taskId, WorkspaceEventFactory.artifactVersionSwitched(
+                targetArtifact,
+                fromArtifactId,
+                reason,
+                actor));
+        return getWorkspaceOrThrow(taskId);
+    }
+
+    @Override
+    @Transactional
     public NetworkArtifact saveStageArtifact(String taskId,
                                              ArtifactType artifactType,
                                              WorkflowStage stage,
@@ -293,6 +356,12 @@ public class MyBatisNetworkWorkspaceService implements NetworkWorkspaceService {
         }
         refs.put(artifact.getArtifactType(), artifact.getArtifactId());
         state.setCurrentArtifactRefsJson(assembler.artifactRefsJson(refs));
+        updateStateVersion(state, artifact);
+        state.setUpdateTime(LocalDateTime.now());
+        stateRepository.update(state);
+    }
+
+    private void updateStateVersion(NetworkWorkspaceStateEntity state, NetworkArtifact artifact) {
         switch (artifact.getArtifactType()) {
             case NETWORK_INTENT -> state.setCurrentIntentVersion(artifact.getVersion());
             case NETWORK_PLAN -> state.setCurrentPlanVersion(artifact.getVersion());
@@ -301,8 +370,6 @@ public class MyBatisNetworkWorkspaceService implements NetworkWorkspaceService {
             case VALIDATION_REPORT -> state.setCurrentValidationVersion(artifact.getVersion());
             case REPAIR_PLAN -> state.setCurrentRepairVersion(artifact.getVersion());
         }
-        state.setUpdateTime(LocalDateTime.now());
-        stateRepository.update(state);
     }
 
     private NetworkWorkspaceStateEntity stateOrThrow(String taskId) {

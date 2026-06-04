@@ -20,6 +20,11 @@ public class InMemoryTaskRunLockService implements TaskRunLockService {
     }
 
     @Override
+    public boolean isLocked(String taskId) {
+        return tokensByTaskId.containsKey(taskId);
+    }
+
+    @Override
     public void unlock(TaskRunLock lock) {
         if (lock != null) {
             tokensByTaskId.remove(lock.taskId(), lock.token());

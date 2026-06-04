@@ -73,6 +73,10 @@ Common variables:
 | `MACTAV_RUN_HUAWEI_KB_INGEST` | Opt-in flag for real Huawei command knowledge ingestion into Qdrant |
 | `MACTAV_QDRANT_HOST` / `MACTAV_QDRANT_PORT` / `MACTAV_QDRANT_COLLECTION` | Optional Qdrant overrides for manual Huawei knowledge ingestion |
 | `MACTAV_RUN_MININET_RYU_IT` | Opt-in flag for real Mininet/Ryu Java integration test |
+| `MACTAV_MYSQL_URL` / `MACTAV_MYSQL_USERNAME` / `MACTAV_MYSQL_PASSWORD` | Local MySQL durable state connection |
+| `MACTAV_REDIS_HOST` / `MACTAV_REDIS_PORT` / `MACTAV_REDIS_PASSWORD` / `MACTAV_REDIS_DATABASE` | Redis event/SSE/task-lock connection |
+| `MACTAV_TASK_LOCK_TYPE` | `redis` by default; use `inmemory` or `noop` only for explicit tests/local opt-in |
+| `MACTAV_EVENTS_PUBLISHER` | `redis` by default; use `noop` only for explicit tests/local opt-in |
 
 Do not commit API keys, server credentials, SSH keys, tokens, or real public
 server addresses.
@@ -122,6 +126,40 @@ Common current endpoints:
 - `POST /api/v1/workflows/{taskId}/config`
 - `POST /api/v1/executions/{taskId}/run`
 - `GET /api/v1/executions/{taskId}`
+- `GET /api/v1/workflows/jobs/{jobId}`
+- `GET /api/v1/tasks/{taskId}/jobs`
+- `GET /api/v1/events/{taskId}` (`text/event-stream`)
+- `GET /api/v1/events/{taskId}/history`
+- `POST /api/v1/artifacts/{taskId}/{artifactId}/switch`
+
+Phase 9 note: public long-running POST endpoints return `jobId` and run
+asynchronously. Use job query plus Workspace / Artifact / Event history APIs to
+observe completion and results.
+
+### 5.1 Phase 9 MySQL / Redis Manual Validation
+
+Phase 9 uses MyBatis + MySQL + manually executed SQL. Flyway and JPA/Hibernate
+are not used.
+
+1. Create local database and apply schema:
+
+   ```bash
+   mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS mac_tav DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+   mysql -u root -p mac_tav < deploy/mysql/phase9_schema.sql
+   ```
+
+2. Start Redis locally.
+3. Configure local private MySQL/Redis values through environment variables or
+   uncommitted local config.
+4. Start `mac-tav-web` manually when needed.
+5. Submit a long-running API and capture `jobId`.
+6. Query `GET /api/v1/workflows/jobs/{jobId}` and
+   `GET /api/v1/events/{taskId}/history`.
+7. Connect `GET /api/v1/events/{taskId}` for SSE summaries.
+8. Test artifact switch only with an explicit target `artifactId`.
+
+Do not write real passwords, tokens, public IPs, or API keys into committed
+files or docs.
 
 Controller boundaries:
 

@@ -126,6 +126,48 @@ class InMemoryNetworkWorkspaceServiceTest {
     }
 
     @Test
+    void switchCurrentArtifactShouldOnlyMoveCurrentPointerAndRecordAudit() {
+        ModelCoreTestFixture.Services services = ModelCoreTestFixture.services();
+        services.workspaceService().createWorkspace(task("task-switch-001"));
+        NetworkArtifact first = services.workspaceService().saveStageArtifact(
+                "task-switch-001",
+                ArtifactType.NETWORK_INTENT,
+                WorkflowStage.INTENT,
+                intent("task-switch-001", "Initial intent"),
+                "v1",
+                "IntentAgent",
+                TraceRefs.builder().build());
+        NetworkArtifact second = services.workspaceService().saveStageArtifact(
+                "task-switch-001",
+                ArtifactType.NETWORK_INTENT,
+                WorkflowStage.INTENT,
+                intent("task-switch-001", "Refined intent"),
+                "v2",
+                "IntentAgent",
+                TraceRefs.builder().build());
+        String originalPayloadJson = first.getPayloadJson();
+
+        NetworkWorkspace workspace = services.workspaceService().switchCurrentArtifact(
+                "task-switch-001",
+                ArtifactType.NETWORK_INTENT,
+                first.getArtifactId(),
+                "manual switch in test",
+                "unit-test");
+
+        assertEquals(first.getArtifactId(), workspace.getCurrentArtifactRefs().get(ArtifactType.NETWORK_INTENT));
+        assertEquals(1, workspace.getCurrentIntentVersion());
+        assertEquals(1, services.changeRecordService().listChanges("task-switch-001").size());
+        assertEquals("VERSION_SWITCH", services.changeRecordService()
+                .listChanges("task-switch-001").get(0).getChangeType());
+        assertEquals(second.getArtifactId(), services.changeRecordService()
+                .listChanges("task-switch-001").get(0).getFromArtifactId());
+        assertEquals(WorkspaceEventTypes.ARTIFACT_VERSION_SWITCHED, workspace.getEvents()
+                .get(workspace.getEvents().size() - 1).getEventType());
+        assertEquals(originalPayloadJson, services.artifactService()
+                .findByArtifactId(first.getArtifactId()).orElseThrow().getPayloadJson());
+    }
+
+    @Test
     void getWorkspaceOrThrowShouldThrowWhenMissing() {
         ModelCoreTestFixture.Services services = ModelCoreTestFixture.services();
 

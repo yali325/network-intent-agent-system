@@ -15,6 +15,7 @@ import com.yali.mactav.model.verification.ValidationReport;
 import com.yali.mactav.model.workspace.NetworkArtifact;
 import com.yali.mactav.model.workspace.NetworkWorkspace;
 import com.yali.mactav.model.workspace.TraceRefs;
+import com.yali.mactav.model.workspace.WorkspaceChangeRecord;
 import com.yali.mactav.model.workspace.WorkspaceEvent;
 import com.yali.mactav.modelcore.event.WorkspaceEventFactory;
 import com.yali.mactav.modelcore.repository.InMemoryNetworkWorkspaceRepository;
@@ -25,6 +26,7 @@ import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * In-memory NetworkWorkspaceService implementation for the current skeleton phase.
@@ -41,6 +43,8 @@ public class InMemoryNetworkWorkspaceService implements NetworkWorkspaceService 
 
     private final WorkspaceEventService eventService;
 
+    private final WorkspaceChangeRecordService changeRecordService;
+
     private final WorkspaceStateValidator workspaceStateValidator;
 
     private final ArtifactValidator artifactValidator;
@@ -49,11 +53,13 @@ public class InMemoryNetworkWorkspaceService implements NetworkWorkspaceService 
             InMemoryNetworkWorkspaceRepository workspaceRepository,
             NetworkArtifactService artifactService,
             WorkspaceEventService eventService,
+            WorkspaceChangeRecordService changeRecordService,
             WorkspaceStateValidator workspaceStateValidator,
             ArtifactValidator artifactValidator) {
         this.workspaceRepository = workspaceRepository;
         this.artifactService = artifactService;
         this.eventService = eventService;
+        this.changeRecordService = changeRecordService;
         this.workspaceStateValidator = workspaceStateValidator;
         this.artifactValidator = artifactValidator;
     }
@@ -170,6 +176,52 @@ public class InMemoryNetworkWorkspaceService implements NetworkWorkspaceService 
     public NetworkWorkspace appendWorkspaceEvent(String taskId, WorkspaceEvent event) {
         NetworkWorkspace workspace = getWorkspaceOrThrow(taskId);
         appendWorkspaceEvent(workspace, event);
+        return workspaceRepository.save(taskId, workspace);
+    }
+
+    @Override
+    public NetworkWorkspace switchCurrentArtifact(
+            String taskId,
+            ArtifactType artifactType,
+            String targetArtifactId,
+            String reason,
+            String actor) {
+        if (artifactType == null) {
+            throw new BusinessException(ErrorCode.ARTIFACT_INVALID, "artifactType must not be null");
+        }
+        NetworkWorkspace workspace = getWorkspaceOrThrow(taskId);
+        NetworkArtifact targetArtifact = artifactService.findByArtifactId(targetArtifactId)
+                .orElseThrow(() -> new BusinessException(
+                        ErrorCode.ARTIFACT_NOT_FOUND,
+                        "Artifact not found: " + targetArtifactId));
+        if (!taskId.equals(targetArtifact.getTaskId())) {
+            throw new BusinessException(ErrorCode.ARTIFACT_NOT_FOUND, "Artifact not found: " + targetArtifactId);
+        }
+        if (targetArtifact.getArtifactType() != artifactType) {
+            throw new BusinessException(
+                    ErrorCode.ARTIFACT_INVALID,
+                    "Artifact type mismatch: expected " + artifactType + ", actual " + targetArtifact.getArtifactType());
+        }
+        String fromArtifactId = ensureArtifactRefs(workspace).get(artifactType);
+        workspace.getCurrentArtifactRefs().put(artifactType, targetArtifactId);
+        updateCurrentVersion(workspace, targetArtifact);
+        workspace.getTask().setUpdateTime(LocalDateTime.now());
+        changeRecordService.appendChange(taskId, WorkspaceChangeRecord.builder()
+                .changeId("change-" + UUID.randomUUID())
+                .taskId(taskId)
+                .stage(targetArtifact.getStage())
+                .changeType("VERSION_SWITCH")
+                .fromArtifactId(fromArtifactId)
+                .toArtifactId(targetArtifactId)
+                .reason(reason)
+                .createdBy(actor == null || actor.isBlank() ? "api" : actor)
+                .createTime(LocalDateTime.now())
+                .build());
+        appendWorkspaceEvent(workspace, WorkspaceEventFactory.artifactVersionSwitched(
+                targetArtifact,
+                fromArtifactId,
+                reason,
+                actor));
         return workspaceRepository.save(taskId, workspace);
     }
 

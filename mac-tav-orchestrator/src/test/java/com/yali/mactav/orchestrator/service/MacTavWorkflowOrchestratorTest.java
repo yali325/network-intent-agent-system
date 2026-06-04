@@ -41,7 +41,8 @@ class MacTavWorkflowOrchestratorTest {
         var av = new ArtifactValidator();
         var a = new InMemoryNetworkArtifactService(new InMemoryNetworkArtifactRepository(), new NetworkArtifactFactory(new ArtifactPayloadSerializer(om)), av, vv);
         var e = new InMemoryWorkspaceEventService(new InMemoryWorkspaceEventRepository(), vv);
-        return new InMemoryNetworkWorkspaceService(rr, a, e, vv, av);
+        var ch = new InMemoryWorkspaceChangeRecordService(new InMemoryWorkspaceChangeRecordRepository(), rr, vv);
+        return new InMemoryNetworkWorkspaceService(rr, a, e, ch, vv, av);
     }
 
     private AgentExecutionRecordService recS(InMemoryNetworkWorkspaceRepository r, WorkspaceStateValidator v) {

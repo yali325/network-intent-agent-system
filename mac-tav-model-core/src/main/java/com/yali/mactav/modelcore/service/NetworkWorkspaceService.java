@@ -35,6 +35,13 @@ public interface NetworkWorkspaceService {
 
     NetworkWorkspace appendWorkspaceEvent(String taskId, WorkspaceEvent event);
 
+    NetworkWorkspace switchCurrentArtifact(
+            String taskId,
+            ArtifactType artifactType,
+            String targetArtifactId,
+            String reason,
+            String actor);
+
     NetworkArtifact saveStageArtifact(
             String taskId,
             ArtifactType artifactType,

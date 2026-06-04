@@ -19,6 +19,8 @@ import com.yali.mactav.orchestrator.job.InMemoryTaskRunLockService;
 import com.yali.mactav.orchestrator.job.NoopTaskRunLockService;
 import com.yali.mactav.orchestrator.job.RedisTaskRunLockService;
 import com.yali.mactav.orchestrator.job.TaskRunLockService;
+import com.yali.mactav.orchestrator.job.DefaultWorkflowJobRecoveryService;
+import com.yali.mactav.orchestrator.job.WorkflowJobRecoveryService;
 import com.yali.mactav.orchestrator.job.WorkflowAsyncExecutor;
 import com.yali.mactav.orchestrator.remote.card.AgentCardRegistryClient;
 import com.yali.mactav.orchestrator.remote.card.OfficialAgentCardRegistryClient;
@@ -29,6 +31,8 @@ import com.yali.mactav.orchestrator.remote.discovery.RegistryAgentDiscoveryClien
 import com.yali.mactav.orchestrator.remote.invoker.A2aResponseValidator;
 import com.yali.mactav.orchestrator.remote.invoker.RemoteAgentInvoker;
 import com.yali.mactav.orchestrator.remote.invoker.RemoteAgentTool;
+import com.yali.mactav.orchestrator.service.ArtifactVersionSwitchService;
+import com.yali.mactav.orchestrator.service.DefaultArtifactVersionSwitchService;
 import com.yali.mactav.orchestrator.service.DefaultWorkflowQueryService;
 import com.yali.mactav.orchestrator.service.DefaultWorkflowAsyncService;
 import com.yali.mactav.orchestrator.service.MacTavWorkflowOrchestrator;
@@ -158,6 +162,14 @@ public class OrchestratorConfiguration {
     }
 
     @Bean
+    @ConditionalOnMissingBean
+    public ArtifactVersionSwitchService artifactVersionSwitchService(
+            NetworkWorkspaceService workspaceService,
+            NetworkArtifactService artifactService) {
+        return new DefaultArtifactVersionSwitchService(workspaceService, artifactService);
+    }
+
+    @Bean
     @ConditionalOnMissingBean(name = "workflowTaskExecutor")
     public Executor workflowTaskExecutor(
             @Value("${mactav.async.core-pool-size:4}") int corePoolSize,
@@ -217,5 +229,15 @@ public class OrchestratorConfiguration {
                                                      TaskRunLockService lockService,
                                                      WorkflowAsyncExecutor asyncExecutor) {
         return new DefaultWorkflowAsyncService(workflowQueryService, workflowJobService, lockService, asyncExecutor);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(name = "mactav.async.recovery.enabled", havingValue = "true", matchIfMissing = true)
+    public WorkflowJobRecoveryService workflowJobRecoveryService(
+            WorkflowJobService workflowJobService,
+            TaskRunLockService lockService,
+            WorkspaceEventService eventService) {
+        return new DefaultWorkflowJobRecoveryService(workflowJobService, lockService, eventService);
     }
 }

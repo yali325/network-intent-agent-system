@@ -8,13 +8,18 @@ import com.yali.mactav.model.enums.ArtifactType;
 import com.yali.mactav.model.enums.WorkflowStage;
 import com.yali.mactav.model.workspace.NetworkArtifact;
 import com.yali.mactav.modelcore.query.ArtifactQuery;
+import com.yali.mactav.orchestrator.service.ArtifactVersionSwitchResult;
+import com.yali.mactav.orchestrator.service.ArtifactVersionSwitchService;
 import com.yali.mactav.orchestrator.service.WorkflowQueryService;
+import com.yali.mactav.web.dto.ArtifactSwitchRequest;
 import com.yali.mactav.web.vo.ArtifactDiffResponse;
 import com.yali.mactav.web.vo.ArtifactPayloadResponse;
 import com.yali.mactav.web.vo.ArtifactSummaryResponse;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -27,9 +32,13 @@ import org.springframework.web.bind.annotation.RestController;
 public class ArtifactController {
 
     private final WorkflowQueryService workflowQueryService;
+    private final ArtifactVersionSwitchService artifactVersionSwitchService;
 
-    public ArtifactController(WorkflowQueryService workflowQueryService) {
+    public ArtifactController(
+            WorkflowQueryService workflowQueryService,
+            ArtifactVersionSwitchService artifactVersionSwitchService) {
         this.workflowQueryService = workflowQueryService;
+        this.artifactVersionSwitchService = artifactVersionSwitchService;
     }
 
     @GetMapping("/{taskId}")
@@ -82,6 +91,22 @@ public class ArtifactController {
             @RequestParam(required = false) Integer toVersion) {
         return ApiResponse.success(ArtifactDiffResponse.from(
                 workflowQueryService.diffArtifactVersions(taskId, artifactId, fromVersion, toVersion)));
+    }
+
+    @PostMapping("/{taskId}/{artifactId}/switch")
+    public ApiResponse<ArtifactVersionSwitchResult> switchCurrentArtifact(
+            @PathVariable String taskId,
+            @PathVariable String artifactId,
+            @RequestBody ArtifactSwitchRequest request) {
+        if (request == null) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, "request body is required");
+        }
+        return ApiResponse.success(artifactVersionSwitchService.switchCurrentArtifact(
+                taskId,
+                parseRequiredArtifactType(request.getArtifactType()),
+                artifactId,
+                request.getReason(),
+                request.getActor()));
     }
 
     private PageResult<ArtifactSummaryResponse> toSummaryPage(PageResult<NetworkArtifact> result) {

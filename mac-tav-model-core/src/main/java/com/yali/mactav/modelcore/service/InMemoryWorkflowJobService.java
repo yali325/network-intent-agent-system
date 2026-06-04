@@ -58,6 +58,16 @@ public class InMemoryWorkflowJobService implements WorkflowJobService {
     }
 
     @Override
+    public WorkflowJob markInterrupted(String jobId, String errorCode, String errorMessage) {
+        return mutate(jobId, job -> {
+            job.setJobStatus(WorkflowJobStatus.INTERRUPTED);
+            job.setErrorCode(errorCode);
+            job.setErrorMessage(errorMessage);
+            job.setFinishTime(LocalDateTime.now());
+        });
+    }
+
+    @Override
     public Optional<WorkflowJob> findByJobId(String jobId) {
         return Optional.ofNullable(jobs.get(jobId)).map(this::copy);
     }

@@ -9,14 +9,19 @@ import com.yali.mactav.common.exception.BusinessException;
 import com.yali.mactav.common.result.PageResult;
 import com.yali.mactav.model.enums.ArtifactType;
 import com.yali.mactav.model.enums.WorkflowStage;
+import com.yali.mactav.model.workflow.job.WorkflowJob;
 import com.yali.mactav.model.workflow.job.WorkflowJobStatus;
+import com.yali.mactav.model.workflow.job.WorkflowJobType;
 import com.yali.mactav.model.workspace.NetworkArtifact;
 import com.yali.mactav.model.workspace.WorkspaceChangeRecord;
 import com.yali.mactav.model.workspace.WorkspaceEvent;
+import com.yali.mactav.modelcore.event.WorkspaceEventTypes;
 import com.yali.mactav.modelcore.query.ArtifactQuery;
 import com.yali.mactav.modelcore.query.WorkspaceChangeQuery;
 import com.yali.mactav.modelcore.query.WorkspaceEventQuery;
 import com.yali.mactav.modelcore.service.InMemoryWorkflowJobService;
+import com.yali.mactav.modelcore.service.WorkspaceEventService;
+import com.yali.mactav.orchestrator.job.DefaultWorkflowJobRecoveryService;
 import com.yali.mactav.orchestrator.job.InMemoryTaskRunLockService;
 import com.yali.mactav.orchestrator.job.TaskRunLock;
 import com.yali.mactav.orchestrator.job.WorkflowAsyncExecutor;
@@ -49,6 +54,30 @@ class DefaultWorkflowAsyncServiceTest {
                 BusinessException.class,
                 () -> service.submitWorkflowStart("task-async-test", "unit-test"));
         assertEquals(ErrorCode.TASK_ALREADY_RUNNING.getErrorCode(), exception.getErrorCode());
+    }
+
+    @Test
+    void recoveryShouldInterruptActiveJobWhenTaskLockIsMissing() {
+        InMemoryWorkflowJobService jobService = new InMemoryWorkflowJobService();
+        TestWorkspaceEventService eventService = new TestWorkspaceEventService();
+        jobService.createPending(WorkflowJob.builder()
+                .jobId("job-recovery-test")
+                .taskId("task-recovery-test")
+                .jobType(WorkflowJobType.FULL_WORKFLOW)
+                .requestedStage(WorkflowStage.INTENT)
+                .requestedBy("unit-test")
+                .build());
+        DefaultWorkflowJobRecoveryService recoveryService = new DefaultWorkflowJobRecoveryService(
+                jobService,
+                new InMemoryTaskRunLockService(),
+                eventService);
+
+        int recovered = recoveryService.recoverInterruptedJobs();
+
+        assertEquals(1, recovered);
+        assertEquals(WorkflowJobStatus.INTERRUPTED, jobService.findByJobId("job-recovery-test")
+                .orElseThrow().getJobStatus());
+        assertEquals(WorkspaceEventTypes.WORKFLOW_INTERRUPTED, eventService.events.get(0).getEventType());
     }
 
     /**
@@ -123,6 +152,35 @@ class DefaultWorkflowAsyncServiceTest {
 
         private <T> PageResult<T> emptyPage(int page, int size) {
             return PageResult.<T>builder().items(List.of()).page(page).size(size).total(0).build();
+        }
+    }
+
+    /**
+     * Event service fixture that records recovery events without durable storage.
+     */
+    private static class TestWorkspaceEventService implements WorkspaceEventService {
+
+        private final List<WorkspaceEvent> events = new java.util.ArrayList<>();
+
+        @Override
+        public WorkspaceEvent appendEvent(String taskId, WorkspaceEvent event) {
+            events.add(event);
+            return event;
+        }
+
+        @Override
+        public List<WorkspaceEvent> listEvents(String taskId) {
+            return events;
+        }
+
+        @Override
+        public PageResult<WorkspaceEvent> listEvents(String taskId, WorkspaceEventQuery query) {
+            return PageResult.<WorkspaceEvent>builder()
+                    .items(events)
+                    .page(query.page())
+                    .size(query.size())
+                    .total(events.size())
+                    .build();
         }
     }
 }

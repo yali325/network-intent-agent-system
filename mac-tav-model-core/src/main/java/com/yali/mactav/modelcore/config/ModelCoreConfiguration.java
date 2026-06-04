@@ -323,12 +323,14 @@ public class ModelCoreConfiguration {
                 InMemoryNetworkWorkspaceRepository workspaceRepository,
                 NetworkArtifactService artifactService,
                 WorkspaceEventService eventService,
+                WorkspaceChangeRecordService changeRecordService,
                 WorkspaceStateValidator workspaceStateValidator,
                 ArtifactValidator artifactValidator) {
             return new InMemoryNetworkWorkspaceService(
                     workspaceRepository,
                     artifactService,
                     eventService,
+                    changeRecordService,
                     workspaceStateValidator,
                     artifactValidator);
         }

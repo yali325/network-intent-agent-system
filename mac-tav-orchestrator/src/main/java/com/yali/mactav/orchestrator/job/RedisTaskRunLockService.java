@@ -33,6 +33,11 @@ public class RedisTaskRunLockService implements TaskRunLockService {
     }
 
     @Override
+    public boolean isLocked(String taskId) {
+        return Boolean.TRUE.equals(redisTemplate.hasKey(PREFIX + taskId));
+    }
+
+    @Override
     public void unlock(TaskRunLock lock) {
         if (lock == null) {
             return;

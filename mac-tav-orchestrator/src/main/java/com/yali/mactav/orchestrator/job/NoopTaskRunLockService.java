@@ -13,6 +13,11 @@ public class NoopTaskRunLockService implements TaskRunLockService {
     }
 
     @Override
+    public boolean isLocked(String taskId) {
+        return false;
+    }
+
+    @Override
     public void unlock(TaskRunLock lock) {
         // Explicit no-op for mactav.task-lock.type=noop only.
     }

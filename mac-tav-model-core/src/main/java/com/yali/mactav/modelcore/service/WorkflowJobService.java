@@ -17,6 +17,8 @@ public interface WorkflowJobService {
 
     WorkflowJob markFailed(String jobId, String errorCode, String errorMessage);
 
+    WorkflowJob markInterrupted(String jobId, String errorCode, String errorMessage);
+
     Optional<WorkflowJob> findByJobId(String jobId);
 
     List<WorkflowJob> listByTaskId(String taskId);

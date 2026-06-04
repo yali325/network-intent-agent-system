@@ -128,28 +128,28 @@ DELETE /api/v1/tasks/{taskId}
 ```text
 POST /api/v1/workflows/{taskId}/start
 ```
-从 `Intent` 阶段开始推进。Controller 委托 Orchestrator。Orchestrator 通过 `A2aRemoteAgent / AgentCardProvider`（官方 SAA A2A starter）调用远程专业 Agent。
+从 `Intent` 阶段开始推进。Phase 9 后该接口提交异步 `WorkflowJob` 并返回 `jobId`，不再同步返回阶段产物。Controller 委托 Orchestrator / 异步提交服务。Orchestrator 通过 `A2aRemoteAgent / AgentCardProvider`（官方 SAA A2A starter）调用远程专业 Agent。
 
 ### 4.2 继续流程
 
 ```text
 POST /api/v1/workflows/{taskId}/continue
 ```
-从 `WAITING_USER` 恢复推进。
+从 `WAITING_USER` 恢复推进。Phase 9 后公共长任务入口返回异步 `jobId`。
 
 ### 4.3 重跑阶段
 
 ```text
 POST /api/v1/workflows/{taskId}/rerun/{stage}
 ```
-重跑指定阶段，生成新版本 Artifact，记录 `WorkspaceChangeRecord`。
+提交异步重跑 job。实际阶段执行仍复用 Orchestrator 同步阶段方法，生成新版本 Artifact 并记录历史。
 
 ### 4.4 从指定阶段继续
 
 ```text
 POST /api/v1/workflows/{taskId}/continue-from/{stage}
 ```
-从指定阶段重新推进（如 Healing 后重新进入 Planning）。
+提交异步 job，从指定阶段重新推进（如 Healing 后重新进入 Planning）。
 
 ---
 
@@ -189,6 +189,19 @@ GET /api/v1/workspaces/{taskId}/changes
 | `GET` | `/api/v1/artifacts/{taskId}/current/{artifactType}` | 查询当前阶段最新 Artifact |
 | `GET` | `/api/v1/artifacts/{taskId}/{artifactId}/versions` | 查询版本列表 |
 | `GET` | `/api/v1/artifacts/{taskId}/{artifactId}/diff` | 对比两个版本（`?fromVersion=&toVersion=`） |
+| `POST` | `/api/v1/artifacts/{taskId}/{artifactId}/switch` | 将指定 Artifact 切为当前版本，仅更新 Workspace 指针并记录变更/事件 |
+
+Artifact switch 请求：
+
+```json
+{
+  "artifactType": "CONFIG_SET",
+  "reason": "manual switch to known good artifact",
+  "actor": "operator"
+}
+```
+
+该接口不执行真实网络回滚，不调用 `ExecutionAdapter`，不执行 shell，不修改 artifact payload。
 
 ---
 
@@ -196,7 +209,7 @@ GET /api/v1/workspaces/{taskId}/changes
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
-| `POST` | `/api/v1/executions/{taskId}/run` | 触发执行阶段（Controller 委托 Orchestrator） |
+| `POST` | `/api/v1/executions/{taskId}/run` | 提交异步执行阶段 job，返回 `jobId` |
 | `GET` | `/api/v1/executions/{taskId}` | 查询当前 `ExecutionReport` |
 | `GET` | `/api/v1/executions/{taskId}/logs` | 分页查询执行日志（脱敏） |
 
@@ -206,7 +219,7 @@ GET /api/v1/workspaces/{taskId}/changes
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
-| `POST` | `/api/v1/validations/{taskId}/run` | 触发验证阶段（使用当前意图、规划、配置、执行报告） |
+| `POST` | `/api/v1/validations/{taskId}/run` | 提交异步验证阶段 job，返回 `jobId` |
 | `GET` | `/api/v1/validations/{taskId}` | 查询当前 `ValidationReport` |
 | `GET` | `/api/v1/validations/{taskId}/items` | 查询验证项列表（支持 `status`、`severity`、`traceRef` 过滤） |
 
@@ -224,7 +237,8 @@ POST /api/v1/repairs/{taskId}/analyze
 
 说明：
 - 由 Orchestrator 从当前 Workspace 读取 `ValidationReport` 和失败上下文，不要求前端提交完整 Workspace。
-- 输出 `RepairPlan`，不直接执行修复动作。
+- Phase 9 后提交异步 repair analyze job，返回 `jobId`；job 完成后通过查询接口读取 `RepairPlan`。
+- 不直接执行修复动作。
 - Controller 委托 Orchestrator，Orchestrator 通过 `A2aRemoteAgent / AgentCardProvider` 调用 HealingAgent。
 
 ### 9.2 查询修复计划
@@ -248,7 +262,9 @@ POST /api/v1/repairs/{taskId}/actions/{actionId}/reject
 POST /api/v1/repairs/{taskId}/actions/{actionId}/apply
 ```
 
-由 Orchestrator 根据 `RepairAction.targetStage` 决定重新规划/配置/执行/验证。高风险动作必须要求人工确认。必须记录审计日志和 Workspace 变更。
+Phase 9 后提交异步 repair apply job，返回 `jobId`。内部仍由 Orchestrator 根据 `RepairAction.targetStage` 决定重新规划/配置/执行/验证。高风险动作必须要求人工确认。必须记录审计日志和 Workspace 变更。
+
+`RepairActionType.ROLLBACK` 当前没有明确目标 artifact id 时继续拒绝，不根据自然语言猜测；需要用户调用明确的 Artifact switch API。
 
 ---
 
@@ -273,7 +289,7 @@ GET /api/v1/events/{taskId}
 Content-Type: text/event-stream
 ```
 
-事件类型：`task.created`、`workflow.started`、`stage.started`、`stage.completed`、`stage.failed`、`artifact.generated`、`execution.completed`、`validation.completed`、`repair.proposed`、`repair.approved`、`repair.applied`。
+事件类型：`task.created`、`workflow.started`、`workflow.completed`、`workflow.failed`、`workflow.interrupted`、`stage.started`、`artifact.generated`、`stage.completed`、`stage.failed`、`execution.completed`、`validation.completed`、`repair.proposed`、`repair.approved`、`repair.rejected`、`repair.applied`、`artifact.version_switched`。
 
 SSE 只推送进度和摘要，不推送 API Key、完整模型请求、异常堆栈或内部 A2A 调用细节。前端断线后通过 Workspace API 或 Event history 恢复。
 

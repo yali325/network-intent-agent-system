@@ -5,10 +5,10 @@
 Phase 9 hardens MAC-TAV from an in-memory/offline workflow into a durable,
 long-running service path.
 
-This P0-P3 pass only records the technical decision, dependency boundary,
-runtime configuration keys, and the first manual MySQL schema file. It does not
-add Java entity, mapper, repository, assembler, service implementation,
-controller, SSE, async executor, workflow job model, or Redis business code.
+Phase 9 is now complete through P16. The initial P0-P3 pass recorded decisions
+and schema setup; later passes added durable MyBatis services, APIs, Redis
+events, SSE, async workflow jobs, artifact version switching, and startup job
+recovery.
 
 ## Technical Decisions
 
@@ -85,7 +85,7 @@ MACTAV_REDIS_DATABASE=0
 Existing Nacos/A2A and model API key rules remain unchanged. Do not commit real
 database passwords, Redis passwords, model API keys, or service credentials.
 
-## P4-P6 Implementation Status
+## P4-P16 Implementation Status
 
 P4-P6 now add the first MyBatis persistence implementation in
 `mac-tav-model-core`:
@@ -99,16 +99,19 @@ P4-P6 now add the first MyBatis persistence implementation in
   `uk_artifact_task_type_version` as the final concurrency guard.
 - `getWorkspace` / `findWorkspace` rebuild current workspace DTOs from
   `network_task`, `network_workspace_state`, and current artifact payload JSON.
-- `workflow_job` has only entity / mapper / repository CRUD; no async job
-  service, executor, lock service, domain model, or job enums are added.
+- `workflow_job` now has durable service support and shared job DTO/enums.
+- Artifact version switching updates only workspace current pointers and records
+  `VERSION_SWITCH` plus `artifact.version_switched`.
+- Artifact APIs, workspace timeline/changes, event history, Redis-backed event
+  publishing, Web SSE, async job submission, Redis token task locks, and startup
+  recovery are implemented.
 
-## P7+ TODO
+## Known TODO After Phase 9
 
-- Add Artifact API/history implementation if needed by the UI path.
-- Add async workflow job execution and `jobId` API responses.
-- Add Redis-backed SSE publishing/subscription and event history recovery.
-- Add visible startup/runtime failure behavior for missing required MySQL or
-  Redis in durable profiles.
+- Manually validate real MySQL + Redis runtime.
+- Manually validate real A2A / Nacos / DashScope full-chain Agent calls.
+- Add Redis task-lock renewal for very long jobs.
+- Add UI/operator flows for interrupted jobs and artifact version switching.
 
 ## Known Mismatch
 
