@@ -30,5 +30,15 @@ public interface NetworkArtifactMapper {
     List<NetworkArtifactEntity> listByTaskIdAndType(@Param("taskId") String taskId,
                                                     @Param("artifactType") String artifactType);
 
+    List<NetworkArtifactEntity> listByQuery(@Param("taskId") String taskId,
+                                            @Param("artifactType") String artifactType,
+                                            @Param("stage") String stage,
+                                            @Param("limit") int limit,
+                                            @Param("offset") int offset);
+
+    long countByQuery(@Param("taskId") String taskId,
+                      @Param("artifactType") String artifactType,
+                      @Param("stage") String stage);
+
     Integer findMaxVersion(@Param("taskId") String taskId, @Param("artifactType") String artifactType);
 }

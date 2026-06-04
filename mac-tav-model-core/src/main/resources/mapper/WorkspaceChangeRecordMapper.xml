@@ -18,4 +18,43 @@
     WHERE task_id = #{taskId}
     ORDER BY create_time ASC
   </select>
+
+  <select id="listByQuery" resultType="com.yali.mactav.modelcore.entity.WorkspaceChangeRecordEntity">
+    SELECT change_id, task_id, stage, change_type, from_artifact_id, to_artifact_id,
+           reason, created_by, create_time
+    FROM workspace_change_record
+    WHERE task_id = #{taskId}
+    <if test="stage != null">
+      AND stage = #{stage}
+    </if>
+    <if test="changeType != null and changeType != ''">
+      AND change_type = #{changeType}
+    </if>
+    <if test="from != null">
+      AND create_time &gt;= #{from}
+    </if>
+    <if test="to != null">
+      AND create_time &lt;= #{to}
+    </if>
+    ORDER BY create_time ASC
+    LIMIT #{limit} OFFSET #{offset}
+  </select>
+
+  <select id="countByQuery" resultType="long">
+    SELECT COUNT(*)
+    FROM workspace_change_record
+    WHERE task_id = #{taskId}
+    <if test="stage != null">
+      AND stage = #{stage}
+    </if>
+    <if test="changeType != null and changeType != ''">
+      AND change_type = #{changeType}
+    </if>
+    <if test="from != null">
+      AND create_time &gt;= #{from}
+    </if>
+    <if test="to != null">
+      AND create_time &lt;= #{to}
+    </if>
+  </select>
 </mapper>

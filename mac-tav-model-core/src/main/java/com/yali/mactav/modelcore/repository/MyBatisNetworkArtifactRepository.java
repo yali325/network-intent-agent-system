@@ -1,6 +1,7 @@
 package com.yali.mactav.modelcore.repository;
 
 import com.yali.mactav.model.enums.ArtifactType;
+import com.yali.mactav.model.enums.WorkflowStage;
 import com.yali.mactav.modelcore.entity.NetworkArtifactEntity;
 import com.yali.mactav.modelcore.mapper.NetworkArtifactMapper;
 import java.util.List;
@@ -47,6 +48,26 @@ public class MyBatisNetworkArtifactRepository {
 
     public List<NetworkArtifactEntity> listByTaskIdAndType(String taskId, ArtifactType artifactType) {
         return mapper.listByTaskIdAndType(taskId, artifactType.name());
+    }
+
+    public List<NetworkArtifactEntity> listByQuery(String taskId,
+                                                   ArtifactType artifactType,
+                                                   WorkflowStage stage,
+                                                   int limit,
+                                                   int offset) {
+        return mapper.listByQuery(
+                taskId,
+                artifactType == null ? null : artifactType.name(),
+                stage == null ? null : stage.name(),
+                limit,
+                offset);
+    }
+
+    public long countByQuery(String taskId, ArtifactType artifactType, WorkflowStage stage) {
+        return mapper.countByQuery(
+                taskId,
+                artifactType == null ? null : artifactType.name(),
+                stage == null ? null : stage.name());
     }
 
     public int nextVersion(String taskId, ArtifactType artifactType) {

@@ -19,6 +19,7 @@ import com.yali.mactav.model.workspace.NetworkArtifact;
 import com.yali.mactav.model.workspace.NetworkWorkspace;
 import com.yali.mactav.model.workspace.TraceRefs;
 import com.yali.mactav.modelcore.ModelCoreTestFixture;
+import com.yali.mactav.modelcore.event.WorkspaceEventTypes;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -34,7 +35,7 @@ class InMemoryNetworkWorkspaceServiceTest {
         assertEquals(TaskStatus.CREATED, workspace.getWorkspaceStatus());
         assertEquals(WorkflowStage.INTENT, workspace.getTask().getCurrentStage());
         assertEquals(1, workspace.getEvents().size());
-        assertEquals("workspace.created", workspace.getEvents().get(0).getEventType());
+        assertEquals(WorkspaceEventTypes.TASK_CREATED, workspace.getEvents().get(0).getEventType());
     }
 
     @Test
@@ -57,7 +58,7 @@ class InMemoryNetworkWorkspaceServiceTest {
         assertEquals(1, workspace.getCurrentIntentVersion());
         assertSame(intent, workspace.getCurrentIntent());
         assertEquals(2, workspace.getEvents().size());
-        assertEquals("artifact.generated", workspace.getEvents().get(1).getEventType());
+        assertEquals(WorkspaceEventTypes.ARTIFACT_GENERATED, workspace.getEvents().get(1).getEventType());
     }
 
     @Test
@@ -87,8 +88,8 @@ class InMemoryNetworkWorkspaceServiceTest {
         assertEquals(1, workspace.getCurrentRepairVersion());
         assertSame(repairPlan, workspace.getCurrentRepairPlan());
         assertEquals(3, workspace.getEvents().size());
-        assertEquals("artifact.generated", workspace.getEvents().get(1).getEventType());
-        assertEquals("repair.proposed", workspace.getEvents().get(2).getEventType());
+        assertEquals(WorkspaceEventTypes.ARTIFACT_GENERATED, workspace.getEvents().get(1).getEventType());
+        assertEquals(WorkspaceEventTypes.REPAIR_PROPOSED, workspace.getEvents().get(2).getEventType());
     }
 
     @Test

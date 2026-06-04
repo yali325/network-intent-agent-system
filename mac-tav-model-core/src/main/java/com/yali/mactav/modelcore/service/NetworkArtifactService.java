@@ -4,6 +4,8 @@ import com.yali.mactav.model.enums.ArtifactType;
 import com.yali.mactav.model.enums.WorkflowStage;
 import com.yali.mactav.model.workspace.NetworkArtifact;
 import com.yali.mactav.model.workspace.TraceRefs;
+import com.yali.mactav.common.result.PageResult;
+import com.yali.mactav.modelcore.query.ArtifactQuery;
 import java.util.List;
 import java.util.Optional;
 
@@ -29,9 +31,13 @@ public interface NetworkArtifactService {
 
     Optional<NetworkArtifact> findByArtifactId(String artifactId);
 
+    Optional<NetworkArtifact> findByTaskIdTypeVersion(String taskId, ArtifactType artifactType, Integer version);
+
     List<NetworkArtifact> listByTaskId(String taskId);
 
     List<NetworkArtifact> listByTaskIdAndType(String taskId, ArtifactType artifactType);
+
+    PageResult<NetworkArtifact> listArtifacts(String taskId, ArtifactQuery query);
 
     int nextVersion(String taskId, ArtifactType artifactType);
 }

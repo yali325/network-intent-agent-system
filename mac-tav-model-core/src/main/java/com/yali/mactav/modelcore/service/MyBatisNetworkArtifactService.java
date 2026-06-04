@@ -1,11 +1,14 @@
 package com.yali.mactav.modelcore.service;
 
+import com.yali.mactav.common.result.PageResult;
 import com.yali.mactav.model.enums.ArtifactType;
 import com.yali.mactav.model.enums.WorkflowStage;
 import com.yali.mactav.model.workspace.NetworkArtifact;
 import com.yali.mactav.model.workspace.TraceRefs;
 import com.yali.mactav.modelcore.artifact.NetworkArtifactFactory;
 import com.yali.mactav.modelcore.assembler.MyBatisModelCoreAssembler;
+import com.yali.mactav.modelcore.query.ArtifactQuery;
+import com.yali.mactav.modelcore.query.QueryPageSupport;
 import com.yali.mactav.modelcore.repository.MyBatisNetworkArtifactRepository;
 import com.yali.mactav.modelcore.validator.ArtifactValidator;
 import com.yali.mactav.modelcore.validator.WorkspaceStateValidator;
@@ -74,6 +77,17 @@ public class MyBatisNetworkArtifactService implements NetworkArtifactService {
     }
 
     @Override
+    public Optional<NetworkArtifact> findByTaskIdTypeVersion(String taskId,
+                                                            ArtifactType artifactType,
+                                                            Integer version) {
+        workspaceStateValidator.validateTaskId(taskId);
+        if (artifactType == null || version == null) {
+            return Optional.empty();
+        }
+        return repository.findByTaskIdTypeVersion(taskId, artifactType, version).map(assembler::toArtifact);
+    }
+
+    @Override
     public List<NetworkArtifact> listByTaskId(String taskId) {
         workspaceStateValidator.validateTaskId(taskId);
         return repository.listByTaskId(taskId).stream().map(assembler::toArtifact).toList();
@@ -83,6 +97,30 @@ public class MyBatisNetworkArtifactService implements NetworkArtifactService {
     public List<NetworkArtifact> listByTaskIdAndType(String taskId, ArtifactType artifactType) {
         workspaceStateValidator.validateTaskId(taskId);
         return repository.listByTaskIdAndType(taskId, artifactType).stream().map(assembler::toArtifact).toList();
+    }
+
+    @Override
+    public PageResult<NetworkArtifact> listArtifacts(String taskId, ArtifactQuery query) {
+        workspaceStateValidator.validateTaskId(taskId);
+        ArtifactQuery normalized = query == null ? new ArtifactQuery(null, null, 1, 20) : query;
+        int page = QueryPageSupport.page(normalized.page());
+        int size = QueryPageSupport.size(normalized.size());
+        List<NetworkArtifact> items = repository.listByQuery(
+                        taskId,
+                        normalized.artifactType(),
+                        normalized.stage(),
+                        size,
+                        QueryPageSupport.offset(page, size))
+                .stream()
+                .map(assembler::toArtifact)
+                .toList();
+        long total = repository.countByQuery(taskId, normalized.artifactType(), normalized.stage());
+        return PageResult.<NetworkArtifact>builder()
+                .items(items)
+                .page(page)
+                .size(size)
+                .total(total)
+                .build();
     }
 
     @Override

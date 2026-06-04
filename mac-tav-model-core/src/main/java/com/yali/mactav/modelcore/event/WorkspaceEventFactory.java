@@ -22,7 +22,7 @@ public final class WorkspaceEventFactory {
 
     public static WorkspaceEvent workspaceCreated(NetworkWorkspace workspace) {
         String taskId = workspace.getTask().getTaskId();
-        return base(taskId, "workspace.created", workspace.getTask().getCurrentStage())
+        return base(taskId, WorkspaceEventTypes.TASK_CREATED, workspace.getTask().getCurrentStage())
                 .title("Workspace created")
                 .message("Workspace created for task " + taskId)
                 .payloadSummary(workspace.getTask().getDescription())
@@ -30,7 +30,7 @@ public final class WorkspaceEventFactory {
     }
 
     public static WorkspaceEvent stageChanged(String taskId, WorkflowStage stage) {
-        return base(taskId, "stage.changed", stage)
+        return base(taskId, WorkspaceEventTypes.STAGE_STARTED, stage)
                 .title("Stage changed")
                 .message("Task stage changed to " + stage)
                 .payloadSummary(stage == null ? null : stage.name())
@@ -38,7 +38,10 @@ public final class WorkspaceEventFactory {
     }
 
     public static WorkspaceEvent taskStatusChanged(String taskId, WorkflowStage stage, TaskStatus status) {
-        return base(taskId, "task.status.changed", stage)
+        String eventType = status == TaskStatus.COMPLETED
+                ? WorkspaceEventTypes.WORKFLOW_COMPLETED
+                : WorkspaceEventTypes.WORKFLOW_INTERRUPTED;
+        return base(taskId, eventType, stage)
                 .title("Task status changed")
                 .message("Task status changed to " + status)
                 .payloadSummary(status == null ? null : status.name())
@@ -46,7 +49,7 @@ public final class WorkspaceEventFactory {
     }
 
     public static WorkspaceEvent artifactGenerated(NetworkArtifact artifact) {
-        return base(artifact.getTaskId(), "artifact.generated", artifact.getStage())
+        return base(artifact.getTaskId(), WorkspaceEventTypes.ARTIFACT_GENERATED, artifact.getStage())
                 .title("Artifact generated")
                 .message("Generated " + artifact.getArtifactType() + " v" + artifact.getVersion())
                 .relatedArtifactId(artifact.getArtifactId())
@@ -55,7 +58,7 @@ public final class WorkspaceEventFactory {
     }
 
     public static WorkspaceEvent repairProposed(NetworkArtifact artifact) {
-        return base(artifact.getTaskId(), "repair.proposed", artifact.getStage())
+        return base(artifact.getTaskId(), WorkspaceEventTypes.REPAIR_PROPOSED, artifact.getStage())
                 .title("Repair proposed")
                 .message("Repair plan proposed from " + artifact.getArtifactType() + " v" + artifact.getVersion())
                 .relatedArtifactId(artifact.getArtifactId())
@@ -64,15 +67,15 @@ public final class WorkspaceEventFactory {
     }
 
     public static WorkspaceEvent repairApproved(String taskId, RepairAction action, String comment) {
-        return repairActionEvent(taskId, "repair.approved", "Repair approved", action, comment);
+        return repairActionEvent(taskId, WorkspaceEventTypes.REPAIR_APPROVED, "Repair approved", action, comment);
     }
 
     public static WorkspaceEvent repairRejected(String taskId, RepairAction action, String comment) {
-        return repairActionEvent(taskId, "repair.rejected", "Repair rejected", action, comment);
+        return repairActionEvent(taskId, WorkspaceEventTypes.REPAIR_REJECTED, "Repair rejected", action, comment);
     }
 
     public static WorkspaceEvent repairApplied(String taskId, RepairAction action, String comment) {
-        return repairActionEvent(taskId, "repair.applied", "Repair applied", action, comment);
+        return repairActionEvent(taskId, WorkspaceEventTypes.REPAIR_APPLIED, "Repair applied", action, comment);
     }
 
     public static WorkspaceEvent repairWaitingUser(String taskId, RepairAction action, String comment) {

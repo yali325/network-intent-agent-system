@@ -1,6 +1,8 @@
 package com.yali.mactav.modelcore.service;
 
+import com.yali.mactav.common.result.PageResult;
 import com.yali.mactav.model.workspace.WorkspaceEvent;
+import com.yali.mactav.modelcore.query.WorkspaceEventQuery;
 import java.util.List;
 
 /**
@@ -14,4 +16,6 @@ public interface WorkspaceEventService {
     WorkspaceEvent appendEvent(String taskId, WorkspaceEvent event);
 
     List<WorkspaceEvent> listEvents(String taskId);
+
+    PageResult<WorkspaceEvent> listEvents(String taskId, WorkspaceEventQuery query);
 }

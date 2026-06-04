@@ -14,4 +14,18 @@ public interface WorkspaceEventMapper {
     int insert(WorkspaceEventEntity entity);
 
     List<WorkspaceEventEntity> listByTaskId(@Param("taskId") String taskId);
+
+    List<WorkspaceEventEntity> listByQuery(@Param("taskId") String taskId,
+                                           @Param("stage") String stage,
+                                           @Param("eventType") String eventType,
+                                           @Param("from") java.time.LocalDateTime from,
+                                           @Param("to") java.time.LocalDateTime to,
+                                           @Param("limit") int limit,
+                                           @Param("offset") int offset);
+
+    long countByQuery(@Param("taskId") String taskId,
+                      @Param("stage") String stage,
+                      @Param("eventType") String eventType,
+                      @Param("from") java.time.LocalDateTime from,
+                      @Param("to") java.time.LocalDateTime to);
 }

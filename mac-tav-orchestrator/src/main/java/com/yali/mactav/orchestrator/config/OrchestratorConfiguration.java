@@ -10,8 +10,10 @@ import com.yali.mactav.execution.registry.ExecutionAdapterRegistryFactory;
 import com.yali.mactav.execution.service.DefaultExecutionService;
 import com.yali.mactav.execution.service.ExecutionService;
 import com.yali.mactav.modelcore.service.AgentExecutionRecordService;
+import com.yali.mactav.modelcore.service.NetworkArtifactService;
 import com.yali.mactav.modelcore.service.NetworkWorkspaceService;
 import com.yali.mactav.modelcore.service.WorkspaceChangeRecordService;
+import com.yali.mactav.modelcore.service.WorkspaceEventService;
 import com.yali.mactav.orchestrator.remote.card.AgentCardRegistryClient;
 import com.yali.mactav.orchestrator.remote.card.OfficialAgentCardRegistryClient;
 import com.yali.mactav.orchestrator.remote.client.A2aClient;
@@ -21,7 +23,9 @@ import com.yali.mactav.orchestrator.remote.discovery.RegistryAgentDiscoveryClien
 import com.yali.mactav.orchestrator.remote.invoker.A2aResponseValidator;
 import com.yali.mactav.orchestrator.remote.invoker.RemoteAgentInvoker;
 import com.yali.mactav.orchestrator.remote.invoker.RemoteAgentTool;
+import com.yali.mactav.orchestrator.service.DefaultWorkflowQueryService;
 import com.yali.mactav.orchestrator.service.MacTavWorkflowOrchestrator;
+import com.yali.mactav.orchestrator.service.WorkflowQueryService;
 import com.yali.mactav.orchestrator.service.WorkflowOrchestrator;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -122,5 +126,18 @@ public class OrchestratorConfiguration {
                 objectMapper,
                 executionService,
                 executionProperties);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public WorkflowQueryService workflowQueryService(NetworkWorkspaceService workspaceService,
+                                                     NetworkArtifactService artifactService,
+                                                     WorkspaceEventService eventService,
+                                                     WorkspaceChangeRecordService changeRecordService) {
+        return new DefaultWorkflowQueryService(
+                workspaceService,
+                artifactService,
+                eventService,
+                changeRecordService);
     }
 }

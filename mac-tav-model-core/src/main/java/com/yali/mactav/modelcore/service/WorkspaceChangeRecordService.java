@@ -1,6 +1,8 @@
 package com.yali.mactav.modelcore.service;
 
+import com.yali.mactav.common.result.PageResult;
 import com.yali.mactav.model.workspace.WorkspaceChangeRecord;
+import com.yali.mactav.modelcore.query.WorkspaceChangeQuery;
 import java.util.List;
 
 /**
@@ -14,4 +16,6 @@ public interface WorkspaceChangeRecordService {
     WorkspaceChangeRecord appendChange(String taskId, WorkspaceChangeRecord change);
 
     List<WorkspaceChangeRecord> listChanges(String taskId);
+
+    PageResult<WorkspaceChangeRecord> listChanges(String taskId, WorkspaceChangeQuery query);
 }

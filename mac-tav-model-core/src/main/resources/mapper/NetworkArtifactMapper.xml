@@ -71,4 +71,31 @@
     WHERE task_id = #{taskId}
       AND artifact_type = #{artifactType}
   </select>
+
+  <select id="listByQuery" resultType="com.yali.mactav.modelcore.entity.NetworkArtifactEntity">
+    SELECT artifact_id, task_id, artifact_type, version, stage, status, payload_type,
+           payload_json, payload_summary, trace_refs_json, created_by, create_time
+    FROM network_artifact
+    WHERE task_id = #{taskId}
+    <if test="artifactType != null">
+      AND artifact_type = #{artifactType}
+    </if>
+    <if test="stage != null">
+      AND stage = #{stage}
+    </if>
+    ORDER BY create_time ASC, version ASC
+    LIMIT #{limit} OFFSET #{offset}
+  </select>
+
+  <select id="countByQuery" resultType="long">
+    SELECT COUNT(*)
+    FROM network_artifact
+    WHERE task_id = #{taskId}
+    <if test="artifactType != null">
+      AND artifact_type = #{artifactType}
+    </if>
+    <if test="stage != null">
+      AND stage = #{stage}
+    </if>
+  </select>
 </mapper>

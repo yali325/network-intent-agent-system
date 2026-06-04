@@ -18,4 +18,43 @@
     WHERE task_id = #{taskId}
     ORDER BY event_time ASC
   </select>
+
+  <select id="listByQuery" resultType="com.yali.mactav.modelcore.entity.WorkspaceEventEntity">
+    SELECT event_id, task_id, event_type, stage, event_time, severity, title, message,
+           related_artifact_id, related_record_id, trace_id, payload_summary
+    FROM workspace_event
+    WHERE task_id = #{taskId}
+    <if test="stage != null">
+      AND stage = #{stage}
+    </if>
+    <if test="eventType != null and eventType != ''">
+      AND event_type = #{eventType}
+    </if>
+    <if test="from != null">
+      AND event_time &gt;= #{from}
+    </if>
+    <if test="to != null">
+      AND event_time &lt;= #{to}
+    </if>
+    ORDER BY event_time ASC
+    LIMIT #{limit} OFFSET #{offset}
+  </select>
+
+  <select id="countByQuery" resultType="long">
+    SELECT COUNT(*)
+    FROM workspace_event
+    WHERE task_id = #{taskId}
+    <if test="stage != null">
+      AND stage = #{stage}
+    </if>
+    <if test="eventType != null and eventType != ''">
+      AND event_type = #{eventType}
+    </if>
+    <if test="from != null">
+      AND event_time &gt;= #{from}
+    </if>
+    <if test="to != null">
+      AND event_time &lt;= #{to}
+    </if>
+  </select>
 </mapper>

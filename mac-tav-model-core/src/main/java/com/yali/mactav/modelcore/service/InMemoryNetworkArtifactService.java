@@ -1,10 +1,13 @@
 package com.yali.mactav.modelcore.service;
 
+import com.yali.mactav.common.result.PageResult;
 import com.yali.mactav.model.enums.ArtifactType;
 import com.yali.mactav.model.enums.WorkflowStage;
 import com.yali.mactav.model.workspace.NetworkArtifact;
 import com.yali.mactav.model.workspace.TraceRefs;
 import com.yali.mactav.modelcore.artifact.NetworkArtifactFactory;
+import com.yali.mactav.modelcore.query.ArtifactQuery;
+import com.yali.mactav.modelcore.query.QueryPageSupport;
 import com.yali.mactav.modelcore.repository.InMemoryNetworkArtifactRepository;
 import com.yali.mactav.modelcore.validator.ArtifactValidator;
 import com.yali.mactav.modelcore.validator.WorkspaceStateValidator;
@@ -78,6 +81,19 @@ public class InMemoryNetworkArtifactService implements NetworkArtifactService {
     }
 
     @Override
+    public Optional<NetworkArtifact> findByTaskIdTypeVersion(String taskId,
+                                                            ArtifactType artifactType,
+                                                            Integer version) {
+        workspaceStateValidator.validateTaskId(taskId);
+        if (artifactType == null || version == null) {
+            return Optional.empty();
+        }
+        return artifactRepository.listByTaskIdAndType(taskId, artifactType).stream()
+                .filter(artifact -> version.equals(artifact.getVersion()))
+                .findFirst();
+    }
+
+    @Override
     public List<NetworkArtifact> listByTaskId(String taskId) {
         workspaceStateValidator.validateTaskId(taskId);
         return artifactRepository.listByTaskId(taskId);
@@ -87,6 +103,25 @@ public class InMemoryNetworkArtifactService implements NetworkArtifactService {
     public List<NetworkArtifact> listByTaskIdAndType(String taskId, ArtifactType artifactType) {
         workspaceStateValidator.validateTaskId(taskId);
         return artifactRepository.listByTaskIdAndType(taskId, artifactType);
+    }
+
+    @Override
+    public PageResult<NetworkArtifact> listArtifacts(String taskId, ArtifactQuery query) {
+        workspaceStateValidator.validateTaskId(taskId);
+        ArtifactQuery normalized = query == null ? new ArtifactQuery(null, null, 1, 20) : query;
+        int page = QueryPageSupport.page(normalized.page());
+        int size = QueryPageSupport.size(normalized.size());
+        List<NetworkArtifact> filtered = artifactRepository.listByTaskId(taskId).stream()
+                .filter(artifact -> normalized.artifactType() == null
+                        || normalized.artifactType() == artifact.getArtifactType())
+                .filter(artifact -> normalized.stage() == null || normalized.stage() == artifact.getStage())
+                .toList();
+        return PageResult.<NetworkArtifact>builder()
+                .items(QueryPageSupport.slice(filtered, page, size))
+                .page(page)
+                .size(size)
+                .total(filtered.size())
+                .build();
     }
 
     @Override

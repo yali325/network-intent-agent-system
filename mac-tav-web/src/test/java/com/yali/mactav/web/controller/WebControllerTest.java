@@ -3,6 +3,9 @@ package com.yali.mactav.web.controller;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.yali.mactav.common.result.PageResult;
+import com.yali.mactav.model.enums.ArtifactStatus;
+import com.yali.mactav.model.enums.ArtifactType;
 import com.yali.mactav.common.result.ApiResponse;
 import com.yali.mactav.model.enums.RepairStatus;
 import com.yali.mactav.model.enums.TaskStatus;
@@ -15,10 +18,21 @@ import com.yali.mactav.model.task.NetworkTask;
 import com.yali.mactav.model.verification.ValidationItem;
 import com.yali.mactav.model.verification.ValidationReport;
 import com.yali.mactav.model.workspace.NetworkWorkspace;
+import com.yali.mactav.model.workspace.NetworkArtifact;
+import com.yali.mactav.model.workspace.WorkspaceChangeRecord;
+import com.yali.mactav.model.workspace.WorkspaceEvent;
+import com.yali.mactav.modelcore.query.ArtifactQuery;
+import com.yali.mactav.modelcore.query.WorkspaceChangeQuery;
+import com.yali.mactav.modelcore.query.WorkspaceEventQuery;
+import com.yali.mactav.orchestrator.service.ArtifactDiffResult;
 import com.yali.mactav.orchestrator.service.WorkflowOrchestrator;
+import com.yali.mactav.orchestrator.service.WorkflowQueryService;
 import com.yali.mactav.web.dto.CreateTaskRequest;
 import com.yali.mactav.web.dto.RepairActionDecisionRequest;
 import com.yali.mactav.web.dto.TaskSummaryResponse;
+import com.yali.mactav.web.vo.ArtifactDiffResponse;
+import com.yali.mactav.web.vo.ArtifactPayloadResponse;
+import com.yali.mactav.web.vo.ArtifactSummaryResponse;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.Test;
 
@@ -157,9 +171,70 @@ class WebControllerTest {
         assertEquals("approved in web test", orchestrator.lastComment);
     }
 
+    @Test
+    void artifactControllerShouldKeepPayloadOutOfSummaryResponses() {
+        ArtifactController controller = new ArtifactController(queryService());
+
+        ApiResponse<PageResult<ArtifactSummaryResponse>> listResponse = controller.listArtifacts(
+                "task-web-test", "NETWORK_INTENT", null, 1, 20);
+        ApiResponse<ArtifactSummaryResponse> detailResponse = controller.getArtifact(
+                "task-web-test", "artifact-web-test-v2");
+        ApiResponse<ArtifactPayloadResponse> payloadResponse = controller.getArtifactPayload(
+                "task-web-test", "artifact-web-test-v2");
+
+        assertTrue(listResponse.isSuccess());
+        assertEquals(1, listResponse.getData().getItems().size());
+        assertEquals("payload summary v2", listResponse.getData().getItems().get(0).getPayloadSummary());
+        assertEquals("artifact-web-test-v2", detailResponse.getData().getArtifactId());
+        assertEquals("{\"version\":2}", payloadResponse.getData().getPayloadJson());
+    }
+
+    @Test
+    void artifactControllerShouldReturnCurrentVersionsAndDiff() {
+        ArtifactController controller = new ArtifactController(queryService());
+
+        ApiResponse<ArtifactSummaryResponse> currentResponse = controller.getCurrentArtifact(
+                "task-web-test", "NETWORK_INTENT");
+        ApiResponse<PageResult<ArtifactSummaryResponse>> versionsResponse = controller.listArtifactVersions(
+                "task-web-test", "artifact-web-test-v2", 1, 20);
+        ApiResponse<ArtifactDiffResponse> diffResponse = controller.diffArtifactVersions(
+                "task-web-test", "artifact-web-test-v2", 1, 2);
+
+        assertTrue(currentResponse.isSuccess());
+        assertEquals(2, currentResponse.getData().getVersion());
+        assertEquals(2, versionsResponse.getData().getItems().size());
+        assertEquals("{\"version\":1}", diffResponse.getData().getFrom().getPayloadJson());
+        assertEquals("{\"version\":2}", diffResponse.getData().getTo().getPayloadJson());
+    }
+
+    @Test
+    void workspaceAndEventHistoryControllersShouldUseQueryFacade() {
+        TestWorkflowQueryService queryService = queryService();
+        WorkspaceController workspaceController = new WorkspaceController(orchestrator(), queryService);
+        EventController eventController = new EventController(queryService);
+
+        ApiResponse<PageResult<WorkspaceEvent>> timelineResponse = workspaceController.getTimeline(
+                "task-web-test", WorkflowStage.INTENT, "task.created", null, null, 1, 20);
+        ApiResponse<PageResult<WorkspaceChangeRecord>> changesResponse = workspaceController.getChanges(
+                "task-web-test", WorkflowStage.INTENT, "artifact.generated", null, null, 1, 20);
+        ApiResponse<PageResult<WorkspaceEvent>> historyResponse = eventController.getEventHistory(
+                "task-web-test", null, null, null, null, 1, 20);
+
+        assertTrue(timelineResponse.isSuccess());
+        assertTrue(changesResponse.isSuccess());
+        assertTrue(historyResponse.isSuccess());
+        assertEquals("task.created", timelineResponse.getData().getItems().get(0).getEventType());
+        assertEquals("artifact.generated", changesResponse.getData().getItems().get(0).getChangeType());
+        assertEquals(2, queryService.eventHistoryCalls);
+    }
+
     private TestWorkflowOrchestrator orchestrator() {
         NetworkWorkspace workspace = workspace();
         return new TestWorkflowOrchestrator(workspace);
+    }
+
+    private TestWorkflowQueryService queryService() {
+        return new TestWorkflowQueryService();
     }
 
     private NetworkWorkspace workspace() {
@@ -307,6 +382,111 @@ class WebControllerTest {
         public NetworkWorkspace getWorkspace(String taskId) {
             getWorkspaceCalls++;
             return workspace;
+        }
+    }
+
+    /**
+     * Minimal query facade fixture for Web read-side controller tests.
+     */
+    private static class TestWorkflowQueryService implements WorkflowQueryService {
+
+        private int eventHistoryCalls;
+
+        @Override
+        public PageResult<NetworkArtifact> listArtifacts(String taskId, ArtifactQuery query) {
+            return page(java.util.List.of(artifact(2)), query.page(), query.size());
+        }
+
+        @Override
+        public NetworkArtifact getArtifact(String taskId, String artifactId) {
+            return artifact(2);
+        }
+
+        @Override
+        public NetworkArtifact getCurrentArtifact(String taskId, ArtifactType artifactType) {
+            return artifact(2);
+        }
+
+        @Override
+        public PageResult<NetworkArtifact> listArtifactVersions(String taskId, String artifactId, int page, int size) {
+            return page(java.util.List.of(artifact(1), artifact(2)), page, size);
+        }
+
+        @Override
+        public ArtifactDiffResult diffArtifactVersions(String taskId,
+                                                       String artifactId,
+                                                       Integer fromVersion,
+                                                       Integer toVersion) {
+            return new ArtifactDiffResult(artifact(fromVersion), artifact(toVersion));
+        }
+
+        @Override
+        public PageResult<WorkspaceEvent> listTimeline(String taskId, WorkspaceEventQuery query) {
+            eventHistoryCalls++;
+            return page(java.util.List.of(event()), query.page(), query.size());
+        }
+
+        @Override
+        public PageResult<WorkspaceChangeRecord> listChanges(String taskId, WorkspaceChangeQuery query) {
+            return page(java.util.List.of(change()), query.page(), query.size());
+        }
+
+        @Override
+        public PageResult<WorkspaceEvent> listEventHistory(String taskId, WorkspaceEventQuery query) {
+            eventHistoryCalls++;
+            return page(java.util.List.of(event()), query.page(), query.size());
+        }
+
+        private NetworkArtifact artifact(Integer version) {
+            return NetworkArtifact.builder()
+                    .artifactId("artifact-web-test-v" + version)
+                    .taskId("task-web-test")
+                    .artifactType(ArtifactType.NETWORK_INTENT)
+                    .version(version)
+                    .stage(WorkflowStage.INTENT)
+                    .status(ArtifactStatus.GENERATED)
+                    .payloadType("NetworkIntent")
+                    .payloadJson("{\"version\":" + version + "}")
+                    .payloadSummary("payload summary v" + version)
+                    .createTime(LocalDateTime.now())
+                    .createdBy("unit-test")
+                    .build();
+        }
+
+        private WorkspaceEvent event() {
+            return WorkspaceEvent.builder()
+                    .eventId("event-web-test")
+                    .taskId("task-web-test")
+                    .eventType("task.created")
+                    .stage(WorkflowStage.INTENT)
+                    .eventTime(LocalDateTime.now())
+                    .title("Task created")
+                    .message("Task created")
+                    .payloadSummary("safe event summary")
+                    .build();
+        }
+
+        private WorkspaceChangeRecord change() {
+            return WorkspaceChangeRecord.builder()
+                    .changeId("change-web-test")
+                    .taskId("task-web-test")
+                    .stage(WorkflowStage.INTENT)
+                    .changeType("artifact.generated")
+                    .fromArtifactId("artifact-web-test-v1")
+                    .toArtifactId("artifact-web-test-v2")
+                    .reason("unit test change")
+                    .createTime(LocalDateTime.now())
+                    .createdBy("unit-test")
+                    .build();
+        }
+
+        private <T> PageResult<T> page(java.util.List<T> items, int page, int size) {
+            return PageResult.<T>builder()
+                    .items(items)
+                    .page(page)
+                    .size(size)
+                    .total(items.size())
+                    .build();
         }
     }
 }
