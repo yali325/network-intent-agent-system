@@ -64,6 +64,7 @@ public class GlobalExceptionHandler {
             return HttpStatus.NOT_FOUND;
         }
         if (errorCode == ErrorCode.WORKSPACE_STATE_INVALID
+                || errorCode == ErrorCode.TASK_ALREADY_RUNNING
                 || errorCode == ErrorCode.STAGE_NOT_READY
                 || errorCode == ErrorCode.REPAIR_ACTION_NOT_APPROVED) {
             return HttpStatus.CONFLICT;

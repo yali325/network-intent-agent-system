@@ -1,10 +1,15 @@
 package com.yali.mactav.web.controller;
 
 import com.yali.mactav.common.result.ApiResponse;
+import com.yali.mactav.model.workflow.job.WorkflowJob;
 import com.yali.mactav.model.workspace.NetworkWorkspace;
+import com.yali.mactav.orchestrator.service.WorkflowAsyncService;
 import com.yali.mactav.orchestrator.service.WorkflowOrchestrator;
 import com.yali.mactav.web.dto.CreateTaskRequest;
 import com.yali.mactav.web.dto.TaskSummaryResponse;
+import java.util.List;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -21,9 +26,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class TaskController {
 
     private final WorkflowOrchestrator workflowOrchestrator;
+    private final WorkflowAsyncService workflowAsyncService;
 
-    public TaskController(WorkflowOrchestrator workflowOrchestrator) {
+    public TaskController(WorkflowOrchestrator workflowOrchestrator, WorkflowAsyncService workflowAsyncService) {
         this.workflowOrchestrator = workflowOrchestrator;
+        this.workflowAsyncService = workflowAsyncService;
     }
 
     @PostMapping
@@ -33,5 +40,17 @@ public class TaskController {
                 request == null ? null : request.getTargetEnvironmentHint(),
                 request == null ? null : request.getCreatedBy());
         return ApiResponse.success(TaskSummaryResponse.from(workspace));
+    }
+
+    @GetMapping("/{taskId}/jobs")
+    public ApiResponse<List<WorkflowJob>> listTaskJobs(@PathVariable String taskId) {
+        return ApiResponse.success(workflowAsyncService.listByTaskId(taskId).stream()
+                .map(this::summarize)
+                .toList());
+    }
+
+    private WorkflowJob summarize(WorkflowJob job) {
+        job.setRequestPayloadJson(null);
+        return job;
     }
 }

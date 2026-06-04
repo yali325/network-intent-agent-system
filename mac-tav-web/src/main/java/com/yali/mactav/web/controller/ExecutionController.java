@@ -5,6 +5,8 @@ import com.yali.mactav.common.exception.BusinessException;
 import com.yali.mactav.common.result.ApiResponse;
 import com.yali.mactav.model.execution.ExecutionReport;
 import com.yali.mactav.model.workspace.NetworkWorkspace;
+import com.yali.mactav.orchestrator.job.WorkflowJobSubmitResponse;
+import com.yali.mactav.orchestrator.service.WorkflowAsyncService;
 import com.yali.mactav.orchestrator.service.WorkflowOrchestrator;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -23,15 +25,19 @@ import org.springframework.web.bind.annotation.RestController;
 public class ExecutionController {
 
     private final WorkflowOrchestrator workflowOrchestrator;
+    private final WorkflowAsyncService workflowAsyncService;
 
-    public ExecutionController(WorkflowOrchestrator workflowOrchestrator) {
+    public ExecutionController(WorkflowOrchestrator workflowOrchestrator, WorkflowAsyncService workflowAsyncService) {
         this.workflowOrchestrator = workflowOrchestrator;
+        this.workflowAsyncService = workflowAsyncService;
     }
 
     @PostMapping("/{taskId}/run")
-    public ApiResponse<ExecutionReport> runExecutionStage(@PathVariable String taskId) {
-        NetworkWorkspace workspace = workflowOrchestrator.runExecutionStage(taskId);
-        return ApiResponse.success(requireExecutionReport(workspace, taskId));
+    public ApiResponse<WorkflowJobSubmitResponse> runExecutionStage(@PathVariable String taskId) {
+        return ApiResponse.success(workflowAsyncService.submitStageRun(
+                taskId,
+                com.yali.mactav.model.enums.WorkflowStage.EXECUTION,
+                "api"));
     }
 
     @GetMapping("/{taskId}")

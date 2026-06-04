@@ -36,6 +36,9 @@ mactav:
     max-pool-size: ${MACTAV_ASYNC_MAX_POOL_SIZE:16}
     queue-capacity: ${MACTAV_ASYNC_QUEUE_CAPACITY:200}
     thread-name-prefix: ${MACTAV_ASYNC_THREAD_NAME_PREFIX:mactav-workflow-}
+    task-lock-ttl-ms: ${MACTAV_ASYNC_TASK_LOCK_TTL_MS:3600000}
+  task-lock:
+    type: ${MACTAV_TASK_LOCK_TYPE:redis}
   sse:
     enabled: ${MACTAV_SSE_ENABLED:true}
     timeout-ms: ${MACTAV_SSE_TIMEOUT_MS:1800000}

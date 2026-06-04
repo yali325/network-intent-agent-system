@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.yali.mactav.common.exception.BusinessException;
 import com.yali.mactav.common.result.PageResult;
 import com.yali.mactav.model.enums.ArtifactStatus;
 import com.yali.mactav.model.enums.ArtifactType;
@@ -28,7 +29,12 @@ import com.yali.mactav.modelcore.query.ArtifactQuery;
 import com.yali.mactav.modelcore.query.WorkspaceChangeQuery;
 import com.yali.mactav.modelcore.query.WorkspaceEventQuery;
 import com.yali.mactav.modelcore.event.WorkspaceEventSummary;
+import com.yali.mactav.model.workflow.job.WorkflowJob;
+import com.yali.mactav.model.workflow.job.WorkflowJobStatus;
+import com.yali.mactav.model.workflow.job.WorkflowJobType;
+import com.yali.mactav.orchestrator.job.WorkflowJobSubmitResponse;
 import com.yali.mactav.orchestrator.service.ArtifactDiffResult;
+import com.yali.mactav.orchestrator.service.WorkflowAsyncService;
 import com.yali.mactav.orchestrator.service.WorkflowOrchestrator;
 import com.yali.mactav.orchestrator.service.WorkflowQueryService;
 import com.yali.mactav.web.dto.CreateTaskRequest;
@@ -56,7 +62,7 @@ class WebControllerTest {
 
     @Test
     void taskControllerShouldReturnApiResponseEnvelope() {
-        TaskController controller = new TaskController(orchestrator());
+        TaskController controller = new TaskController(orchestrator(), asyncService());
         CreateTaskRequest request = new CreateTaskRequest();
         request.setRawText("office can access server");
         request.setTargetEnvironmentHint("lab");
@@ -70,41 +76,40 @@ class WebControllerTest {
     }
 
     @Test
-    void workflowAndWorkspaceControllersShouldDelegateToOrchestrator() {
-        TestWorkflowOrchestrator orchestrator = orchestrator();
-        WorkflowController workflowController = new WorkflowController(orchestrator);
-        WorkspaceController workspaceController = new WorkspaceController(orchestrator);
+    void workflowAndWorkspaceControllersShouldReturnAsyncJobId() {
+        WorkflowController workflowController = new WorkflowController(asyncService());
+        WorkspaceController workspaceController = new WorkspaceController(orchestrator());
 
-        ApiResponse<NetworkWorkspace> runResponse = workflowController.runIntentStage("task-web-test");
-        ApiResponse<NetworkWorkspace> configResponse = workflowController.runConfigurationStage("task-web-test");
+        ApiResponse<WorkflowJobSubmitResponse> startResponse = workflowController.startWorkflow("task-web-test");
+        ApiResponse<WorkflowJobSubmitResponse> runResponse = workflowController.runIntentStage("task-web-test");
+        ApiResponse<WorkflowJobSubmitResponse> configResponse = workflowController.runConfigurationStage("task-web-test");
         ApiResponse<NetworkWorkspace> queryResponse = workspaceController.getWorkspace("task-web-test");
 
+        assertTrue(startResponse.isSuccess());
         assertTrue(runResponse.isSuccess());
         assertTrue(configResponse.isSuccess());
         assertTrue(queryResponse.isSuccess());
-        assertEquals("task-web-test", runResponse.getData().getTask().getTaskId());
-        assertEquals("task-web-test", configResponse.getData().getTask().getTaskId());
+        assertEquals("job-full", startResponse.getData().getJobId());
+        assertEquals("job-INTENT", runResponse.getData().getJobId());
+        assertEquals("job-CONFIGURATION", configResponse.getData().getJobId());
         assertEquals("task-web-test", queryResponse.getData().getTask().getTaskId());
     }
 
     @Test
-    void executionControllerShouldDelegateRunToOrchestrator() {
-        TestWorkflowOrchestrator orchestrator = orchestrator();
-        ExecutionController controller = new ExecutionController(orchestrator);
+    void executionControllerShouldReturnJobId() {
+        ExecutionController controller = new ExecutionController(orchestrator(), asyncService());
 
-        ApiResponse<ExecutionReport> response = controller.runExecutionStage("task-web-test");
+        ApiResponse<WorkflowJobSubmitResponse> response = controller.runExecutionStage("task-web-test");
 
         assertTrue(response.isSuccess());
-        assertEquals("execution-web-test", response.getData().getExecutionId());
-        assertEquals(ExecutionStatus.SUCCESS, response.getData().getOverallStatus());
-        assertEquals(1, orchestrator.runExecutionCalls);
-        assertEquals("task-web-test", orchestrator.lastExecutionTaskId);
+        assertEquals("job-EXECUTION", response.getData().getJobId());
+        assertEquals(WorkflowJobType.RUN_STAGE, response.getData().getJobType());
     }
 
     @Test
     void executionControllerShouldReturnCurrentExecutionReport() {
         TestWorkflowOrchestrator orchestrator = orchestrator();
-        ExecutionController controller = new ExecutionController(orchestrator);
+        ExecutionController controller = new ExecutionController(orchestrator, asyncService());
 
         ApiResponse<ExecutionReport> response = controller.getExecutionReport("task-web-test");
 
@@ -115,22 +120,20 @@ class WebControllerTest {
     }
 
     @Test
-    void validationControllerShouldDelegateRunToOrchestrator() {
-        TestWorkflowOrchestrator orchestrator = orchestrator();
-        ValidationController controller = new ValidationController(orchestrator);
+    void validationControllerShouldReturnJobId() {
+        ValidationController controller = new ValidationController(orchestrator(), asyncService());
 
-        ApiResponse<ValidationReport> response = controller.runVerificationStage("task-web-test");
+        ApiResponse<WorkflowJobSubmitResponse> response = controller.runVerificationStage("task-web-test");
 
         assertTrue(response.isSuccess());
-        assertEquals("validation-web-test", response.getData().getValidationId());
-        assertEquals(1, orchestrator.runVerificationCalls);
-        assertEquals("task-web-test", orchestrator.lastVerificationTaskId);
+        assertEquals("job-VERIFICATION", response.getData().getJobId());
+        assertEquals(WorkflowStage.VERIFICATION, response.getData().getRequestedStage());
     }
 
     @Test
     void validationControllerShouldReturnCurrentItems() {
         TestWorkflowOrchestrator orchestrator = orchestrator();
-        ValidationController controller = new ValidationController(orchestrator);
+        ValidationController controller = new ValidationController(orchestrator, asyncService());
 
         ApiResponse<java.util.List<ValidationItem>> response = controller.getValidationItems("task-web-test");
 
@@ -140,25 +143,23 @@ class WebControllerTest {
     }
 
     @Test
-    void repairControllerShouldDelegateAnalyzeAndGetToOrchestrator() {
+    void repairControllerShouldReturnJobForAnalyzeAndGetSynchronously() {
         TestWorkflowOrchestrator orchestrator = orchestrator();
-        RepairController controller = new RepairController(orchestrator);
+        RepairController controller = new RepairController(orchestrator, asyncService());
 
-        ApiResponse<RepairPlan> analyzeResponse = controller.analyzeRepair("task-web-test");
+        ApiResponse<WorkflowJobSubmitResponse> analyzeResponse = controller.analyzeRepair("task-web-test");
         ApiResponse<RepairPlan> getResponse = controller.getRepairPlan("task-web-test");
 
         assertTrue(analyzeResponse.isSuccess());
         assertTrue(getResponse.isSuccess());
-        assertEquals("repair-action-web-test", analyzeResponse.getData().getActions().get(0).getActionId());
-        assertEquals(1, orchestrator.runHealingCalls);
+        assertEquals("job-repair-analyze", analyzeResponse.getData().getJobId());
         assertEquals(1, orchestrator.getWorkspaceCalls);
-        assertEquals("task-web-test", orchestrator.lastHealingTaskId);
     }
 
     @Test
     void repairControllerShouldDelegateApproveRejectAndApplyToOrchestrator() {
         TestWorkflowOrchestrator orchestrator = orchestrator();
-        RepairController controller = new RepairController(orchestrator);
+        RepairController controller = new RepairController(orchestrator, asyncService());
         RepairActionDecisionRequest request = new RepairActionDecisionRequest();
         request.setActor("alice");
         request.setComment("approved in web test");
@@ -167,7 +168,7 @@ class WebControllerTest {
                 "task-web-test", "repair-action-web-test", request);
         ApiResponse<RepairPlan> rejectResponse = controller.rejectRepairAction(
                 "task-web-test", "repair-action-web-test", request);
-        ApiResponse<NetworkWorkspace> applyResponse = controller.applyRepairAction(
+        ApiResponse<WorkflowJobSubmitResponse> applyResponse = controller.applyRepairAction(
                 "task-web-test", "repair-action-web-test");
 
         assertTrue(approveResponse.isSuccess());
@@ -175,7 +176,7 @@ class WebControllerTest {
         assertTrue(applyResponse.isSuccess());
         assertEquals(1, orchestrator.approveCalls);
         assertEquals(1, orchestrator.rejectCalls);
-        assertEquals(1, orchestrator.applyCalls);
+        assertEquals("job-repair-apply", applyResponse.getData().getJobId());
         assertEquals("repair-action-web-test", orchestrator.lastRepairActionId);
         assertEquals("alice", orchestrator.lastActor);
         assertEquals("approved in web test", orchestrator.lastComment);
@@ -291,6 +292,10 @@ class WebControllerTest {
 
     private TestWorkflowQueryService queryService() {
         return new TestWorkflowQueryService();
+    }
+
+    private TestWorkflowAsyncService asyncService() {
+        return new TestWorkflowAsyncService();
     }
 
     private ObjectMapper objectMapper() {
@@ -555,6 +560,70 @@ class WebControllerTest {
                     .size(size)
                     .total(items.size())
                     .build();
+        }
+    }
+
+    /**
+     * Minimal async facade fixture for Web controller submission tests.
+     */
+    private static class TestWorkflowAsyncService implements WorkflowAsyncService {
+
+        @Override
+        public WorkflowJobSubmitResponse submitWorkflowStart(String taskId, String requestedBy) {
+            return response(taskId, "job-full", WorkflowJobType.FULL_WORKFLOW, WorkflowStage.INTENT);
+        }
+
+        @Override
+        public WorkflowJobSubmitResponse submitStageRun(String taskId, WorkflowStage stage, String requestedBy) {
+            return response(taskId, "job-" + stage.name(), WorkflowJobType.RUN_STAGE, stage);
+        }
+
+        @Override
+        public WorkflowJobSubmitResponse submitStageRerun(String taskId, WorkflowStage stage, String requestedBy) {
+            return response(taskId, "job-rerun-" + stage.name(), WorkflowJobType.RERUN_STAGE, stage);
+        }
+
+        @Override
+        public WorkflowJobSubmitResponse submitContinueFrom(String taskId, WorkflowStage stage, String requestedBy) {
+            return response(taskId, "job-continue-" + stage.name(), WorkflowJobType.CONTINUE_FROM_STAGE, stage);
+        }
+
+        @Override
+        public WorkflowJobSubmitResponse submitRepairAnalyze(String taskId, String requestedBy) {
+            return response(taskId, "job-repair-analyze", WorkflowJobType.REPAIR_ANALYZE, WorkflowStage.HEALING);
+        }
+
+        @Override
+        public WorkflowJobSubmitResponse submitRepairApply(String taskId, String actionId, String requestedBy) {
+            return response(taskId, "job-repair-apply", WorkflowJobType.REPAIR_APPLY, WorkflowStage.HEALING);
+        }
+
+        @Override
+        public WorkflowJob findByJobId(String jobId) {
+            return WorkflowJob.builder()
+                    .jobId(jobId)
+                    .taskId("task-web-test")
+                    .jobStatus(WorkflowJobStatus.PENDING)
+                    .jobType(WorkflowJobType.FULL_WORKFLOW)
+                    .build();
+        }
+
+        @Override
+        public java.util.List<WorkflowJob> listByTaskId(String taskId) {
+            return java.util.List.of(findByJobId("job-full"));
+        }
+
+        private WorkflowJobSubmitResponse response(String taskId,
+                                                   String jobId,
+                                                   WorkflowJobType type,
+                                                   WorkflowStage stage) {
+            return new WorkflowJobSubmitResponse(
+                    taskId,
+                    jobId,
+                    WorkflowJobStatus.PENDING,
+                    stage,
+                    type,
+                    "submitted");
         }
     }
 }

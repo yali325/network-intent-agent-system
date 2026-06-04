@@ -5,6 +5,8 @@ import com.yali.mactav.common.exception.BusinessException;
 import com.yali.mactav.common.result.ApiResponse;
 import com.yali.mactav.model.healing.RepairPlan;
 import com.yali.mactav.model.workspace.NetworkWorkspace;
+import com.yali.mactav.orchestrator.job.WorkflowJobSubmitResponse;
+import com.yali.mactav.orchestrator.service.WorkflowAsyncService;
 import com.yali.mactav.orchestrator.service.WorkflowOrchestrator;
 import com.yali.mactav.web.dto.RepairActionDecisionRequest;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,15 +27,16 @@ import org.springframework.web.bind.annotation.RestController;
 public class RepairController {
 
     private final WorkflowOrchestrator workflowOrchestrator;
+    private final WorkflowAsyncService workflowAsyncService;
 
-    public RepairController(WorkflowOrchestrator workflowOrchestrator) {
+    public RepairController(WorkflowOrchestrator workflowOrchestrator, WorkflowAsyncService workflowAsyncService) {
         this.workflowOrchestrator = workflowOrchestrator;
+        this.workflowAsyncService = workflowAsyncService;
     }
 
     @PostMapping("/{taskId}/analyze")
-    public ApiResponse<RepairPlan> analyzeRepair(@PathVariable String taskId) {
-        NetworkWorkspace workspace = workflowOrchestrator.runHealingStage(taskId);
-        return ApiResponse.success(requireRepairPlan(workspace, taskId));
+    public ApiResponse<WorkflowJobSubmitResponse> analyzeRepair(@PathVariable String taskId) {
+        return ApiResponse.success(workflowAsyncService.submitRepairAnalyze(taskId, "api"));
     }
 
     @GetMapping("/{taskId}")
@@ -69,8 +72,9 @@ public class RepairController {
     }
 
     @PostMapping("/{taskId}/actions/{actionId}/apply")
-    public ApiResponse<NetworkWorkspace> applyRepairAction(@PathVariable String taskId, @PathVariable String actionId) {
-        return ApiResponse.success(workflowOrchestrator.applyRepairAction(taskId, actionId));
+    public ApiResponse<WorkflowJobSubmitResponse> applyRepairAction(@PathVariable String taskId,
+                                                                    @PathVariable String actionId) {
+        return ApiResponse.success(workflowAsyncService.submitRepairApply(taskId, actionId, "api"));
     }
 
     private RepairPlan requireRepairPlan(NetworkWorkspace workspace, String taskId) {

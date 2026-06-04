@@ -32,15 +32,18 @@ import com.yali.mactav.modelcore.service.InMemoryNetworkArtifactService;
 import com.yali.mactav.modelcore.service.InMemoryNetworkWorkspaceService;
 import com.yali.mactav.modelcore.service.InMemoryWorkspaceChangeRecordService;
 import com.yali.mactav.modelcore.service.InMemoryWorkspaceEventService;
+import com.yali.mactav.modelcore.service.InMemoryWorkflowJobService;
 import com.yali.mactav.modelcore.service.MyBatisAgentExecutionRecordService;
 import com.yali.mactav.modelcore.service.MyBatisNetworkArtifactService;
 import com.yali.mactav.modelcore.service.MyBatisNetworkWorkspaceService;
 import com.yali.mactav.modelcore.service.MyBatisWorkspaceChangeRecordService;
 import com.yali.mactav.modelcore.service.MyBatisWorkspaceEventService;
+import com.yali.mactav.modelcore.service.MyBatisWorkflowJobService;
 import com.yali.mactav.modelcore.service.NetworkArtifactService;
 import com.yali.mactav.modelcore.service.NetworkWorkspaceService;
 import com.yali.mactav.modelcore.service.WorkspaceChangeRecordService;
 import com.yali.mactav.modelcore.service.WorkspaceEventService;
+import com.yali.mactav.modelcore.service.WorkflowJobService;
 import com.yali.mactav.modelcore.validator.ArtifactValidator;
 import com.yali.mactav.modelcore.validator.WorkspaceStateValidator;
 import org.mybatis.spring.annotation.MapperScan;
@@ -159,6 +162,11 @@ public class ModelCoreConfiguration {
         @Bean
         public MyBatisWorkflowJobRepository myBatisWorkflowJobRepository(WorkflowJobMapper mapper) {
             return new MyBatisWorkflowJobRepository(mapper);
+        }
+
+        @Bean
+        public WorkflowJobService workflowJobService(MyBatisWorkflowJobRepository repository) {
+            return new MyBatisWorkflowJobService(repository);
         }
 
         @Bean
@@ -335,6 +343,12 @@ public class ModelCoreConfiguration {
                     recordRepository,
                     workspaceRepository,
                     workspaceStateValidator);
+        }
+
+        @Bean
+        @ConditionalOnMissingBean
+        public WorkflowJobService workflowJobService() {
+            return new InMemoryWorkflowJobService();
         }
     }
 }

@@ -14,6 +14,12 @@ import com.yali.mactav.modelcore.service.NetworkArtifactService;
 import com.yali.mactav.modelcore.service.NetworkWorkspaceService;
 import com.yali.mactav.modelcore.service.WorkspaceChangeRecordService;
 import com.yali.mactav.modelcore.service.WorkspaceEventService;
+import com.yali.mactav.modelcore.service.WorkflowJobService;
+import com.yali.mactav.orchestrator.job.InMemoryTaskRunLockService;
+import com.yali.mactav.orchestrator.job.NoopTaskRunLockService;
+import com.yali.mactav.orchestrator.job.RedisTaskRunLockService;
+import com.yali.mactav.orchestrator.job.TaskRunLockService;
+import com.yali.mactav.orchestrator.job.WorkflowAsyncExecutor;
 import com.yali.mactav.orchestrator.remote.card.AgentCardRegistryClient;
 import com.yali.mactav.orchestrator.remote.card.OfficialAgentCardRegistryClient;
 import com.yali.mactav.orchestrator.remote.client.A2aClient;
@@ -24,15 +30,25 @@ import com.yali.mactav.orchestrator.remote.invoker.A2aResponseValidator;
 import com.yali.mactav.orchestrator.remote.invoker.RemoteAgentInvoker;
 import com.yali.mactav.orchestrator.remote.invoker.RemoteAgentTool;
 import com.yali.mactav.orchestrator.service.DefaultWorkflowQueryService;
+import com.yali.mactav.orchestrator.service.DefaultWorkflowAsyncService;
 import com.yali.mactav.orchestrator.service.MacTavWorkflowOrchestrator;
+import com.yali.mactav.orchestrator.service.WorkflowAsyncService;
 import com.yali.mactav.orchestrator.service.WorkflowQueryService;
 import com.yali.mactav.orchestrator.service.WorkflowOrchestrator;
+import java.time.Duration;
+import java.util.concurrent.Executor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 /**
  * Minimal Spring wiring for Orchestrator remote-agent invocation and workflow coordination.
@@ -139,5 +155,67 @@ public class OrchestratorConfiguration {
                 artifactService,
                 eventService,
                 changeRecordService);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(name = "workflowTaskExecutor")
+    public Executor workflowTaskExecutor(
+            @Value("${mactav.async.core-pool-size:4}") int corePoolSize,
+            @Value("${mactav.async.max-pool-size:16}") int maxPoolSize,
+            @Value("${mactav.async.queue-capacity:200}") int queueCapacity,
+            @Value("${mactav.async.thread-name-prefix:mactav-workflow-}") String threadNamePrefix) {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(corePoolSize);
+        executor.setMaxPoolSize(maxPoolSize);
+        executor.setQueueCapacity(queueCapacity);
+        executor.setThreadNamePrefix(threadNamePrefix);
+        executor.initialize();
+        return executor;
+    }
+
+    @Bean
+    @Profile("!test & !inmemory")
+    @ConditionalOnProperty(name = "mactav.task-lock.type", havingValue = "redis", matchIfMissing = true)
+    public TaskRunLockService redisTaskRunLockService(
+            StringRedisTemplate redisTemplate,
+            @Value("${mactav.async.task-lock-ttl-ms:3600000}") long lockTtlMs) {
+        return new RedisTaskRunLockService(redisTemplate, Duration.ofMillis(lockTtlMs));
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(TaskRunLockService.class)
+    @ConditionalOnExpression(
+            "'${mactav.task-lock.type:}' == 'inmemory' || "
+                    + "'${spring.profiles.active:}'.contains('test') || "
+                    + "'${spring.profiles.active:}'.contains('inmemory')")
+    public TaskRunLockService inMemoryTaskRunLockService() {
+        return new InMemoryTaskRunLockService();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(TaskRunLockService.class)
+    @ConditionalOnProperty(name = "mactav.task-lock.type", havingValue = "noop")
+    public TaskRunLockService noopTaskRunLockService() {
+        return new NoopTaskRunLockService();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public WorkflowAsyncExecutor workflowAsyncExecutor(
+            @Qualifier("workflowTaskExecutor") Executor executor,
+            WorkflowOrchestrator workflowOrchestrator,
+            WorkflowJobService workflowJobService,
+            WorkspaceEventService eventService,
+            TaskRunLockService lockService) {
+        return new WorkflowAsyncExecutor(executor, workflowOrchestrator, workflowJobService, eventService, lockService);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public WorkflowAsyncService workflowAsyncService(WorkflowQueryService workflowQueryService,
+                                                     WorkflowJobService workflowJobService,
+                                                     TaskRunLockService lockService,
+                                                     WorkflowAsyncExecutor asyncExecutor) {
+        return new DefaultWorkflowAsyncService(workflowQueryService, workflowJobService, lockService, asyncExecutor);
     }
 }

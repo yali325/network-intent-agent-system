@@ -6,6 +6,8 @@ import com.yali.mactav.common.result.ApiResponse;
 import com.yali.mactav.model.verification.ValidationItem;
 import com.yali.mactav.model.verification.ValidationReport;
 import com.yali.mactav.model.workspace.NetworkWorkspace;
+import com.yali.mactav.orchestrator.job.WorkflowJobSubmitResponse;
+import com.yali.mactav.orchestrator.service.WorkflowAsyncService;
 import com.yali.mactav.orchestrator.service.WorkflowOrchestrator;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,15 +24,19 @@ import org.springframework.web.bind.annotation.RestController;
 public class ValidationController {
 
     private final WorkflowOrchestrator workflowOrchestrator;
+    private final WorkflowAsyncService workflowAsyncService;
 
-    public ValidationController(WorkflowOrchestrator workflowOrchestrator) {
+    public ValidationController(WorkflowOrchestrator workflowOrchestrator, WorkflowAsyncService workflowAsyncService) {
         this.workflowOrchestrator = workflowOrchestrator;
+        this.workflowAsyncService = workflowAsyncService;
     }
 
     @PostMapping("/{taskId}/run")
-    public ApiResponse<ValidationReport> runVerificationStage(@PathVariable String taskId) {
-        NetworkWorkspace workspace = workflowOrchestrator.runVerificationStage(taskId);
-        return ApiResponse.success(requireValidationReport(workspace, taskId));
+    public ApiResponse<WorkflowJobSubmitResponse> runVerificationStage(@PathVariable String taskId) {
+        return ApiResponse.success(workflowAsyncService.submitStageRun(
+                taskId,
+                com.yali.mactav.model.enums.WorkflowStage.VERIFICATION,
+                "api"));
     }
 
     @GetMapping("/{taskId}")

@@ -33,4 +33,12 @@ public class MyBatisWorkflowJobRepository {
     public List<WorkflowJobEntity> listByTaskId(String taskId) {
         return mapper.listByTaskId(taskId);
     }
+
+    public Optional<WorkflowJobEntity> findActiveByTaskId(String taskId) {
+        return Optional.ofNullable(mapper.findActiveByTaskId(taskId));
+    }
+
+    public List<WorkflowJobEntity> listActiveJobs() {
+        return mapper.listActiveJobs();
+    }
 }

@@ -18,4 +18,8 @@ public interface WorkflowJobMapper {
     WorkflowJobEntity findByJobId(@Param("jobId") String jobId);
 
     List<WorkflowJobEntity> listByTaskId(@Param("taskId") String taskId);
+
+    WorkflowJobEntity findActiveByTaskId(@Param("taskId") String taskId);
+
+    List<WorkflowJobEntity> listActiveJobs();
 }

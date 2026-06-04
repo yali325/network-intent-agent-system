@@ -47,4 +47,24 @@
     WHERE task_id = #{taskId}
     ORDER BY create_time ASC
   </select>
+
+  <select id="findActiveByTaskId" resultType="com.yali.mactav.modelcore.entity.WorkflowJobEntity">
+    SELECT job_id, task_id, requested_stage, job_type, job_status, requested_by,
+           request_payload_json, start_time, finish_time, error_code, error_message,
+           trace_id, create_time, update_time
+    FROM workflow_job
+    WHERE task_id = #{taskId}
+      AND job_status IN ('PENDING', 'RUNNING')
+    ORDER BY create_time ASC
+    LIMIT 1
+  </select>
+
+  <select id="listActiveJobs" resultType="com.yali.mactav.modelcore.entity.WorkflowJobEntity">
+    SELECT job_id, task_id, requested_stage, job_type, job_status, requested_by,
+           request_payload_json, start_time, finish_time, error_code, error_message,
+           trace_id, create_time, update_time
+    FROM workflow_job
+    WHERE job_status IN ('PENDING', 'RUNNING')
+    ORDER BY create_time ASC
+  </select>
 </mapper>
