@@ -1,0 +1,106 @@
+:root {
+  --mactav-bg-start: #f0f7ff;
+  --mactav-bg-end: #e4eefb;
+  --mactav-panel-bg: rgba(255, 255, 255, 0.72);
+  --mactav-panel-border: rgba(110, 155, 215, 0.34);
+  --mactav-panel-shadow: 0 18px 48px rgba(31, 91, 180, 0.12);
+
+  --mactav-cyber-blue: #0062ff;
+  --mactav-neon-teal: #00d9c0;
+  --mactav-success: #10b981;
+  --mactav-danger: #ef4444;
+  --mactav-warning: #f59e0b;
+
+  --mactav-text-main: #0f172a;
+  --mactav-text-muted: #64748b;
+  --mactav-text-soft: #334155;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  color: var(--mactav-text-main);
+  background:
+    radial-gradient(circle at 15% 10%, rgba(0, 217, 192, 0.22), transparent 28%),
+    radial-gradient(circle at 82% 16%, rgba(0, 98, 255, 0.18), transparent 32%),
+    linear-gradient(135deg, var(--mactav-bg-start), var(--mactav-bg-end));
+  font-family: "Aptos", "Segoe UI", "Microsoft YaHei UI", sans-serif;
+}
+
+body::before {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background-image:
+    linear-gradient(rgba(0, 98, 255, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 98, 255, 0.08) 1px, transparent 1px),
+    radial-gradient(circle, rgba(0, 98, 255, 0.12) 1px, transparent 1px);
+  background-position: 0 0, 0 0, 12px 12px;
+  background-size: 36px 36px, 36px 36px, 24px 24px;
+  content: "";
+  mask-image: linear-gradient(to bottom, black, rgba(0, 0, 0, 0.72), transparent);
+}
+
+button,
+textarea {
+  font: inherit;
+}
+
+a {
+  color: inherit;
+}
+
+.page-frame {
+  width: min(1480px, calc(100vw - 40px));
+  margin: 0 auto;
+}
+
+.eyebrow {
+  color: var(--mactav-cyber-blue);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.page-title {
+  margin: 8px 0 0;
+  color: var(--mactav-text-main);
+  font-size: clamp(30px, 4vw, 56px);
+  line-height: 1.02;
+}
+
+.muted {
+  color: var(--mactav-text-muted);
+}
+
+.mono {
+  font-family: "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+}
+
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 98, 255, 0.28);
+  }
+
+  100% {
+    box-shadow: 0 0 0 15px rgba(0, 98, 255, 0);
+  }
+}
+
+@keyframes flow-dash {
+  to {
+    stroke-dashoffset: -32;
+  }
+}
+
+@media (max-width: 760px) {
+  .page-frame {
+    width: min(100vw - 24px, 1480px);
+  }
+}
