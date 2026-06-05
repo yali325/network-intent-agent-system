@@ -17,50 +17,78 @@
       </div>
     </GlassPanel>
 
-    <GlassPanel>
-      <WorkflowTopology
-        :current-stage="task.task.currentStage"
-        :selected-stage="store.selectedStage"
-        @select-stage="store.selectedStage = $event"
-      />
+    <GlassPanel compact>
+      <div class="view-switcher" :class="{ 'with-repair': store.activeView === 'repair' }">
+        <button
+          v-for="tab in topLevelViews"
+          :key="tab.key"
+          type="button"
+          :class="{ active: store.activeView === tab.key }"
+          @click="store.activeView = tab.key"
+        >
+          <span>{{ tab.title }}</span>
+          <small>{{ tab.caption }}</small>
+        </button>
+        <button v-if="store.activeView === 'repair'" class="repair-chip active" type="button">
+          <span>AI 自愈诊断舱</span>
+          <small>验证失败触发的临时视图</small>
+        </button>
+      </div>
     </GlassPanel>
 
-    <div class="mission-grid">
-      <GlassPanel compact>
-        <div class="panel-head">
-          <div>
-            <div class="eyebrow">Telemetry Preview</div>
-            <h2>最近事件</h2>
-          </div>
-        </div>
-        <div class="telemetry-list">
-          <article v-for="event in task.telemetry" :key="event.eventId" class="telemetry-item">
-            <span class="mono">{{ event.eventType }}</span>
-            <strong>{{ event.title }}</strong>
-            <p>{{ event.message }}</p>
-          </article>
-        </div>
+    <template v-if="store.activeView === 'control'">
+      <GlassPanel>
+        <WorkflowTopology
+          :current-stage="task.task.currentStage"
+          :selected-stage="store.selectedStage"
+          @select-stage="store.selectedStage = $event"
+        />
       </GlassPanel>
 
-      <GlassPanel compact>
-        <div class="panel-head">
-          <div>
-            <div class="eyebrow">当前阶段产物速览</div>
-            <h2>{{ store.currentSummary?.agentName }}</h2>
+      <div class="mission-grid">
+        <GlassPanel compact>
+          <div class="panel-head">
+            <div>
+              <div class="eyebrow">Telemetry Preview</div>
+              <h2>最近事件</h2>
+            </div>
           </div>
-          <StatusPill tone="signal">{{ store.selectedStage }}</StatusPill>
-        </div>
-        <div class="summary-card">
-          <span>产物: {{ store.currentSummary?.artifactName }} v{{ store.currentSummary?.version }}</span>
-          <p>{{ store.currentSummary?.summary }}</p>
-          <ul>
-            <li v-for="item in store.currentSummary?.commandDigest" :key="item" class="mono">{{ item }}</li>
-          </ul>
-        </div>
-      </GlassPanel>
-    </div>
+          <div class="telemetry-list">
+            <article v-for="event in task.telemetry" :key="event.eventId" class="telemetry-item">
+              <span class="mono">{{ event.eventType }}</span>
+              <strong>{{ event.title }}</strong>
+              <p>{{ event.message }}</p>
+            </article>
+          </div>
+        </GlassPanel>
 
-    <NetworkTopologyLiveBoard :task="task" />
+        <GlassPanel compact>
+          <div class="panel-head">
+            <div>
+              <div class="eyebrow">当前阶段产物速览</div>
+              <h2>{{ store.currentSummary?.agentName }}</h2>
+            </div>
+            <StatusPill tone="signal">{{ store.selectedStage }}</StatusPill>
+          </div>
+          <div class="summary-card">
+            <span>产物: {{ store.currentSummary?.artifactName }} v{{ store.currentSummary?.version }}</span>
+            <p>{{ store.currentSummary?.summary }}</p>
+            <ul>
+              <li v-for="item in store.currentSummary?.commandDigest" :key="item" class="mono">{{ item }}</li>
+            </ul>
+          </div>
+        </GlassPanel>
+      </div>
+
+      <NetworkTopologyLiveBoard
+        :task="task"
+        :healing-state="store.topologyHealingState"
+        :policy-state="store.topologyPolicyState"
+      />
+    </template>
+
+    <ValidationBoard v-else-if="store.activeView === 'validation'" :assertions="store.validationAssertions" />
+    <RepairCockpit v-else :plan="store.repairPlan" />
 
     <button class="append-tab" type="button" @click="drawerOpen = true">
       追加新指令
@@ -83,7 +111,7 @@
           <button class="drawer-close" type="button" @click="drawerOpen = false">关闭</button>
         </div>
         <p class="drawer-copy">
-          在当前拓扑、配置和验证结果基础上继续提问。这里先触发 mock 的 `appendIntent`，后续可接真实多轮 Agent 链路。
+          在当前拓扑、配置和验证结果基础上继续提问。这里先触发 mock 的 appendIntent，后续可对接真实多轮 Agent 链路。
         </p>
         <a-textarea
           v-model:value="appendText"
@@ -116,8 +144,11 @@ import { message, Modal } from 'ant-design-vue';
 import { useRouter } from 'vue-router';
 import GlassPanel from '@/components/GlassPanel.vue';
 import NetworkTopologyLiveBoard from '@/components/NetworkTopologyLiveBoard.vue';
+import RepairCockpit from '@/components/RepairCockpit.vue';
 import StatusPill from '@/components/StatusPill.vue';
+import ValidationBoard from '@/components/ValidationBoard.vue';
 import WorkflowTopology from '@/components/WorkflowTopology.vue';
+import type { MissionView } from '@/api/futureContracts';
 import { useTaskStore } from '@/stores/taskStore';
 
 const props = defineProps<{ taskId: string }>();
@@ -127,6 +158,11 @@ const { activeTask: task } = storeToRefs(store);
 const drawerOpen = ref(false);
 const appendText = ref('');
 const appendLoading = ref(false);
+
+const topLevelViews: Array<{ key: Exclude<MissionView, 'repair'>; title: string; caption: string }> = [
+  { key: 'control', title: 'Agent 协同指挥舱', caption: '拓扑 / VRP / 阶段流' },
+  { key: 'validation', title: '意图自动化验证', caption: '断言 / 证据 / 冲突' }
+];
 
 onMounted(() => {
   store.loadTask(props.taskId);
@@ -180,6 +216,7 @@ async function submitAppendIntent(): Promise<void> {
   margin: 12px 0 0;
   color: var(--mactav-text-soft);
   line-height: 1.7;
+  white-space: pre-line;
 }
 
 .status-stack {
@@ -207,6 +244,75 @@ async function submitAppendIntent(): Promise<void> {
   border-color: rgba(0, 98, 255, 0.46);
   box-shadow: 0 16px 32px rgba(31, 91, 180, 0.16);
   transform: translateY(-1px);
+}
+
+.view-switcher {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.view-switcher.with-repair {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.view-switcher button {
+  position: relative;
+  min-height: 68px;
+  padding: 13px 16px;
+  overflow: hidden;
+  border: 1px solid rgba(110, 155, 215, 0.22);
+  border-radius: 18px;
+  color: var(--mactav-text-main);
+  text-align: left;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.68), rgba(235, 247, 255, 0.54)),
+    radial-gradient(circle at 100% 0%, rgba(0, 217, 192, 0.12), transparent 34%);
+  cursor: pointer;
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.view-switcher button::after {
+  position: absolute;
+  inset: auto 14px 10px 14px;
+  height: 2px;
+  content: '';
+  background: linear-gradient(90deg, transparent, rgba(0, 98, 255, 0.74), rgba(0, 217, 192, 0.72), transparent);
+  opacity: 0;
+  transform: translateX(-18%);
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.view-switcher button.active {
+  border-color: rgba(0, 98, 255, 0.44);
+  box-shadow: 0 16px 34px rgba(31, 91, 180, 0.13);
+  transform: translateY(-1px);
+}
+
+.view-switcher button.active::after {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.view-switcher span,
+.view-switcher small {
+  display: block;
+}
+
+.view-switcher span {
+  font-weight: 950;
+}
+
+.view-switcher small {
+  margin-top: 4px;
+  color: var(--mactav-text-muted);
+}
+
+.repair-chip {
+  border-color: rgba(245, 158, 11, 0.28) !important;
+  background:
+    radial-gradient(circle at 88% 16%, rgba(245, 158, 11, 0.17), transparent 34%),
+    rgba(255, 255, 255, 0.62) !important;
 }
 
 .append-tab {
@@ -258,6 +364,7 @@ async function submitAppendIntent(): Promise<void> {
 }
 
 .drawer-close {
+  padding: 5px 12px;
   border: 1px solid rgba(110, 155, 215, 0.26);
   border-radius: 999px;
   color: var(--mactav-text-muted);
@@ -394,7 +501,8 @@ li {
     flex-direction: column;
   }
 
-  .mission-grid {
+  .mission-grid,
+  .view-switcher {
     grid-template-columns: 1fr;
   }
 }

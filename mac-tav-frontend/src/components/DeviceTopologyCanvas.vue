@@ -25,13 +25,13 @@
             <animate attributeName="stroke-dashoffset" from="108" to="0" dur="1.15s" repeatCount="indefinite" />
           </path>
         </g>
-        <path :d="aclDenyPath" :class="['acl-deny-arc', { healing: isHealingAlert }]" />
+        <path :d="aclDenyPath" :class="['acl-deny-arc', policyState, { healing: isHealingAlert }]" />
       </g>
 
       <g class="policy-layer">
-        <g :class="['acl-badge', { healing: isHealingAlert }]" transform="translate(404 584)">
+        <g :class="['acl-badge', policyState, { healing: isHealingAlert }]" transform="translate(404 584)">
           <rect x="-42" y="-12" width="84" height="24" rx="12" />
-          <text text-anchor="middle" y="4">🚫 ACL Deny</text>
+          <text text-anchor="middle" y="4">{{ policyState === 'repaired' ? 'ACL Enforced' : '🚫 ACL Deny' }}</text>
         </g>
       </g>
 
@@ -138,10 +138,12 @@ const props = withDefaults(
     links: TopologyLink[];
     initialSelectedDeviceId?: string;
     healingState?: 'normal' | 'failed' | 'healing';
+    policyState?: 'conflict' | 'approved' | 'repaired';
   }>(),
   {
     initialSelectedDeviceId: undefined,
-    healingState: 'normal'
+    healingState: 'normal',
+    policyState: 'conflict'
   }
 );
 
@@ -200,6 +202,7 @@ const permitLinks = computed(() =>
   resolvedLinks.value.filter((link) => isPermitLink(link))
 );
 const isHealingAlert = computed(() => props.healingState === 'failed' || props.healingState === 'healing');
+const policyState = computed(() => props.policyState);
 const aclDenyPath = 'M 580 532 C 616 604, 384 592, 290 615';
 
 const interfaceBadges: InterfaceBadge[] = [
@@ -354,6 +357,11 @@ svg {
   animation: acl-alert 1.05s ease-in-out infinite;
 }
 
+.acl-deny-arc.repaired {
+  stroke: rgba(16, 185, 129, 0.62);
+  stroke-dasharray: 8 8;
+}
+
 .acl-badge rect {
   fill: rgba(254, 242, 242, 0.9);
   stroke: rgba(239, 68, 68, 0.24);
@@ -375,6 +383,16 @@ svg {
 
 .acl-badge.healing text {
   fill: #b45309;
+}
+
+.acl-badge.repaired rect {
+  fill: rgba(236, 253, 245, 0.94);
+  stroke: rgba(16, 185, 129, 0.34);
+  filter: drop-shadow(0 0 10px rgba(16, 185, 129, 0.16));
+}
+
+.acl-badge.repaired text {
+  fill: #047857;
 }
 
 .interface-badge {

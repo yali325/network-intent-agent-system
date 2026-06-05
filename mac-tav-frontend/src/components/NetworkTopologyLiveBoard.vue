@@ -12,6 +12,8 @@
         :devices="task.topology.devices"
         :links="task.topology.links"
         :initial-selected-device-id="selectedDeviceId"
+        :healing-state="healingState"
+        :policy-state="policyState"
         @select-device="selectDevice"
       />
       <DeviceCommandPanel :config="selectedConfig" :analyzing="analyzing" />
@@ -27,8 +29,14 @@ import DeviceTopologyCanvas from '@/components/DeviceTopologyCanvas.vue';
 import GlassPanel from '@/components/GlassPanel.vue';
 import StatusPill from '@/components/StatusPill.vue';
 
-const props = defineProps<{ task: DemoTask }>();
-
+const props = withDefaults(defineProps<{
+  task: DemoTask;
+  healingState?: 'normal' | 'failed' | 'healing';
+  policyState?: 'conflict' | 'approved' | 'repaired';
+}>(), {
+  healingState: 'normal',
+  policyState: 'conflict'
+});
 const selectedDeviceId = ref('core-switch');
 const analyzing = ref(false);
 let timer: number | undefined;
