@@ -43,7 +43,6 @@ import java.time.Duration;
 import java.util.concurrent.Executor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -77,9 +76,8 @@ public class OrchestratorConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    @ConditionalOnBean(name = "nacosAgentCardProvider")
     public AgentCardRegistryClient officialAgentCardRegistryClient(
-            @Qualifier("nacosAgentCardProvider") AgentCardProvider agentCardProvider) {
+            AgentCardProvider agentCardProvider) {
         return new OfficialAgentCardRegistryClient(agentCardProvider);
     }
 
@@ -90,8 +88,7 @@ public class OrchestratorConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    @ConditionalOnBean(name = "nacosAgentCardProvider")
-    public A2aClient officialA2aClient(@Qualifier("nacosAgentCardProvider") AgentCardProvider agentCardProvider,
+    public A2aClient officialA2aClient(AgentCardProvider agentCardProvider,
                                        ObjectMapper objectMapper) {
         return new OfficialA2aClient(agentCardProvider, objectMapper);
     }
