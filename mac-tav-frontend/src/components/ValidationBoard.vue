@@ -42,7 +42,7 @@
 import { computed, ref } from 'vue';
 import { message } from 'ant-design-vue';
 import type { ValidationAssertionDemo } from '@/api/futureContracts';
-import { apiMode } from '@/api/config';
+import { useApiModeStore } from '@/stores/apiModeStore';
 import EvidenceInspectorPanel from '@/components/EvidenceInspectorPanel.vue';
 import GlassPanel from '@/components/GlassPanel.vue';
 import ValidationAssertionCard from '@/components/ValidationAssertionCard.vue';
@@ -60,7 +60,7 @@ async function runValidation(): Promise<void> {
   validating.value = true;
   try {
     const jobId = await store.runValidation();
-    message.success(apiMode === 'real' ? `验证任务已提交：${jobId}` : 'mock 验证完成：访客区到服务器区冲突仍可见');
+    message.success(useApiModeStore().isReal ? `验证任务已提交：${jobId}` : 'mock 验证完成：访客区到服务器区冲突仍可见');
   } finally {
     validating.value = false;
   }
@@ -71,7 +71,7 @@ async function enterRepair(): Promise<void> {
   analyzing.value = true;
   try {
     const jobId = await store.analyzeRepair();
-    message.success(apiMode === 'real' ? `修复分析任务已提交：${jobId}` : 'mock 修复分析已生成');
+    message.success(useApiModeStore().isReal ? `修复分析任务已提交：${jobId}` : 'mock 修复分析已生成');
   } finally {
     analyzing.value = false;
   }

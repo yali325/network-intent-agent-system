@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <main class="shell">
     <header class="topbar page-frame">
       <router-link to="/console" class="brand">
@@ -9,7 +9,22 @@
         </span>
       </router-link>
       <div class="top-actions">
-        <StatusPill tone="signal">API Mode: {{ apiMode }}</StatusPill>
+        <a-popconfirm
+          placement="bottomRight"
+          ok-text="切换"
+          cancel-text="取消"
+          @confirm="toggleApiMode"
+        >
+          <template #title>
+            <p style="max-width: 280px; margin: 0;">
+              切换到 <strong>{{ nextModeLabel }}</strong> 模式。当前 mock 任务数据不会自动迁移。
+            </p>
+          </template>
+          <StatusPill :tone="apiStore.isReal ? 'signal' : 'pending'" class="mode-pill">
+            API Mode: {{ apiStore.mode }}
+            <span v-if="apiStore.isReal && apiStore.baseUrl" class="mode-url"> · {{ displayBaseUrl }}</span>
+          </StatusPill>
+        </a-popconfirm>
         <StatusPill tone="pending">Phase 10 Visual Baseline</StatusPill>
       </div>
     </header>
@@ -22,8 +37,22 @@
 </template>
 
 <script setup lang="ts">
-import { apiMode } from '@/api/config';
-import StatusPill from '@/components/StatusPill.vue';
+import { computed } from "vue";
+import { useApiModeStore } from "@/stores/apiModeStore";
+import StatusPill from "@/components/StatusPill.vue";
+
+const apiStore = useApiModeStore();
+
+const nextModeLabel = computed(() => (apiStore.isMock ? "real" : "mock"));
+const displayBaseUrl = computed(() => {
+  const url = apiStore.baseUrl;
+  if (!url) return "";
+  return url.replace(/^https?:\/\//, "");
+});
+
+function toggleApiMode(): void {
+  apiStore.setMode(apiStore.isMock ? "real" : "mock");
+}
 </script>
 
 <style scoped>
@@ -76,6 +105,15 @@ import StatusPill from '@/components/StatusPill.vue';
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
+}
+
+.mode-pill {
+  cursor: pointer;
+  user-select: none;
+}
+
+.mode-url {
+  font-variant-numeric: tabular-nums;
 }
 
 .route-fade-enter-active,

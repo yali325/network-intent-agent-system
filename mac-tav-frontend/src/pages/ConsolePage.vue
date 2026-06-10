@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="console page-frame">
     <section class="intent-stage">
       <div class="stage-copy">
@@ -32,7 +32,7 @@
     <section class="templates">
       <div class="templates-head">
         <div>
-          <div class="eyebrow">场景模板快选</div>
+          <div class="eyebrow">场景模板快速</div>
           <h2>比赛展示常用网络意图</h2>
         </div>
       </div>
@@ -44,24 +44,41 @@
 </template>
 
 <script setup lang="ts">
-import { useRouter } from 'vue-router';
-import GlassPanel from '@/components/GlassPanel.vue';
-import GlowButton from '@/components/GlowButton.vue';
-import SceneTemplateCard from '@/components/SceneTemplateCard.vue';
-import StatusPill from '@/components/StatusPill.vue';
-import { sceneTemplates } from '@/fixtures/demoTask';
-import { useTaskStore } from '@/stores/taskStore';
+import { useRouter } from "vue-router";
+import { message } from "ant-design-vue";
+import GlassPanel from "@/components/GlassPanel.vue";
+import GlowButton from "@/components/GlowButton.vue";
+import SceneTemplateCard from "@/components/SceneTemplateCard.vue";
+import StatusPill from "@/components/StatusPill.vue";
+import { sceneTemplates } from "@/fixtures/demoTask";
+import { useTaskStore } from "@/stores/taskStore";
+import { useApiModeStore } from "@/stores/apiModeStore";
 
 const router = useRouter();
 const store = useTaskStore();
+const apiModeStore = useApiModeStore();
 
 if (!store.draftIntent) {
   store.draftIntent = sceneTemplates[0].prompt;
 }
 
 async function launch(): Promise<void> {
-  const task = store.createTask(store.draftIntent.trim());
-  await router.push(`/tasks/${task.task.taskId}`);
+  const { isReal } = apiModeStore;
+  if (isReal) {
+    try {
+      await store.createTask(store.draftIntent.trim());
+      await router.push(`/tasks/${store.realTaskId}`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      void message.error(msg);
+    }
+    return;
+  }
+
+  const task = await store.createTask(store.draftIntent.trim());
+  if ("task" in task) {
+    await router.push(`/tasks/${task.task.taskId}`);
+  }
 }
 </script>
 

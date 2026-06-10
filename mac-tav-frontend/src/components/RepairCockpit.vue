@@ -37,7 +37,7 @@
 import { computed, ref } from 'vue';
 import { message } from 'ant-design-vue';
 import type { RepairPlanDemo } from '@/api/futureContracts';
-import { apiMode } from '@/api/config';
+import { useApiModeStore } from '@/stores/apiModeStore';
 import GlassPanel from '@/components/GlassPanel.vue';
 import RcaReportPanel from '@/components/RcaReportPanel.vue';
 import RepairActionPipeline from '@/components/RepairActionPipeline.vue';
@@ -55,14 +55,14 @@ const phaseTone = computed(() => (store.repairPhase === 'applied' ? 'ok' : store
 
 async function approve(): Promise<void> {
   await store.approveSelectedRepairAction();
-  message.success(apiMode === 'real' ? '修复动作已授权，等待 Apply' : 'mock/demo：人工授权成功');
+  message.success(useApiModeStore().isReal ? '修复动作已授权，等待 Apply' : 'mock/demo：人工授权成功');
 }
 
 async function apply(): Promise<void> {
   applying.value = true;
   try {
     const jobId = await store.applySelectedRepairAction();
-    if (apiMode === 'real') {
+    if (useApiModeStore().isReal) {
       message.success(`修复动作已提交：${jobId}`);
     } else {
       message.loading({ content: `mock/demo Apply 已提交：${jobId}`, key: 'mock-apply', duration: 1.2 });
@@ -71,7 +71,7 @@ async function apply(): Promise<void> {
       }, 1500);
     }
   } finally {
-    if (apiMode === 'real') {
+    if (useApiModeStore().isReal) {
       applying.value = false;
     } else {
       window.setTimeout(() => {
