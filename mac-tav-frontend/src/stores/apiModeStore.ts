@@ -21,7 +21,7 @@ function loadInitialMode(): ApiMode {
 
 export const useApiModeStore = defineStore("apiMode", () => {
   const mode = ref<ApiMode>(loadInitialMode());
-  const baseUrl = ref<string>(import.meta.env.VITE_API_BASE_URL ?? "");
+  const baseUrl = ref<string>(import.meta.env.VITE_API_BASE_URL || "");
 
   const isMock = computed(() => mode.value === "mock");
   const isReal = computed(() => mode.value === "real");

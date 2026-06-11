@@ -7,9 +7,18 @@
  */
 import { useApiModeStore } from "@/stores/apiModeStore";
 import type {
+  PageResult,
+  RealArtifactSummary,
+  RealExecutionReport,
+  RealRepairPlan,
   RealTaskCreated,
+  RealValidationItem,
+  RealValidationReport,
+  RealWorkspaceEvent,
+  RealWorkspaceChange,
   RealWorkflowJob,
   RealWorkspace,
+  WorkflowStage,
 } from "@/api/types";
 
 /** Structured error thrown by every failing real API call. */
@@ -47,8 +56,17 @@ interface RawApiEnvelope<T> {
 }
 
 async function fetchJson<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const { baseUrl } = useApiModeStore();
-  const url = `${baseUrl}${path}`;
+  const rawBaseUrl = useApiModeStore().baseUrl.trim();
+  if (rawBaseUrl === "" && !import.meta.env.DEV) {
+    throw new ApiError(
+      method,
+      path,
+      null,
+      'REAL_API_BASE_URL_MISSING',
+      'Real API base URL not configured. Set VITE_API_BASE_URL in mac-tav-frontend/.env.local'
+    );
+  }
+  const url = rawBaseUrl === "" ? path : `${rawBaseUrl.replace(/\/$/, '')}${path}`;
   let response: Response;
   try {
     response = await fetch(url, {
@@ -68,13 +86,18 @@ async function fetchJson<T>(method: string, path: string, body?: unknown): Promi
   try {
     envelope = (await response.json()) as RawApiEnvelope<T>;
   } catch {
-    throw new ApiError(
-      method,
-      path,
-      response.status,
-      undefined,
-      `Unparseable response (HTTP ${response.status})`,
-    );
+    const contentType = response.headers.get('content-type') ?? 'unknown';
+    let detail = `Unparseable response (HTTP ${response.status}). Request URL: ${url}`;
+    if (!contentType.includes('application/json')) {
+      detail += ` Response is not JSON (got ${contentType}). ${
+        rawBaseUrl === "" && import.meta.env.DEV
+          ? "Using Vite dev proxy for /api/**. Check vite.config.ts proxy target and backend status."
+          : "Request may have hit the frontend dev server instead of the backend. Check VITE_API_BASE_URL."
+      }`;
+    } else {
+      detail += ` content-type=${contentType}`;
+    }
+    throw new ApiError(method, path, response.status, undefined, detail);
   }
 
   if (!response.ok) {
@@ -98,6 +121,21 @@ async function fetchJson<T>(method: string, path: string, body?: unknown): Promi
   }
 
   return envelope.data;
+}
+
+function withQuery(path: string, params: Record<string, string | number | undefined | null> = {}): string {
+  const search = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") {
+      search.set(key, String(value));
+    }
+  });
+  const query = search.toString();
+  return query ? `${path}?${query}` : path;
+}
+
+export interface WorkflowJobSubmitResponse {
+  jobId: string;
 }
 
 /**
@@ -127,11 +165,35 @@ export const realClient = {
    * Start full workflow for an existing task.
    * POST /api/v1/workflows/{taskId}/start
    */
-  async startWorkflow(taskId: string): Promise<{ jobId: string }> {
-    return fetchJson<{ jobId: string }>(
+  async startWorkflow(taskId: string): Promise<WorkflowJobSubmitResponse> {
+    return fetchJson<WorkflowJobSubmitResponse>(
       "POST",
       `/api/v1/workflows/${taskId}/start`,
     );
+  },
+
+  async getTaskJobs(taskId: string): Promise<RealWorkflowJob[]> {
+    return fetchJson<RealWorkflowJob[]>("GET", `/api/v1/tasks/${taskId}/jobs`);
+  },
+
+  async runIntentStage(taskId: string): Promise<WorkflowJobSubmitResponse> {
+    return fetchJson<WorkflowJobSubmitResponse>("POST", `/api/v1/workflows/${taskId}/run`);
+  },
+
+  async runPlanningStage(taskId: string): Promise<WorkflowJobSubmitResponse> {
+    return fetchJson<WorkflowJobSubmitResponse>("POST", `/api/v1/workflows/${taskId}/plan`);
+  },
+
+  async runConfigurationStage(taskId: string): Promise<WorkflowJobSubmitResponse> {
+    return fetchJson<WorkflowJobSubmitResponse>("POST", `/api/v1/workflows/${taskId}/config`);
+  },
+
+  async rerunStage(taskId: string, stage: WorkflowStage): Promise<WorkflowJobSubmitResponse> {
+    return fetchJson<WorkflowJobSubmitResponse>("POST", `/api/v1/workflows/${taskId}/rerun/${stage}`);
+  },
+
+  async continueFromStage(taskId: string, stage: WorkflowStage): Promise<WorkflowJobSubmitResponse> {
+    return fetchJson<WorkflowJobSubmitResponse>("POST", `/api/v1/workflows/${taskId}/continue-from/${stage}`);
   },
 
   /**
@@ -154,5 +216,89 @@ export const realClient = {
       "GET",
       `/api/v1/workspaces/${taskId}`,
     );
+  },
+
+  async getWorkspaceTimeline(taskId: string, page = 1, size = 20): Promise<PageResult<RealWorkspaceEvent>> {
+    return fetchJson<PageResult<RealWorkspaceEvent>>(
+      "GET",
+      withQuery(`/api/v1/workspaces/${taskId}/timeline`, { page, size }),
+    );
+  },
+
+  async getWorkspaceChanges(taskId: string, page = 1, size = 20): Promise<PageResult<RealWorkspaceChange>> {
+    return fetchJson<PageResult<RealWorkspaceChange>>(
+      "GET",
+      withQuery(`/api/v1/workspaces/${taskId}/changes`, { page, size }),
+    );
+  },
+
+  async listArtifacts(
+    taskId: string,
+    params: { artifactType?: string; stage?: WorkflowStage; page?: number; size?: number } = {},
+  ): Promise<PageResult<RealArtifactSummary>> {
+    return fetchJson<PageResult<RealArtifactSummary>>(
+      "GET",
+      withQuery(`/api/v1/artifacts/${taskId}`, {
+        artifactType: params.artifactType,
+        stage: params.stage,
+        page: params.page ?? 1,
+        size: params.size ?? 20,
+      }),
+    );
+  },
+
+  async getEventHistory(taskId: string, page = 1, size = 20): Promise<PageResult<RealWorkspaceEvent>> {
+    return fetchJson<PageResult<RealWorkspaceEvent>>(
+      "GET",
+      withQuery(`/api/v1/events/${taskId}/history`, { page, size }),
+    );
+  },
+
+  async runExecution(taskId: string): Promise<WorkflowJobSubmitResponse> {
+    return fetchJson<WorkflowJobSubmitResponse>("POST", `/api/v1/executions/${taskId}/run`);
+  },
+
+  async getExecution(taskId: string): Promise<RealExecutionReport> {
+    return fetchJson<RealExecutionReport>("GET", `/api/v1/executions/${taskId}`);
+  },
+
+  async runValidation(taskId: string): Promise<WorkflowJobSubmitResponse> {
+    return fetchJson<WorkflowJobSubmitResponse>("POST", `/api/v1/validations/${taskId}/run`);
+  },
+
+  async getValidation(taskId: string): Promise<RealValidationReport> {
+    return fetchJson<RealValidationReport>("GET", `/api/v1/validations/${taskId}`);
+  },
+
+  async getValidationItems(taskId: string): Promise<RealValidationItem[]> {
+    return fetchJson<RealValidationItem[]>("GET", `/api/v1/validations/${taskId}/items`);
+  },
+
+  async analyzeRepair(taskId: string): Promise<WorkflowJobSubmitResponse> {
+    return fetchJson<WorkflowJobSubmitResponse>("POST", `/api/v1/repairs/${taskId}/analyze`);
+  },
+
+  async getRepair(taskId: string): Promise<RealRepairPlan> {
+    return fetchJson<RealRepairPlan>("GET", `/api/v1/repairs/${taskId}`);
+  },
+
+  async approveRepairAction(
+    taskId: string,
+    actionId: string,
+    body?: { actor?: string; comment?: string },
+  ): Promise<RealRepairPlan> {
+    return fetchJson<RealRepairPlan>("POST", `/api/v1/repairs/${taskId}/actions/${actionId}/approve`, body);
+  },
+
+  async rejectRepairAction(
+    taskId: string,
+    actionId: string,
+    body?: { actor?: string; comment?: string },
+  ): Promise<RealRepairPlan> {
+    return fetchJson<RealRepairPlan>("POST", `/api/v1/repairs/${taskId}/actions/${actionId}/reject`, body);
+  },
+
+  async applyRepairAction(taskId: string, actionId: string): Promise<WorkflowJobSubmitResponse> {
+    return fetchJson<WorkflowJobSubmitResponse>("POST", `/api/v1/repairs/${taskId}/actions/${actionId}/apply`);
   },
 };

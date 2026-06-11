@@ -5,7 +5,20 @@ import { createMockTask, getMockTask } from "@/api/mockAdapter";
 import { realClient, ApiError } from "@/api/realClient";
 import { useApiModeStore } from "@/stores/apiModeStore";
 import type { MissionView, MockRepairPhase, RepairActionDemo, RepairPlanDemo, ValidationAssertionDemo } from "@/api/futureContracts";
-import type { DemoTask, RealTaskCreated, RealWorkflowJob, RealWorkspace, WorkflowStage } from "@/api/types";
+import type {
+  DemoTask,
+  PageResult,
+  RealArtifactSummary,
+  RealExecutionReport,
+  RealRepairPlan,
+  RealTaskCreated,
+  RealValidationItem,
+  RealValidationReport,
+  RealWorkspace,
+  RealWorkspaceEvent,
+  RealWorkflowJob,
+  WorkflowStage,
+} from "@/api/types";
 import { repairPlanFixture } from "@/fixtures/futureRepairDemo";
 import { validationAssertionsFixture } from "@/fixtures/futureValidationDemo";
 
@@ -27,6 +40,21 @@ export const useTaskStore = defineStore("task", () => {
   const realJob = ref<RealWorkflowJob | null>(null);
   const realWorkspace = ref<RealWorkspace | null>(null);
   const realError = ref<string | null>(null);
+  const realTimeline = ref<PageResult<RealWorkspaceEvent> | null>(null);
+  const realEvents = ref<PageResult<RealWorkspaceEvent> | null>(null);
+  const realArtifacts = ref<PageResult<RealArtifactSummary> | null>(null);
+  const realTaskJobs = ref<RealWorkflowJob[]>([]);
+  const realExecution = ref<RealExecutionReport | null>(null);
+  const realValidation = ref<RealValidationReport | null>(null);
+  const realValidationItems = ref<RealValidationItem[]>([]);
+  const realRepairPlan = ref<RealRepairPlan | null>(null);
+  const realNotImplemented = ref([
+    "GET /api/v1/views/{taskId}/topology",
+    "GET /api/v1/views/{taskId}/config-blocks",
+    "GET /api/v1/views/{taskId}/trace",
+    "GET /api/v1/workspaces/{taskId}/summary",
+    "GET /api/v1/executions/{taskId}/logs",
+  ]);
 
   const currentSummary = computed(() => activeTask.value?.stageSummaries.find((item) => item.stage === selectedStage.value) ?? null);
   const selectedRepairAction = computed(() => repairPlan.value.actions.find((action) => action.actionId === selectedRepairActionId.value) ?? repairPlan.value.actions[0]);
@@ -52,6 +80,10 @@ export const useTaskStore = defineStore("task", () => {
         realTaskId.value = created.taskId;
         const submitResp = await realClient.startWorkflow(created.taskId);
         realJobId.value = submitResp.jobId;
+        await pollJob(submitResp.jobId);
+        await fetchWorkspace(created.taskId);
+        await fetchEventHistory(created.taskId);
+        await listArtifacts(created.taskId);
         appendedIntents.value = [];
         resetClosedLoop();
         return created;
@@ -70,14 +102,25 @@ export const useTaskStore = defineStore("task", () => {
     return activeTask.value;
   }
 
-  function loadTask(taskId: string): DemoTask | null {
+  async function loadTask(taskId: string): Promise<DemoTask | null> {
     const { isReal } = useApiModeStore();
     if (isReal) {
       realTaskId.value = taskId;
       realJob.value = null;
       realWorkspace.value = null;
       realError.value = null;
+      resetRealData();
       activeTask.value = null;
+      try {
+        await fetchWorkspace(taskId);
+        await fetchTaskJobs(taskId);
+        await fetchEventHistory(taskId);
+        await listArtifacts(taskId);
+      } catch (err: unknown) {
+        const msg = err instanceof ApiError ? err.message : String(err);
+        realError.value = msg;
+        throw err;
+      }
       return null;
     }
     activeTask.value = getMockTask(taskId);
@@ -114,6 +157,80 @@ export const useTaskStore = defineStore("task", () => {
       realError.value = msg;
       throw err;
     }
+  }
+
+  async function fetchTaskJobs(taskId?: string): Promise<RealWorkflowJob[]> {
+    const tid = taskId ?? realTaskId.value;
+    if (!tid) throw new Error("No taskId available for job history");
+    try {
+      const jobs = await realClient.getTaskJobs(tid);
+      realTaskJobs.value = jobs;
+      const latestJob = jobs[0] ?? jobs[jobs.length - 1] ?? null;
+      if (!realJob.value && latestJob) {
+        realJob.value = latestJob;
+        realJobId.value = latestJob.jobId;
+      }
+      return jobs;
+    } catch (err: unknown) {
+      const msg = err instanceof ApiError ? err.message : String(err);
+      realError.value = msg;
+      throw err;
+    }
+  }
+
+  async function fetchEventHistory(taskId?: string): Promise<PageResult<RealWorkspaceEvent>> {
+    const tid = taskId ?? realTaskId.value;
+    if (!tid) throw new Error("No taskId available for event history");
+    try {
+      const events = await realClient.getEventHistory(tid);
+      realEvents.value = events;
+      return events;
+    } catch (err: unknown) {
+      const msg = err instanceof ApiError ? err.message : String(err);
+      realError.value = msg;
+      throw err;
+    }
+  }
+
+  async function fetchTimeline(taskId?: string): Promise<PageResult<RealWorkspaceEvent>> {
+    const tid = taskId ?? realTaskId.value;
+    if (!tid) throw new Error("No taskId available for workspace timeline");
+    try {
+      const timeline = await realClient.getWorkspaceTimeline(tid);
+      realTimeline.value = timeline;
+      return timeline;
+    } catch (err: unknown) {
+      const msg = err instanceof ApiError ? err.message : String(err);
+      realError.value = msg;
+      throw err;
+    }
+  }
+
+  async function listArtifacts(taskId?: string): Promise<PageResult<RealArtifactSummary>> {
+    const tid = taskId ?? realTaskId.value;
+    if (!tid) throw new Error("No taskId available for artifacts");
+    try {
+      const artifacts = await realClient.listArtifacts(tid);
+      realArtifacts.value = artifacts;
+      return artifacts;
+    } catch (err: unknown) {
+      const msg = err instanceof ApiError ? err.message : String(err);
+      realError.value = msg;
+      throw err;
+    }
+  }
+
+  function resetRealData(): void {
+    realJob.value = null;
+    realWorkspace.value = null;
+    realTimeline.value = null;
+    realEvents.value = null;
+    realArtifacts.value = null;
+    realTaskJobs.value = [];
+    realExecution.value = null;
+    realValidation.value = null;
+    realValidationItems.value = [];
+    realRepairPlan.value = null;
   }
 
   function prepareNewIntent(): void {
@@ -226,6 +343,15 @@ export const useTaskStore = defineStore("task", () => {
     realJob,
     realWorkspace,
     realError,
+    realTimeline,
+    realEvents,
+    realArtifacts,
+    realTaskJobs,
+    realExecution,
+    realValidation,
+    realValidationItems,
+    realRepairPlan,
+    realNotImplemented,
     topologyPolicyState,
     topologyHealingState,
     currentSummary,
@@ -234,6 +360,10 @@ export const useTaskStore = defineStore("task", () => {
     loadTask,
     pollJob,
     fetchWorkspace,
+    fetchTaskJobs,
+    fetchEventHistory,
+    fetchTimeline,
+    listArtifacts,
     prepareNewIntent,
     appendIntent,
     resetClosedLoop,
