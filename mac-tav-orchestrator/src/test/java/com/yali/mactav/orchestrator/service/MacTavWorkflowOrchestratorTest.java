@@ -77,7 +77,10 @@ class MacTavWorkflowOrchestratorTest {
         var o = new MacTavWorkflowOrchestrator(w, rec, new RemoteAgentInvoker(d, c, new A2aResponseValidator()), om);
         var cr = o.createTask("x", "lab", "u"); var res = o.runIntentStage(cr.getTask().getTaskId());
         assertNotNull(res.getCurrentIntent());
+        assertNotNull(res.getCurrentIntent().getSemanticIntentGraph());
         assertEquals(ArtifactType.NETWORK_INTENT, res.getArtifacts().get(0).getArtifactType());
+        assertTrue(res.getArtifacts().get(0).getPayloadJson().contains("semanticIntentGraph"));
+        assertFalse(res.getArtifacts().get(0).getPayloadJson().contains("semanticSummary"));
         assertEquals(1, res.getAgentExecutionRecords().size());
     }
 
