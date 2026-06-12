@@ -5,8 +5,7 @@
         <div class="eyebrow">Validation Board / Demo Evidence</div>
         <h2>验证证据矩阵</h2>
         <p>
-          这里聚焦意图断言、验证证据和冲突定位。mock 模式展示 fixture evidence；real 模式只提交真实 validation /
-          repair job，不伪造结果。
+          这里聚焦意图断言、验证证据和冲突定位。mock 模式展示 fixture evidence；real 模式由 RealTaskMissionView 提交真实 validation / repair 数据，不伪造结果。
         </p>
       </div>
       <div class="board-actions">

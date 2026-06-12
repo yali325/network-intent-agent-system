@@ -1,6 +1,6 @@
 <template>
   <section class="rca-panel">
-    <div class="eyebrow">HealingAgent 诊断报告 / Demo</div>
+    <div class="eyebrow">HealingAgent 诊断报告</div>
     <h3>{{ rca.category }}</h3>
     <div class="rca-meta">
       <span>Severity: {{ rca.severity }}</span>

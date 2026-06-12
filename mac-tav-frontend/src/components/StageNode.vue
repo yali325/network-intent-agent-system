@@ -11,7 +11,7 @@ defineProps<{
   index: number;
   title: string;
   caption: string;
-  status: 'done' | 'running' | 'pending';
+  status: 'done' | 'running' | 'pending' | 'failed' | 'not_ready';
   selected: boolean;
 }>();
 
@@ -79,6 +79,25 @@ small {
 .running .node-index {
   background: linear-gradient(135deg, var(--mactav-cyber-blue), var(--mactav-neon-teal));
   animation: pulse-ring 1.45s ease-out infinite;
+}
+
+.failed {
+  border-color: rgba(239, 68, 68, 0.34);
+  background:
+    radial-gradient(circle at 80% 10%, rgba(239, 68, 68, 0.16), transparent 34%),
+    rgba(255, 255, 255, 0.82);
+}
+
+.failed .node-index {
+  background: var(--mactav-danger);
+}
+
+.not_ready {
+  opacity: 0.76;
+}
+
+.not_ready .node-index {
+  background: #cbd5e1;
 }
 
 @media (max-width: 820px) {

@@ -6,11 +6,15 @@
         <h3>{{ config.title }}</h3>
         <p>{{ config.subtitle }}</p>
       </div>
-      <a-button size="small" @click="copyCommands">复制命令</a-button>
+      <a-button size="small" :disabled="config.commands.length === 0" @click="copyCommands">复制命令</a-button>
     </div>
     <div v-if="analyzing" class="analyzing">
       <span />
       正在分析所选设备配置...
+    </div>
+    <div v-else-if="config.commands.length === 0" class="command-empty">
+      <strong>CONFIG_SET_NOT_FOUND</strong>
+      <p>{{ emptyMessage }}</p>
     </div>
     <HuaweiCommandHighlighter v-else :commands="config.commands" />
   </div>
@@ -21,10 +25,13 @@ import { message } from 'ant-design-vue';
 import type { DeviceConfig } from '@/api/types';
 import HuaweiCommandHighlighter from '@/components/HuaweiCommandHighlighter.vue';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   config: DeviceConfig;
   analyzing: boolean;
-}>();
+  emptyMessage?: string;
+}>(), {
+  emptyMessage: '配置命令尚未生成。'
+});
 
 async function copyCommands(): Promise<void> {
   await navigator.clipboard.writeText(props.config.commands.join('\n'));
@@ -60,7 +67,8 @@ p {
   color: var(--mactav-text-muted);
 }
 
-.analyzing {
+.analyzing,
+.command-empty {
   display: grid;
   min-height: 438px;
   place-items: center;
@@ -69,6 +77,19 @@ p {
   color: var(--mactav-cyber-blue);
   background: rgba(255, 255, 255, 0.58);
   font-weight: 900;
+  text-align: center;
+}
+
+.command-empty {
+  align-content: center;
+  gap: 10px;
+  padding: 24px;
+  color: var(--mactav-text-muted);
+}
+
+.command-empty strong {
+  color: var(--mactav-cyber-blue);
+  font-family: "Cascadia Code", Consolas, monospace;
 }
 
 .analyzing span {

@@ -38,12 +38,14 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { WorkflowStage } from '@/api/types';
+import type { StageFlowNodeViewModel } from '@/api/realViewAdapters';
 import { stageLabels, stageOrder } from '@/fixtures/demoTask';
 import StageNode from '@/components/StageNode.vue';
 
 const props = defineProps<{
   currentStage: WorkflowStage;
   selectedStage: WorkflowStage;
+  stageNodes?: StageFlowNodeViewModel[];
 }>();
 
 defineEmits<{ selectStage: [stage: WorkflowStage] }>();
@@ -51,13 +53,15 @@ defineEmits<{ selectStage: [stage: WorkflowStage] }>();
 const nodes = computed(() =>
   stageOrder.map((key, index) => ({
     key,
-    ...stageLabels[key],
+    ...(props.stageNodes?.find((stage) => stage.key === key) ?? stageLabels[key]),
     x: [14, 35.5, 58.5, 81, 58.5, 14][index],
     y: [30, 30, 30, 30, 67, 67][index]
   }))
 );
 
-function stageStatus(stage: WorkflowStage): 'done' | 'running' | 'pending' {
+function stageStatus(stage: WorkflowStage): 'done' | 'running' | 'pending' | 'failed' | 'not_ready' {
+  const override = props.stageNodes?.find((node) => node.key === stage)?.status;
+  if (override) return override;
   const currentIndex = stageOrder.indexOf(props.currentStage);
   const index = stageOrder.indexOf(stage);
   if (index < currentIndex) return 'done';

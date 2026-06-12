@@ -27,7 +27,7 @@
         提交修复 Apply
       </a-button>
       <span class="approval-note">
-        mock/demo：Apply 后播放 1.5s 修复过渡并回到指挥舱；real：只提交真实 job，等待后端状态刷新，不伪造成功。
+        mock/demo：Apply 后播放 1.5s 修复过渡并回到指挥舱；real：只提交真实 job，等待后端状态刷新，不伪造成成功。
       </span>
     </div>
   </GlassPanel>

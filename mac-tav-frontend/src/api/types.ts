@@ -143,6 +143,192 @@ export interface RealRepairPlan {
   [key: string]: unknown;
 }
 
+export type RealViewStatus = "READY" | "PARTIAL" | "NOT_READY" | "FAILED" | string;
+
+export interface RealViewReadiness {
+  status?: RealViewStatus;
+  ready: boolean;
+  reasonCode?: string;
+  message?: string;
+  missingArtifacts?: string[];
+}
+
+export interface RealWorkspaceSummaryView {
+  taskId: string;
+  taskStatus?: string;
+  currentStage?: string;
+  workspaceStatus?: string;
+  currentArtifactRefs?: Record<string, string>;
+  latestJob?: RealWorkflowJob;
+  stageCards?: RealStageCard[];
+  currentStageSummary?: string;
+  readiness?: RealViewReadiness;
+  missingArtifacts?: string[];
+  errors?: string[];
+}
+
+export interface RealStageCard {
+  stage: WorkflowStage | string;
+  title?: string;
+  agentName?: string;
+  status?: RealViewStatus;
+  artifactType?: string;
+  artifactId?: string;
+  artifactVersion?: number;
+  summary?: string;
+  errorCode?: string;
+  errorMessage?: string;
+  updateTime?: string;
+}
+
+export interface RealWorkflowTraceView {
+  taskId: string;
+  status?: RealViewStatus;
+  ready: boolean;
+  reasonCode?: string;
+  message?: string;
+  currentStage?: WorkflowStage | string;
+  jobStatus?: string;
+  missingArtifacts?: string[];
+  nodes?: RealTraceNode[];
+  edges?: RealTraceEdge[];
+  events?: RealTraceEvent[];
+  errors?: string[];
+}
+
+export interface RealTraceNode {
+  id: string;
+  stage?: WorkflowStage | string;
+  label?: string;
+  agentName?: string;
+  status?: RealViewStatus;
+  artifactType?: string;
+  artifactId?: string;
+  errorCode?: string;
+  errorMessage?: string;
+}
+
+export interface RealTraceEdge {
+  from: string;
+  to: string;
+  status?: RealViewStatus;
+  label?: string;
+}
+
+export interface RealTraceEvent {
+  eventId?: string;
+  eventType?: string;
+  stage?: WorkflowStage | string;
+  severity?: string;
+  title?: string;
+  message?: string;
+  eventTime?: string;
+  relatedArtifactId?: string;
+  relatedRecordId?: string;
+  traceId?: string;
+}
+
+export interface RealTopologyView {
+  taskId: string;
+  status?: RealViewStatus;
+  ready: boolean;
+  sourceArtifactType?: string;
+  sourceArtifactId?: string;
+  sourceStage?: WorkflowStage | string;
+  devices?: RealTopologyDevice[];
+  links?: RealTopologyLink[];
+  policies?: string[];
+  annotations?: string[];
+  reasonCode?: string;
+  message?: string;
+}
+
+export interface RealTopologyDevice {
+  id: string;
+  name?: string;
+  role?: string;
+  zone?: string;
+  ip?: string;
+  status?: string;
+  vendor?: string;
+  deviceType?: string;
+  x?: number;
+  y?: number;
+}
+
+export interface RealTopologyLink {
+  id?: string;
+  from?: string;
+  to?: string;
+  label?: string;
+  status?: string;
+  policy?: string;
+  evidence?: string;
+  sourcePort?: string;
+  targetPort?: string;
+}
+
+export interface RealConfigBlocksView {
+  taskId: string;
+  status?: RealViewStatus;
+  ready: boolean;
+  sourceArtifactId?: string;
+  configVersion?: number;
+  devices?: RealConfigDeviceView[];
+  commandBlocks?: RealCommandBlockView[];
+  warnings?: string[];
+  reasonCode?: string;
+  message?: string;
+}
+
+export interface RealConfigDeviceView {
+  deviceId?: string;
+  deviceName?: string;
+  vendor?: string;
+  model?: string;
+  status?: string;
+  commands?: string[];
+  rollbackCommands?: string[];
+  summary?: string;
+  artifactId?: string;
+  traceRefs?: unknown;
+}
+
+export interface RealCommandBlockView {
+  deviceId?: string;
+  deviceName?: string;
+  blockId?: string;
+  title?: string;
+  blockType?: string;
+  order?: number;
+  commands?: string[];
+  rollbackCommands?: string[];
+  summary?: string;
+  artifactId?: string;
+  traceRefs?: unknown;
+}
+
+export interface RealExecutionLogsView {
+  taskId: string;
+  status?: RealViewStatus;
+  ready: boolean;
+  source?: string;
+  lines?: RealExecutionLogLine[];
+  events?: RealTraceEvent[];
+  reasonCode?: string;
+  message?: string;
+}
+
+export interface RealExecutionLogLine {
+  time?: string;
+  level?: string;
+  stage?: string;
+  source?: string;
+  message?: string;
+  relatedRecordId?: string;
+  traceId?: string;
+}
+
 export interface TelemetryEvent {
   eventId: string;
   eventType: string;

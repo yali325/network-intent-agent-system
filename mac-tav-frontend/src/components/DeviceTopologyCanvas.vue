@@ -28,14 +28,14 @@
         <path :d="aclDenyPath" :class="['acl-deny-arc', policyState, { healing: isHealingAlert }]" />
       </g>
 
-      <g class="policy-layer">
+      <g v-if="showDemoOverlays" class="policy-layer">
         <g :class="['acl-badge', policyState, { healing: isHealingAlert }]" transform="translate(404 584)">
           <rect x="-42" y="-12" width="84" height="24" rx="12" />
           <text text-anchor="middle" y="4">{{ policyState === 'repaired' ? 'ACL Enforced' : '🚫 ACL Deny' }}</text>
         </g>
       </g>
 
-      <g class="interface-badge-layer">
+      <g v-if="showDemoOverlays" class="interface-badge-layer">
         <text v-for="badge in interfaceBadges" :key="badge.id" :x="badge.x" :y="badge.y" class="interface-badge">
           {{ badge.label }}
         </text>
@@ -124,6 +124,10 @@
         </g>
       </g>
     </svg>
+    <div v-if="devices.length === 0" class="canvas-empty">
+      <strong>NETWORK_TOPOLOGY_NOT_READY</strong>
+      <span>{{ emptyMessage }}</span>
+    </div>
     <p class="hint">点击拓扑节点，右侧仅显示所选设备配置。空白处点击不会取消当前高亮。</p>
   </div>
 </template>
@@ -139,11 +143,15 @@ const props = withDefaults(
     initialSelectedDeviceId?: string;
     healingState?: 'normal' | 'failed' | 'healing';
     policyState?: 'conflict' | 'approved' | 'repaired';
+    showDemoOverlays?: boolean;
+    emptyMessage?: string;
   }>(),
   {
     initialSelectedDeviceId: undefined,
     healingState: 'normal',
-    policyState: 'conflict'
+    policyState: 'conflict',
+    showDemoOverlays: true,
+    emptyMessage: '真实拓扑产物尚未生成。'
   }
 );
 
@@ -239,6 +247,7 @@ function isLinkedToSelected(link: ResolvedLink): boolean {
 }
 
 function isPermitLink(link: ResolvedLink): boolean {
+  if (!props.showDemoOverlays) return false;
   return (link.from.id === 'core-switch' && link.to.id === 'agg-a') || (link.from.id === 'agg-a' && link.to.id === 'prod');
 }
 
@@ -273,6 +282,7 @@ function nodeEntryOffset(node: LayoutNode): number {
 }
 
 function serviceMeta(deviceId: string): string {
+  if (!props.showDemoOverlays) return '';
   if (deviceId === 'prod') return 'VLAN 30 | 10.1.3.0/24';
   if (deviceId === 'guest') return 'VLAN 10 | 10.1.1.0/24';
   return '';
@@ -583,6 +593,25 @@ svg {
   margin: -2px 18px 18px;
   color: var(--mactav-text-muted);
   font-size: 13px;
+}
+
+.canvas-empty {
+  display: grid;
+  gap: 8px;
+  place-items: center;
+  min-height: 220px;
+  margin: -500px 24px 280px;
+  padding: 28px;
+  border: 1px dashed rgba(0, 98, 255, 0.24);
+  border-radius: 20px;
+  color: var(--mactav-text-muted);
+  text-align: center;
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.canvas-empty strong {
+  color: var(--mactav-cyber-blue);
+  font-family: "Cascadia Code", Consolas, monospace;
 }
 
 @keyframes selected-breathe {

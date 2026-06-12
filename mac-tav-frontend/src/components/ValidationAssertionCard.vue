@@ -42,6 +42,10 @@ defineProps<{ assertion: ValidationAssertionDemo }>();
   animation: failed-pulse 1.8s ease-in-out infinite;
 }
 
+.assertion-card.pending {
+  border-style: dashed;
+}
+
 .assertion-head {
   display: flex;
   align-items: flex-start;
@@ -80,6 +84,11 @@ defineProps<{ assertion: ValidationAssertionDemo }>();
   color: #dc2626;
   background: rgba(239, 68, 68, 0.12);
   box-shadow: 0 0 18px rgba(239, 68, 68, 0.16);
+}
+
+.pending .stamp {
+  color: #64748b;
+  background: rgba(148, 163, 184, 0.14);
 }
 
 .assertion-grid {

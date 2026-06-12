@@ -1,4 +1,4 @@
-﻿import { defineStore } from "pinia";
+import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import { closedLoopApi } from "@/api/closedLoopApi";
 import { createMockTask, getMockTask } from "@/api/mockAdapter";
@@ -9,13 +9,18 @@ import type {
   DemoTask,
   PageResult,
   RealArtifactSummary,
+  RealConfigBlocksView,
   RealExecutionReport,
+  RealExecutionLogsView,
   RealRepairPlan,
   RealTaskCreated,
+  RealTopologyView,
   RealValidationItem,
   RealValidationReport,
+  RealWorkflowTraceView,
   RealWorkspace,
   RealWorkspaceEvent,
+  RealWorkspaceSummaryView,
   RealWorkflowJob,
   WorkflowStage,
 } from "@/api/types";
@@ -48,12 +53,22 @@ export const useTaskStore = defineStore("task", () => {
   const realValidation = ref<RealValidationReport | null>(null);
   const realValidationItems = ref<RealValidationItem[]>([]);
   const realRepairPlan = ref<RealRepairPlan | null>(null);
+  const realWorkspaceSummary = ref<RealWorkspaceSummaryView | null>(null);
+  const realWorkflowTrace = ref<RealWorkflowTraceView | null>(null);
+  const realTopology = ref<RealTopologyView | null>(null);
+  const realConfigBlocks = ref<RealConfigBlocksView | null>(null);
+  const realExecutionLogs = ref<RealExecutionLogsView | null>(null);
+  const realViewPanels = ref<Record<string, { loading: boolean; status: string; error: string | null }>>({
+    summary: { loading: false, status: "idle", error: null },
+    trace: { loading: false, status: "idle", error: null },
+    topology: { loading: false, status: "idle", error: null },
+    configBlocks: { loading: false, status: "idle", error: null },
+    executionLogs: { loading: false, status: "idle", error: null },
+  });
   const realNotImplemented = ref([
-    "GET /api/v1/views/{taskId}/topology",
-    "GET /api/v1/views/{taskId}/config-blocks",
-    "GET /api/v1/views/{taskId}/trace",
-    "GET /api/v1/workspaces/{taskId}/summary",
-    "GET /api/v1/executions/{taskId}/logs",
+    "GET /api/v1/views/{taskId}/config-blocks/{blockId}/trace",
+    "GET /api/v1/views/{taskId}/validation-evidence-matrix",
+    "GET /api/v1/views/{taskId}/repair-simulation",
   ]);
 
   const currentSummary = computed(() => activeTask.value?.stageSummaries.find((item) => item.stage === selectedStage.value) ?? null);
@@ -74,6 +89,8 @@ export const useTaskStore = defineStore("task", () => {
     const { isReal } = useApiModeStore();
 
     if (isReal) {
+      activeTask.value = null;
+      resetRealData();
       realError.value = null;
       try {
         const created = await realClient.createTask(rawText);
@@ -84,6 +101,7 @@ export const useTaskStore = defineStore("task", () => {
         await fetchWorkspace(created.taskId);
         await fetchEventHistory(created.taskId);
         await listArtifacts(created.taskId);
+        await refreshRealMissionView(created.taskId);
         appendedIntents.value = [];
         resetClosedLoop();
         return created;
@@ -111,15 +129,17 @@ export const useTaskStore = defineStore("task", () => {
       realError.value = null;
       resetRealData();
       activeTask.value = null;
-      try {
-        await fetchWorkspace(taskId);
-        await fetchTaskJobs(taskId);
-        await fetchEventHistory(taskId);
-        await listArtifacts(taskId);
-      } catch (err: unknown) {
-        const msg = err instanceof ApiError ? err.message : String(err);
-        realError.value = msg;
-        throw err;
+      const results = await Promise.allSettled([
+        fetchWorkspace(taskId),
+        fetchTaskJobs(taskId),
+        fetchEventHistory(taskId),
+        listArtifacts(taskId),
+        refreshRealMissionView(taskId),
+      ]);
+      const firstFailure = results.find((result) => result.status === "rejected");
+      if (firstFailure && firstFailure.status === "rejected") {
+        const err = firstFailure.reason as unknown;
+        realError.value = err instanceof ApiError ? err.message : err instanceof Error ? err.message : String(err);
       }
       return null;
     }
@@ -220,6 +240,41 @@ export const useTaskStore = defineStore("task", () => {
     }
   }
 
+  async function refreshRealMissionView(taskId?: string): Promise<void> {
+    const tid = taskId ?? realTaskId.value;
+    if (!tid) throw new Error("No taskId available for real mission view");
+    await Promise.allSettled([
+      loadRealPanel("summary", () => realClient.getWorkspaceSummary(tid), (data) => {
+        realWorkspaceSummary.value = data;
+      }),
+      loadRealPanel("trace", () => realClient.getWorkflowTrace(tid), (data) => {
+        realWorkflowTrace.value = data;
+      }),
+      loadRealPanel("topology", () => realClient.getTopologyView(tid), (data) => {
+        realTopology.value = data;
+      }),
+      loadRealPanel("configBlocks", () => realClient.getConfigBlocks(tid), (data) => {
+        realConfigBlocks.value = data;
+      }),
+      loadRealPanel("executionLogs", () => realClient.getExecutionLogs(tid), (data) => {
+        realExecutionLogs.value = data;
+      }),
+    ]);
+  }
+
+  async function loadRealPanel<T>(key: string, loader: () => Promise<T>, assign: (data: T) => void): Promise<void> {
+    realViewPanels.value[key] = { loading: true, status: "loading", error: null };
+    try {
+      const data = await loader();
+      assign(data);
+      const maybeStatus = typeof data === "object" && data !== null && "status" in data ? String((data as { status?: unknown }).status ?? "ready") : "ready";
+      realViewPanels.value[key] = { loading: false, status: maybeStatus, error: null };
+    } catch (err: unknown) {
+      const msg = err instanceof ApiError ? err.message : err instanceof Error ? err.message : String(err);
+      realViewPanels.value[key] = { loading: false, status: "error", error: msg };
+    }
+  }
+
   function resetRealData(): void {
     realJob.value = null;
     realWorkspace.value = null;
@@ -231,6 +286,14 @@ export const useTaskStore = defineStore("task", () => {
     realValidation.value = null;
     realValidationItems.value = [];
     realRepairPlan.value = null;
+    realWorkspaceSummary.value = null;
+    realWorkflowTrace.value = null;
+    realTopology.value = null;
+    realConfigBlocks.value = null;
+    realExecutionLogs.value = null;
+    Object.keys(realViewPanels.value).forEach((key) => {
+      realViewPanels.value[key] = { loading: false, status: "idle", error: null };
+    });
   }
 
   function prepareNewIntent(): void {
@@ -351,6 +414,12 @@ export const useTaskStore = defineStore("task", () => {
     realValidation,
     realValidationItems,
     realRepairPlan,
+    realWorkspaceSummary,
+    realWorkflowTrace,
+    realTopology,
+    realConfigBlocks,
+    realExecutionLogs,
+    realViewPanels,
     realNotImplemented,
     topologyPolicyState,
     topologyHealingState,
@@ -364,6 +433,7 @@ export const useTaskStore = defineStore("task", () => {
     fetchEventHistory,
     fetchTimeline,
     listArtifacts,
+    refreshRealMissionView,
     prepareNewIntent,
     appendIntent,
     resetClosedLoop,

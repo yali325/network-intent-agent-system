@@ -10,12 +10,17 @@ import type {
   PageResult,
   RealArtifactSummary,
   RealExecutionReport,
+  RealExecutionLogsView,
+  RealConfigBlocksView,
   RealRepairPlan,
   RealTaskCreated,
+  RealTopologyView,
   RealValidationItem,
   RealValidationReport,
+  RealWorkflowTraceView,
   RealWorkspaceEvent,
   RealWorkspaceChange,
+  RealWorkspaceSummaryView,
   RealWorkflowJob,
   RealWorkspace,
   WorkflowStage,
@@ -216,6 +221,26 @@ export const realClient = {
       "GET",
       `/api/v1/workspaces/${taskId}`,
     );
+  },
+
+  async getWorkspaceSummary(taskId: string): Promise<RealWorkspaceSummaryView> {
+    return fetchJson<RealWorkspaceSummaryView>("GET", `/api/v1/workspaces/${taskId}/summary`);
+  },
+
+  async getWorkflowTrace(taskId: string): Promise<RealWorkflowTraceView> {
+    return fetchJson<RealWorkflowTraceView>("GET", `/api/v1/views/${taskId}/trace`);
+  },
+
+  async getTopologyView(taskId: string): Promise<RealTopologyView> {
+    return fetchJson<RealTopologyView>("GET", `/api/v1/views/${taskId}/topology`);
+  },
+
+  async getConfigBlocks(taskId: string): Promise<RealConfigBlocksView> {
+    return fetchJson<RealConfigBlocksView>("GET", `/api/v1/views/${taskId}/config-blocks`);
+  },
+
+  async getExecutionLogs(taskId: string): Promise<RealExecutionLogsView> {
+    return fetchJson<RealExecutionLogsView>("GET", `/api/v1/executions/${taskId}/logs`);
   },
 
   async getWorkspaceTimeline(taskId: string, page = 1, size = 20): Promise<PageResult<RealWorkspaceEvent>> {

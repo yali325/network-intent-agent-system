@@ -1,7 +1,7 @@
 <template>
-  <div v-if="task || apiModeStore.isReal" class="task-page page-frame">
+  <div v-if="apiModeStore.isReal || task" class="task-page page-frame">
     <GlassPanel>
-      <div v-if="task" class="mission-head">
+      <div v-if="!apiModeStore.isReal && task" class="mission-head">
         <div>
           <div class="eyebrow">Mission Control</div>
           <h1 class="page-title">当前任务: {{ task.task.taskId }}</h1>
@@ -16,11 +16,11 @@
         </div>
       </div>
 
-      <div v-else class="mission-head">
+      <div v-else-if="apiModeStore.isReal" class="mission-head">
         <div>
           <div class="eyebrow">Real Mission Control</div>
           <h1 class="page-title">当前任务: {{ realTaskIdLabel }}</h1>
-          <p class="intent">真实模式仅展示后端已实现 API 返回的数据；未实现能力会显示明确占位。</p>
+          <p class="intent">真实模式按 mock 指挥舱视觉呈现，仅使用后端真实 API 返回的数据；未就绪能力会在原位置显示明确占位。</p>
         </div>
         <div class="status-stack">
           <StatusPill tone="signal">real</StatusPill>
@@ -31,12 +31,8 @@
       <div v-if="apiModeStore.isReal" class="real-status-bar">
         <StatusPill tone="signal">任务 ID: {{ realTaskIdLabel }}</StatusPill>
         <StatusPill v-if="store.realJobId" tone="pending">jobId: {{ store.realJobId }}</StatusPill>
-        <StatusPill v-if="store.realJob" :tone="realJobTone">
-          jobStatus: {{ store.realJob.jobStatus }}
-        </StatusPill>
-        <StatusPill v-if="store.realJob?.jobType" tone="pending">
-          jobType: {{ store.realJob.jobType }}
-        </StatusPill>
+        <StatusPill v-if="store.realJob" :tone="realJobTone">jobStatus: {{ store.realJob.jobStatus }}</StatusPill>
+        <StatusPill v-if="store.realJob?.jobType" tone="pending">jobType: {{ store.realJob.jobType }}</StatusPill>
         <div v-if="store.realJob?.errorCode || store.realJob?.errorMessage" class="real-error">
           <strong>{{ store.realJob.errorCode }}</strong>
           <p>{{ store.realJob.errorMessage }}</p>
@@ -47,7 +43,7 @@
       </div>
     </GlassPanel>
 
-    <template v-if="task">
+    <template v-if="!apiModeStore.isReal && task">
       <GlassPanel compact>
         <div class="view-switcher" :class="{ 'with-repair': store.activeView === 'repair' }">
           <button
@@ -121,9 +117,7 @@
       <ValidationBoard v-else-if="store.activeView === 'validation'" :assertions="store.validationAssertions" />
       <RepairCockpit v-else :plan="store.repairPlan" />
 
-      <button class="append-tab" type="button" @click="drawerOpen = true">
-        追加新指令
-      </button>
+      <button class="append-tab" type="button" @click="drawerOpen = true">追加新指令</button>
 
       <a-drawer
         v-model:open="drawerOpen"
@@ -167,106 +161,7 @@
       </a-drawer>
     </template>
 
-    <template v-else>
-      <div class="real-grid">
-        <GlassPanel compact>
-          <div class="panel-head">
-            <div>
-              <div class="eyebrow">Workspace Snapshot</div>
-              <h2>工作区摘要</h2>
-            </div>
-            <StatusPill tone="signal">{{ workspaceCurrentStage }}</StatusPill>
-          </div>
-          <div class="kv-grid">
-            <span>taskStatus</span>
-            <strong>{{ workspaceTaskStatus }}</strong>
-            <span>currentStage</span>
-            <strong>{{ workspaceCurrentStage }}</strong>
-            <span>workspaceStatus</span>
-            <strong>{{ store.realWorkspace?.workspaceStatus ?? "-" }}</strong>
-          </div>
-          <div class="summary-card">
-            <span>current artifact refs</span>
-            <p v-if="currentArtifactRefs.length === 0">暂无 currentArtifactRefs</p>
-            <ul v-else>
-              <li v-for="[type, artifactId] in currentArtifactRefs" :key="type" class="mono">
-                {{ type }} -> {{ artifactId }}
-              </li>
-            </ul>
-          </div>
-        </GlassPanel>
-
-        <GlassPanel compact>
-          <div class="panel-head">
-            <div>
-              <div class="eyebrow">Workflow Jobs</div>
-              <h2>任务 Job 历史</h2>
-            </div>
-            <StatusPill tone="pending">{{ store.realTaskJobs.length }} jobs</StatusPill>
-          </div>
-          <div class="real-list">
-            <article v-for="job in store.realTaskJobs.slice(0, 6)" :key="job.jobId" class="real-item">
-              <span class="mono">{{ job.jobType }} / {{ job.jobStatus }}</span>
-              <strong>{{ job.jobId }}</strong>
-              <p>{{ job.requestedStage ?? "FULL_WORKFLOW" }} · {{ job.updateTime ?? job.createTime ?? job.startTime }}</p>
-            </article>
-            <p v-if="store.realTaskJobs.length === 0" class="empty-copy">暂无 job 历史</p>
-          </div>
-        </GlassPanel>
-      </div>
-
-      <div class="real-grid">
-        <GlassPanel compact>
-          <div class="panel-head">
-            <div>
-              <div class="eyebrow">Event History</div>
-              <h2>真实事件历史</h2>
-            </div>
-            <StatusPill tone="pending">{{ store.realEvents?.total ?? 0 }} events</StatusPill>
-          </div>
-          <div class="real-list">
-            <article v-for="event in store.realEvents?.items.slice(0, 8)" :key="event.eventId ?? `${event.eventType}-${event.eventTime}`" class="real-item">
-              <span class="mono">{{ event.eventType ?? "-" }}</span>
-              <strong>{{ event.title ?? event.severity ?? "-" }}</strong>
-              <p>{{ event.message ?? event.payloadSummary ?? "无摘要" }}</p>
-            </article>
-            <p v-if="!store.realEvents?.items.length" class="empty-copy">暂无事件历史</p>
-          </div>
-        </GlassPanel>
-
-        <GlassPanel compact>
-          <div class="panel-head">
-            <div>
-              <div class="eyebrow">Artifact Summary</div>
-              <h2>真实产物列表</h2>
-            </div>
-            <StatusPill tone="pending">{{ store.realArtifacts?.total ?? 0 }} artifacts</StatusPill>
-          </div>
-          <div class="real-list">
-            <article v-for="artifact in store.realArtifacts?.items.slice(0, 8)" :key="artifact.artifactId" class="real-item">
-              <span class="mono">{{ artifact.artifactType }} / v{{ artifact.version ?? "-" }}</span>
-              <strong>{{ artifact.stage ?? artifact.status ?? artifact.artifactId }}</strong>
-              <p>{{ artifact.payloadSummary ?? artifact.payloadType ?? "无摘要" }}</p>
-            </article>
-            <p v-if="!store.realArtifacts?.items.length" class="empty-copy">暂无产物摘要</p>
-          </div>
-        </GlassPanel>
-      </div>
-
-      <GlassPanel compact>
-        <div class="panel-head">
-          <div>
-            <div class="eyebrow">Backend Required</div>
-            <h2>需后端实现的能力</h2>
-          </div>
-        </div>
-        <div class="not-implemented-list">
-          <span v-for="item in store.realNotImplemented" :key="item">
-            该能力需要后端实现：{{ item }}
-          </span>
-        </div>
-      </GlassPanel>
-    </template>
+    <RealTaskMissionView v-else-if="apiModeStore.isReal" :task-id="realTaskIdLabel" />
   </div>
 </template>
 
@@ -277,6 +172,7 @@ import { message, Modal } from "ant-design-vue";
 import { useRouter } from "vue-router";
 import GlassPanel from "@/components/GlassPanel.vue";
 import NetworkTopologyLiveBoard from "@/components/NetworkTopologyLiveBoard.vue";
+import RealTaskMissionView from "@/components/RealTaskMissionView.vue";
 import RepairCockpit from "@/components/RepairCockpit.vue";
 import StatusPill from "@/components/StatusPill.vue";
 import ValidationBoard from "@/components/ValidationBoard.vue";
@@ -316,9 +212,6 @@ const realJobTone = computed<"running" | "signal" | "bad" | "pending">(() => {
 });
 
 const realTaskIdLabel = computed(() => store.realTaskId ?? props.taskId);
-const workspaceTaskStatus = computed(() => store.realWorkspace?.taskStatus ?? store.realWorkspace?.task?.taskStatus ?? "-");
-const workspaceCurrentStage = computed(() => store.realWorkspace?.currentStage ?? store.realWorkspace?.task?.currentStage ?? "-");
-const currentArtifactRefs = computed(() => Object.entries(store.realWorkspace?.currentArtifactRefs ?? {}));
 
 onMounted(async () => {
   try {
@@ -608,8 +501,7 @@ async function submitAppendIntent(): Promise<void> {
   line-height: 1.55;
 }
 
-.mission-grid,
-.real-grid {
+.mission-grid {
   display: grid;
   grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
   gap: 18px;
@@ -620,15 +512,13 @@ h2 {
   color: var(--mactav-text-main);
 }
 
-.telemetry-list,
-.real-list {
+.telemetry-list {
   display: grid;
   gap: 10px;
   margin-top: 16px;
 }
 
-.telemetry-item,
-.real-item {
+.telemetry-item {
   padding: 14px;
   border: 1px solid rgba(0, 98, 255, 0.15);
   border-radius: 18px;
@@ -636,27 +526,21 @@ h2 {
 }
 
 .telemetry-item span,
-.telemetry-item strong,
-.real-item span,
-.real-item strong {
+.telemetry-item strong {
   display: block;
 }
 
-.telemetry-item span,
-.real-item span {
+.telemetry-item span {
   color: var(--mactav-cyber-blue);
   font-size: 12px;
 }
 
-.telemetry-item strong,
-.real-item strong {
+.telemetry-item strong {
   margin: 6px 0;
 }
 
 .telemetry-item p,
-.summary-card p,
-.real-item p,
-.empty-copy {
+.summary-card p {
   margin: 0;
   color: var(--mactav-text-muted);
   line-height: 1.65;
@@ -675,39 +559,6 @@ h2 {
   margin-bottom: 10px;
   color: var(--mactav-cyber-blue);
   font-weight: 950;
-}
-
-.kv-grid {
-  display: grid;
-  grid-template-columns: minmax(120px, 0.35fr) minmax(0, 0.65fr);
-  gap: 8px 12px;
-  margin-top: 16px;
-}
-
-.kv-grid span {
-  color: var(--mactav-text-muted);
-}
-
-.kv-grid strong {
-  min-width: 0;
-  color: var(--mactav-text-main);
-  overflow-wrap: anywhere;
-}
-
-.not-implemented-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 16px;
-}
-
-.not-implemented-list span {
-  padding: 8px 10px;
-  border: 1px dashed rgba(245, 158, 11, 0.38);
-  border-radius: 12px;
-  color: #92400e;
-  background: rgba(254, 243, 199, 0.62);
-  font-size: 12px;
 }
 
 ul {
@@ -733,7 +584,6 @@ li {
   }
 
   .mission-grid,
-  .real-grid,
   .view-switcher {
     grid-template-columns: 1fr;
   }
