@@ -89,8 +89,9 @@ public class OrchestratorConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public A2aClient officialA2aClient(AgentCardProvider agentCardProvider,
-                                       ObjectMapper objectMapper) {
-        return new OfficialA2aClient(agentCardProvider, objectMapper);
+                                       ObjectMapper objectMapper,
+                                       @Value("${mactav.a2a.call-timeout-ms:60000}") long callTimeoutMs) {
+        return new OfficialA2aClient(agentCardProvider, objectMapper, Duration.ofMillis(callTimeoutMs));
     }
 
 

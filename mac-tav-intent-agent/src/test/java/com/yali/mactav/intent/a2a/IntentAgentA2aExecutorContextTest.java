@@ -1,6 +1,7 @@
 package com.yali.mactav.intent.a2a;
 
 import com.alibaba.cloud.ai.a2a.autoconfigure.server.A2aServerHandlerAutoConfiguration;
+import com.alibaba.cloud.ai.a2a.autoconfigure.server.A2aServerAgentCardAutoConfiguration;
 import com.alibaba.cloud.ai.graph.StateGraph;
 import com.alibaba.cloud.ai.graph.agent.Agent;
 import com.alibaba.cloud.ai.graph.exception.GraphStateException;
@@ -33,6 +34,17 @@ class IntentAgentA2aExecutorContextTest {
             .withConfiguration(AutoConfigurations.of(A2aServerHandlerAutoConfiguration.class))
             .withUserConfiguration(CustomExecutorConfiguration.class);
 
+    private final ApplicationContextRunner agentCardContextRunner = new ApplicationContextRunner()
+            .withConfiguration(AutoConfigurations.of(A2aServerAgentCardAutoConfiguration.class))
+            .withUserConfiguration(AgentOnlyConfiguration.class)
+            .withPropertyValues(
+                    "spring.ai.alibaba.a2a.server.version=1.0.0",
+                    "spring.ai.alibaba.a2a.server.card.name=IntentAgent",
+                    "spring.ai.alibaba.a2a.server.card.description=Intent agent test card",
+                    "spring.ai.alibaba.a2a.server.card.capabilities.streaming=false",
+                    "spring.ai.alibaba.a2a.server.card.capabilities.push-notifications=false",
+                    "spring.ai.alibaba.a2a.server.card.capabilities.state-transition-history=false");
+
     @Test
     void requestHandlerShouldUseCustomIntentExecutorAndNotGraphExecutor() {
         contextRunner.run(context -> {
@@ -46,6 +58,16 @@ class IntentAgentA2aExecutorContextTest {
 
             RequestHandler requestHandler = context.getBean(RequestHandler.class);
             assertSame(executor, readAgentExecutor(requestHandler));
+        });
+    }
+
+    @Test
+    void serverCardCapabilitiesShouldBindNonStreaming() {
+        agentCardContextRunner.run(context -> {
+            AgentCard agentCard = context.getBean(AgentCard.class);
+            assertFalse(agentCard.capabilities().streaming());
+            assertFalse(agentCard.capabilities().pushNotifications());
+            assertFalse(agentCard.capabilities().stateTransitionHistory());
         });
     }
 
@@ -90,6 +112,15 @@ class IntentAgentA2aExecutorContextTest {
                     null,
                     "0.2.5");
         }
+
+        @Bean
+        Agent rootAgent() {
+            return new TestOnlyAgent();
+        }
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    static class AgentOnlyConfiguration {
 
         @Bean
         Agent rootAgent() {

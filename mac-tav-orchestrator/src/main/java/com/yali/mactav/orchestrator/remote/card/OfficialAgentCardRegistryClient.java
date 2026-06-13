@@ -80,6 +80,11 @@ public class OfficialAgentCardRegistryClient implements AgentCardRegistryClient 
         Map<String, String> metadata = new HashMap<>();
         putIfPresent(metadata, "preferredTransport", officialCard.preferredTransport());
         putIfPresent(metadata, "protocolVersion", officialCard.protocolVersion());
+        if (officialCard.capabilities() != null) {
+            metadata.put("capabilities.streaming", Boolean.toString(officialCard.capabilities().streaming()));
+            metadata.put("capabilities.pushNotifications", Boolean.toString(officialCard.capabilities().pushNotifications()));
+            metadata.put("capabilities.stateTransitionHistory", Boolean.toString(officialCard.capabilities().stateTransitionHistory()));
+        }
         if (officialCard.provider() != null) {
             putIfPresent(metadata, "providerOrganization", officialCard.provider().organization());
             putIfPresent(metadata, "providerUrl", officialCard.provider().url());

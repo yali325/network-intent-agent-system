@@ -13,6 +13,7 @@ import com.yali.mactav.model.workflow.job.WorkflowJob;
 import com.yali.mactav.model.workflow.job.WorkflowJobStatus;
 import com.yali.mactav.model.workflow.job.WorkflowJobType;
 import com.yali.mactav.model.workspace.NetworkArtifact;
+import com.yali.mactav.model.workspace.NetworkWorkspace;
 import com.yali.mactav.model.workspace.WorkspaceChangeRecord;
 import com.yali.mactav.model.workspace.WorkspaceEvent;
 import com.yali.mactav.modelcore.event.WorkspaceEventTypes;
@@ -78,6 +79,32 @@ class DefaultWorkflowAsyncServiceTest {
         assertEquals(WorkflowJobStatus.INTERRUPTED, jobService.findByJobId("job-recovery-test")
                 .orElseThrow().getJobStatus());
         assertEquals(WorkspaceEventTypes.WORKFLOW_INTERRUPTED, eventService.events.get(0).getEventType());
+    }
+
+    @Test
+    void remoteTimeoutShouldMarkJobFailedAndReleaseActiveJob() {
+        InMemoryWorkflowJobService jobService = new InMemoryWorkflowJobService();
+        TestWorkspaceEventService eventService = new TestWorkspaceEventService();
+        InMemoryTaskRunLockService lockService = new InMemoryTaskRunLockService();
+        WorkflowAsyncExecutor asyncExecutor = new WorkflowAsyncExecutor(
+                Runnable::run,
+                new TimeoutWorkflowOrchestrator(),
+                jobService,
+                eventService,
+                lockService);
+        DefaultWorkflowAsyncService service = new DefaultWorkflowAsyncService(
+                new TestWorkflowQueryService(),
+                jobService,
+                lockService,
+                asyncExecutor);
+
+        WorkflowJobSubmitResponse response = service.submitStageRun("task-timeout-test", WorkflowStage.INTENT, "unit-test");
+
+        WorkflowJob job = jobService.findByJobId(response.getJobId()).orElseThrow();
+        assertEquals(WorkflowJobStatus.FAILED, job.getJobStatus());
+        assertEquals(ErrorCode.REMOTE_AGENT_TIMEOUT.getErrorCode(), job.getErrorCode());
+        assertTrue(job.getErrorMessage().contains("A2A timeout"));
+        assertTrue(jobService.findActiveByTaskId("task-timeout-test").isEmpty());
     }
 
     /**
@@ -152,6 +179,67 @@ class DefaultWorkflowAsyncServiceTest {
 
         private <T> PageResult<T> emptyPage(int page, int size) {
             return PageResult.<T>builder().items(List.of()).page(page).size(size).total(0).build();
+        }
+    }
+
+    /**
+     * Orchestrator fixture that simulates an A2A timeout without real remote services.
+     */
+    private static class TimeoutWorkflowOrchestrator implements WorkflowOrchestrator {
+
+        @Override
+        public NetworkWorkspace createTask(String rawText, String targetEnvironmentHint, String createdBy) {
+            return null;
+        }
+
+        @Override
+        public NetworkWorkspace runIntentStage(String taskId) {
+            throw new BusinessException(ErrorCode.REMOTE_AGENT_TIMEOUT, "A2A timeout while invoking IntentAgent");
+        }
+
+        @Override
+        public NetworkWorkspace runPlanningStage(String taskId) {
+            return null;
+        }
+
+        @Override
+        public NetworkWorkspace runConfigurationStage(String taskId) {
+            return null;
+        }
+
+        @Override
+        public NetworkWorkspace runExecutionStage(String taskId) {
+            return null;
+        }
+
+        @Override
+        public NetworkWorkspace runVerificationStage(String taskId) {
+            return null;
+        }
+
+        @Override
+        public NetworkWorkspace runHealingStage(String taskId) {
+            return null;
+        }
+
+        @Override
+        public NetworkWorkspace approveRepairAction(String taskId, String actionId, String approvedBy, String comment) {
+            return null;
+        }
+
+        @Override
+        public NetworkWorkspace rejectRepairAction(String taskId, String actionId, String rejectedBy, String comment) {
+            return null;
+        }
+
+        @Override
+        public NetworkWorkspace applyRepairAction(String taskId, String actionId) {
+            return null;
+        }
+
+        @Override
+        public NetworkWorkspace getWorkspace(String taskId) {
+            return null;
         }
     }
 
