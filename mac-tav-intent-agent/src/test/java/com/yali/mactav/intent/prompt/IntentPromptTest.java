@@ -23,5 +23,8 @@ class IntentPromptTest {
         assertTrue(prompt.contains("IntentResponseSchema"));
         assertTrue(prompt.contains("MUST NOT"));
         assertTrue(prompt.contains("VLAN"));
+        assertTrue(prompt.contains("Relation Contract"));
+        assertTrue(prompt.contains("relations field is mandatory"));
+        assertTrue(prompt.contains("隔离"));
     }
 }

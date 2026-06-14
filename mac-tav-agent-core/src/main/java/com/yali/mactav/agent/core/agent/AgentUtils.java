@@ -38,7 +38,15 @@ public final class AgentUtils {
                 .name(name)
                 .description(description)
                 .model(chatModel)
-                .enableLogging(true);
+                .enableLogging(verboseLoggingEnabled());
+    }
+
+    private static boolean verboseLoggingEnabled() {
+        String property = System.getProperty("mactav.agent.verbose-logging");
+        if (property == null || property.isBlank()) {
+            property = System.getenv("MACTAV_AGENT_VERBOSE_LOGGING");
+        }
+        return Boolean.parseBoolean(property);
     }
 
     public static String loadInstruction(String path) {

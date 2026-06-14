@@ -22,6 +22,8 @@ class PlanningPromptTest {
             assertTrue(content.contains("PlanningAgent"));
             assertTrue(content.contains("PlanningResponseSchema"));
             assertTrue(content.contains("MUST NOT output executable CLI"));
+            assertTrue(content.contains("Routing Contract"));
+            assertTrue(content.contains("routingPlan.routers must contain at least one router"));
         }
     }
 }

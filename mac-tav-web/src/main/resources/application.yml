@@ -29,6 +29,8 @@ mybatis:
     map-underscore-to-camel-case: true
 
 mactav:
+  a2a:
+    call-timeout-ms: ${MACTAV_A2A_CALL_TIMEOUT_MS:180000}
   events:
     publisher: ${MACTAV_EVENTS_PUBLISHER:redis}
   persistence:

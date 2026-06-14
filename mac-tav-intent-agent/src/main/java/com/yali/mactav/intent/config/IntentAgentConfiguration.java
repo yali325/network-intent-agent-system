@@ -18,6 +18,7 @@ import com.yali.mactav.intent.parser.IntentResponseParser;
 import com.yali.mactav.intent.schema.IntentResponseSchema;
 import com.yali.mactav.intent.service.IntentService;
 import com.yali.mactav.intent.service.IntentServiceImpl;
+import com.yali.mactav.intent.service.IntentSchemaStabilizer;
 import com.yali.mactav.intent.tool.IntentExtractTool;
 import com.yali.mactav.intent.validator.IntentOutputValidator;
 import com.yali.mactav.model.intent.NetworkIntent;
@@ -75,6 +76,12 @@ public class IntentAgentConfiguration {
     }
 
     @Bean
+    @ConditionalOnMissingBean
+    public IntentSchemaStabilizer intentSchemaStabilizer() {
+        return new IntentSchemaStabilizer();
+    }
+
+    @Bean
     @ConditionalOnMissingBean(ObjectMapper.class)
     public ObjectMapper objectMapper() {
         ObjectMapper mapper = new ObjectMapper();
@@ -109,8 +116,15 @@ public class IntentAgentConfiguration {
     @ConditionalOnMissingBean
     public IntentAgent intentAgent(@Qualifier(IntentAgent.AGENT_NAME) ReactAgent intentReactAgent,
                                    ObjectMapper objectMapper,
-                                   IntentService intentService) {
-        return new IntentAgent(intentReactAgent, objectMapper, intentService);
+                                   IntentService intentService,
+                                   IntentExtractTool intentExtractTool,
+                                   IntentSchemaStabilizer intentSchemaStabilizer) {
+        return new IntentAgent(
+                intentReactAgent,
+                objectMapper,
+                intentService,
+                intentExtractTool,
+                intentSchemaStabilizer);
     }
 
     @Bean(name = "agentExecutor")

@@ -70,5 +70,8 @@ class PlanningToolsTest {
                 .anyMatch(sp -> sp.action().equals("DENY")));
         assertEquals(1, result.routingHints().size());
         assertEquals("OSPF", result.routingHints().get(0).protocol());
+        assertTrue(result.routingHints().get(0).routerCandidates().stream()
+                .anyMatch(router -> router.deviceId().equals("rtr-edge")));
+        assertTrue(result.routingHints().get(0).traceIntentNodeIds().contains("node-office"));
     }
 }

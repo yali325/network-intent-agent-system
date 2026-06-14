@@ -49,6 +49,27 @@ Generate stable ids for every element. Use ids such as:
 Use traceIntentNodeIds and traceIntentRelationIds fields to link plan elements
 back to the originating NetworkIntent elements.
 
+## Routing Contract (Required)
+
+The routingPlan is mandatory and must pass strict validation:
+
+- routingPlan.id must be non-empty, for example routing-ospf or routing-static.
+- routingPlan.protocol must be non-empty, for example OSPF, STATIC, or BGP.
+- routingPlan.traceIntentNodeIds must contain at least one real node id from the
+  input NetworkIntent semantic graph.
+- routingPlan.routers must contain at least one router.
+- Each routingPlan.routers[*].deviceId must reference a topologyNodes entry
+  whose nodeType is ROUTER or whose role is gateway/GATEWAY. Prefer rtr-edge
+  when the topology template tool returns it.
+- Each routingPlan.routers[*].traceIntentNodeIds must contain at least one real
+  NetworkIntent node id.
+- Do not leave routingPlan.routers empty. If the intent does not explicitly
+  mention routing, create a minimal STATIC routingPlan over the generated
+  gateway/router node and trace it to the relevant intent zones.
+
+When PlanningPlaybookTool returns routerCandidates or traceIntentNodeIds, use
+them directly in routingPlan and routingPlan.routers.
+
 ## Required Boundary
 
 MUST NOT output executable CLI commands, configuration blocks, command blocks,

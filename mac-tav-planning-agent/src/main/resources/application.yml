@@ -31,6 +31,11 @@ spring:
           card:
             name: PlanningAgent
             description: MAC-TAV network planning and topology design agent
+            capabilities:
+              streaming: false
+              push-notifications: false
+              state-transition-history: false
+              extensions: []
             provider:
               name: MAC-TAV
               organization: yali

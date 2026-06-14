@@ -1,10 +1,14 @@
 package com.yali.mactav.planning.tool;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 
@@ -17,6 +21,9 @@ import org.springframework.ai.tool.annotation.ToolParam;
  */
 public class PlanningPlaybookTool {
 
+    private static final Pattern INTENT_NODE_ID_PATTERN =
+            Pattern.compile("\"id\"\\s*:\\s*\"(node-[^\"]+)\"");
+
     @Tool(name = "suggestPlanningPlaybook", description = "Suggest security policies and routing decisions based on intent relations and preferences.")
     public PlanningPlaybookSuggestion suggestPlaybook(
             @ToolParam(required = true, description = "JSON representation of the parsed NetworkIntent.") String intentJson) {
@@ -24,6 +31,8 @@ public class PlanningPlaybookTool {
         String safeIntent = intentJson == null ? "" : intentJson.toLowerCase(Locale.ROOT);
         List<SecurityPolicyHint> securityHints = new ArrayList<>();
         List<RoutingHint> routingHints = new ArrayList<>();
+        List<String> traceIntentNodeIds = extractIntentNodeIds(intentJson);
+        List<RouterCandidate> routerCandidates = List.of(new RouterCandidate("rtr-edge", "ROUTER", "GATEWAY"));
 
         boolean hasOffice = safeIntent.contains("office") || safeIntent.contains("\u529e\u516c");
         boolean hasGuest = safeIntent.contains("guest") || safeIntent.contains("\u8bbf\u5ba2") || safeIntent.contains("\u6765\u5bbe");
@@ -63,15 +72,18 @@ public class PlanningPlaybookTool {
 
         if (containsAny(safeIntent, "ospf")) {
             routingHints.add(new RoutingHint("routing-ospf", "OSPF", "0.0.0.0",
-                    "OSPF single-area routing with area 0 for all internal zones"));
+                    "OSPF single-area routing with area 0 for all internal zones",
+                    routerCandidates, traceIntentNodeIds));
         }
         else if (containsAny(safeIntent, "bgp")) {
             routingHints.add(new RoutingHint("routing-bgp", "BGP", null,
-                    "BGP routing for inter-AS connectivity"));
+                    "BGP routing for inter-AS connectivity",
+                    routerCandidates, traceIntentNodeIds));
         }
         else {
             routingHints.add(new RoutingHint("routing-static", "STATIC", null,
-                    "Static routing as default fallback"));
+                    "Static routing as default fallback",
+                    routerCandidates, traceIntentNodeIds));
         }
 
         List<String> warnings = new ArrayList<>();
@@ -89,6 +101,18 @@ public class PlanningPlaybookTool {
             }
         }
         return false;
+    }
+
+    private List<String> extractIntentNodeIds(String intentJson) {
+        if (intentJson == null || intentJson.isBlank()) {
+            return List.of();
+        }
+        Set<String> ids = new LinkedHashSet<>();
+        Matcher matcher = INTENT_NODE_ID_PATTERN.matcher(intentJson);
+        while (matcher.find()) {
+            ids.add(matcher.group(1));
+        }
+        return new ArrayList<>(ids);
     }
 
     /**
@@ -122,6 +146,17 @@ public class PlanningPlaybookTool {
             String id,
             String protocol,
             String area,
-            String description) {
+            String description,
+            List<RouterCandidate> routerCandidates,
+            List<String> traceIntentNodeIds) {
+    }
+
+    /**
+     * Router candidate that the model can reference from topologyNodes.
+     */
+    public record RouterCandidate(
+            String deviceId,
+            String nodeType,
+            String role) {
     }
 }

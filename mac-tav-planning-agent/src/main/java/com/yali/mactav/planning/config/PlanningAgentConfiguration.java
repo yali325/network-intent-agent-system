@@ -13,6 +13,7 @@ import com.yali.mactav.agent.core.hook.TraceHook;
 import com.yali.mactav.agent.core.parser.AgentResponseParser;
 import com.yali.mactav.agent.core.validator.AgentOutputValidator;
 import com.yali.mactav.model.plan.NetworkPlan;
+import com.yali.mactav.planning.a2a.PlanningAgentA2aExecutor;
 import com.yali.mactav.planning.agent.PlanningAgent;
 import com.yali.mactav.planning.parser.PlanningResponseParser;
 import com.yali.mactav.planning.schema.PlanningResponseSchema;
@@ -23,12 +24,18 @@ import com.yali.mactav.planning.tool.PlanningPlaybookTool;
 import com.yali.mactav.planning.tool.TopologyTemplateTool;
 import com.yali.mactav.planning.tool.VlanPlanningTool;
 import com.yali.mactav.planning.validator.PlanningOutputValidator;
+import io.a2a.server.agentexecution.AgentExecutor;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.Map;
 
 /**
  * Spring bean configuration for the mac-tav-planning-agent module.
@@ -41,6 +48,8 @@ import org.springframework.context.annotation.Configuration;
 @Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties(PlanningAgentProperties.class)
 public class PlanningAgentConfiguration {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(PlanningAgentConfiguration.class);
 
     @Bean
     @ConditionalOnMissingBean
@@ -127,5 +136,30 @@ public class PlanningAgentConfiguration {
                                        ObjectMapper objectMapper,
                                        PlanningService planningService) {
         return new PlanningAgent(planningReactAgent, objectMapper, planningService);
+    }
+
+    @Bean(name = "agentExecutor")
+    public AgentExecutor planningAgentA2aExecutor(PlanningAgent planningAgent, ObjectMapper objectMapper) {
+        return new PlanningAgentA2aExecutor(planningAgent, objectMapper);
+    }
+
+    @Bean
+    public ApplicationRunner agentExecutorInventoryLogger(Map<String, AgentExecutor> executors) {
+        return args -> {
+            boolean hasPlanningExecutor = executors.values().stream()
+                    .anyMatch(PlanningAgentA2aExecutor.class::isInstance);
+            boolean hasGraphExecutor = executors.values().stream()
+                    .anyMatch(executor -> "com.alibaba.cloud.ai.a2a.core.server.GraphAgentExecutor"
+                            .equals(executor.getClass().getName()));
+            LOGGER.info(
+                    "AgentExecutor bean inventory count={}, hasPlanningAgentA2aExecutor={}, hasGraphAgentExecutor={}",
+                    executors.size(),
+                    hasPlanningExecutor,
+                    hasGraphExecutor);
+            executors.forEach((name, executor) -> LOGGER.info(
+                    "AgentExecutor bean: name={}, class={}",
+                    name,
+                    executor.getClass().getName()));
+        };
     }
 }

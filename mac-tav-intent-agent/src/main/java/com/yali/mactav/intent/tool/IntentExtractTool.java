@@ -52,13 +52,13 @@ public class IntentExtractTool {
 
     private List<BusinessObjectHint> extractBusinessObjects(String normalized) {
         List<BusinessObjectHint> objects = new ArrayList<>();
-        if (containsAny(normalized, "office", "办公")) {
+        if (containsAny(normalized, "office", "办公", "办公区")) {
             objects.add(new BusinessObjectHint("node-office", "office", "ZONE"));
         }
-        if (containsAny(normalized, "guest", "访客", "来宾")) {
+        if (containsAny(normalized, "guest", "visitor", "访客", "来宾", "访客区")) {
             objects.add(new BusinessObjectHint("node-guest", "guest", "ZONE"));
         }
-        if (containsAny(normalized, "server", "服务器")) {
+        if (containsAny(normalized, "server", "服务器", "服务器区")) {
             objects.add(new BusinessObjectHint("node-server", "server", "SERVICE"));
         }
         if (containsAny(normalized, "internet", "互联网", "外网")) {
@@ -69,19 +69,19 @@ public class IntentExtractTool {
 
     private List<RelationHint> extractRelations(String normalized) {
         List<RelationHint> relations = new ArrayList<>();
-        if (containsAny(normalized, "office", "办公")
-                && containsAny(normalized, "server", "服务器")
-                && containsAny(normalized, "access", "访问", "allow", "允许")) {
+        if (containsAny(normalized, "office", "办公", "办公区")
+                && containsAny(normalized, "server", "服务器", "服务器区")
+                && containsAny(normalized, "allow", "permit", "can access", "允许", "允许访问", "可以访问")) {
             relations.add(new RelationHint("rel-office-server", "ACCESS", "node-office", "node-server", "ALLOW"));
         }
-        if (containsAny(normalized, "guest", "访客", "来宾")
-                && containsAny(normalized, "server", "服务器")
-                && containsAny(normalized, "cannot", "can not", "deny", "禁止", "不可", "不能")) {
+        if (containsAny(normalized, "guest", "visitor", "访客", "来宾", "访客区")
+                && containsAny(normalized, "server", "服务器", "服务器区")
+                && containsAny(normalized, "cannot", "can not", "deny", "forbid", "禁止", "不可", "不能", "不能访问", "不允许访问")) {
             relations.add(new RelationHint("rel-guest-server", "ACCESS", "node-guest", "node-server", "DENY"));
         }
-        if (containsAny(normalized, "office", "办公")
-                && containsAny(normalized, "guest", "访客", "来宾")
-                && containsAny(normalized, "isolate", "isolated", "隔离")) {
+        if (containsAny(normalized, "office", "办公", "办公区")
+                && containsAny(normalized, "guest", "visitor", "访客", "来宾", "访客区")
+                && containsAny(normalized, "isolate", "isolated", "separate", "隔离")) {
             relations.add(new RelationHint("rel-office-guest", "ISOLATION", "node-office", "node-guest", "DENY"));
         }
         return relations;
@@ -106,7 +106,7 @@ public class IntentExtractTool {
         if (containsAny(normalized, "low risk", "低风险")) {
             constraints.add(new ConstraintHint("con-low-risk", "risk", "prefer low-risk implementation"));
         }
-        if (containsAny(normalized, "isolate", "isolated", "隔离")) {
+        if (containsAny(normalized, "isolate", "isolated", "separate", "隔离")) {
             constraints.add(new ConstraintHint("con-isolation", "security", "keep isolated business groups separated"));
         }
         return constraints;

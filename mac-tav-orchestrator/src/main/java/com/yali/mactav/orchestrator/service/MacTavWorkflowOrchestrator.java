@@ -50,10 +50,14 @@ import com.yali.mactav.modelcore.service.WorkspaceChangeRecordService;
 import com.yali.mactav.orchestrator.remote.invoker.RemoteAgentInvoker;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Deterministic MAC-TAV workflow coordinator for Intent and Planning stage closure.
@@ -64,6 +68,8 @@ import java.util.concurrent.ConcurrentMap;
  * modules.</p>
  */
 public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(MacTavWorkflowOrchestrator.class);
 
     private static final String ORCHESTRATOR_AGENT = "MacTavOrchestrator";
 
@@ -639,6 +645,7 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
         String intentJson = serialize(currentIntent,
                 ErrorCode.AGENT_PARSE_FAILED,
                 "Failed to serialize current Intent for planning request");
+        String compactWorkspaceSnapshot = compactPlanningWorkspaceSnapshot(workspace, currentIntent);
         PlanningAgentInvokePayload payload = PlanningAgentInvokePayload.builder()
                 .taskId(workspace.getTask().getTaskId())
                 .rawText(workspace.getTask().getRawText())
@@ -647,18 +654,28 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
                 .planVersion(planVersion)
                 .traceId(traceId)
                 .userContext(userContextWithRepairGuidance(workspace.getTask().getTaskId()))
-                .workspaceSnapshot(workspaceSnapshot(workspace))
+                .workspaceSnapshot(compactWorkspaceSnapshot)
                 .targetEnvironmentHint(targetEnvironmentHints.get(workspace.getTask().getTaskId()))
                 .createdBy(workspace.getTask().getCreatedBy())
                 .build();
+        String payloadJson = serialize(payload, ErrorCode.A2A_CALL_FAILED,
+                "Planning A2A payload serialization failed");
+        LOGGER.info(
+                "Planning A2A payload compacted taskId={}, traceId={}, intentJsonLength={}, compactWorkspaceLength={}, payloadLength={}, networkIntentArtifactRefPresent={}",
+                workspace.getTask().getTaskId(),
+                traceId,
+                intentJson.length(),
+                compactWorkspaceSnapshot.length(),
+                payloadJson.length(),
+                workspace.getCurrentArtifactRefs() != null
+                        && workspace.getCurrentArtifactRefs().containsKey(ArtifactType.NETWORK_INTENT));
         return A2aRequest.builder()
                 .taskId(workspace.getTask().getTaskId())
                 .sourceAgent(ORCHESTRATOR_AGENT)
                 .targetAgent(PLANNING_AGENT)
                 .stage(WorkflowStage.PLANNING)
                 .artifactVersion(planVersion)
-                .payloadJson(serialize(payload, ErrorCode.A2A_CALL_FAILED,
-                        "Planning A2A payload serialization failed"))
+                .payloadJson(payloadJson)
                 .traceId(traceId)
                 .timestamp(LocalDateTime.now())
                 .build();
@@ -813,6 +830,72 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
         catch (JsonProcessingException ex) {
             return "{}";
         }
+    }
+
+    private String compactPlanningWorkspaceSnapshot(NetworkWorkspace workspace, NetworkIntent currentIntent) {
+        Map<String, Object> compact = new LinkedHashMap<>();
+        compact.put("task", compactTask(workspace == null ? null : workspace.getTask()));
+        compact.put("currentIntentVersion", workspace == null ? null : workspace.getCurrentIntentVersion());
+        compact.put("currentPlanVersion", workspace == null ? null : workspace.getCurrentPlanVersion());
+        compact.put("currentStage", workspace == null || workspace.getTask() == null
+                ? null
+                : workspace.getTask().getCurrentStage());
+        compact.put("workspaceStatus", workspace == null ? null : workspace.getWorkspaceStatus());
+        compact.put("currentArtifactRefs", compactArtifactRefs(workspace));
+        compact.put("currentIntentSummary", compactIntentSummary(currentIntent));
+        return serialize(compact,
+                ErrorCode.A2A_CALL_FAILED,
+                "Failed to serialize compact planning workspace snapshot");
+    }
+
+    private Map<String, Object> compactTask(NetworkTask task) {
+        Map<String, Object> compact = new LinkedHashMap<>();
+        if (task == null) {
+            return compact;
+        }
+        compact.put("taskId", task.getTaskId());
+        compact.put("taskStatus", task.getTaskStatus());
+        compact.put("currentStage", task.getCurrentStage());
+        compact.put("createTime", task.getCreateTime());
+        compact.put("updateTime", task.getUpdateTime());
+        compact.put("createdBy", task.getCreatedBy());
+        compact.put("description", task.getDescription());
+        return compact;
+    }
+
+    private Map<String, Object> compactArtifactRefs(NetworkWorkspace workspace) {
+        Map<String, Object> compact = new LinkedHashMap<>();
+        if (workspace == null || workspace.getCurrentArtifactRefs() == null) {
+            return compact;
+        }
+        String intentArtifactRef = workspace.getCurrentArtifactRefs().get(ArtifactType.NETWORK_INTENT);
+        if (intentArtifactRef != null && !intentArtifactRef.isBlank()) {
+            compact.put(ArtifactType.NETWORK_INTENT.name(), intentArtifactRef);
+        }
+        return compact;
+    }
+
+    private Map<String, Object> compactIntentSummary(NetworkIntent intent) {
+        Map<String, Object> compact = new LinkedHashMap<>();
+        if (intent == null) {
+            return compact;
+        }
+        compact.put("taskId", intent.getTaskId());
+        compact.put("intentVersion", intent.getIntentVersion());
+        compact.put("stageStatus", intent.getStageStatus());
+        compact.put("traceId", intent.getTraceId());
+        compact.put("constraintCount", intent.getConstraints() == null ? 0 : intent.getConstraints().size());
+        compact.put("preferenceCount", intent.getPreferences() == null ? 0 : intent.getPreferences().size());
+        compact.put("assumptionCount", intent.getAssumptions() == null ? 0 : intent.getAssumptions().size());
+        if (intent.getSemanticIntentGraph() != null) {
+            compact.put("semanticNodeCount", intent.getSemanticIntentGraph().getNodes() == null
+                    ? 0
+                    : intent.getSemanticIntentGraph().getNodes().size());
+            compact.put("semanticRelationCount", intent.getSemanticIntentGraph().getRelations() == null
+                    ? 0
+                    : intent.getSemanticIntentGraph().getRelations().size());
+        }
+        return compact;
     }
 
     private String serialize(Object value, ErrorCode errorCode, String message) {

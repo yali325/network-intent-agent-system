@@ -17,6 +17,13 @@
           <small>真实 RepairPlan 未就绪时显示占位</small>
         </button>
       </div>
+      <div class="sync-strip">
+        <StatusPill :tone="store.isRealRefreshing ? 'running' : 'pending'">
+          {{ store.isRealRefreshing ? "实时同步中" : "实时观察" }}
+        </StatusPill>
+        <span>最后更新：{{ lastRefreshLabel }}</span>
+        <span v-if="store.realRefreshError" class="sync-error">刷新失败，稍后重试：{{ store.realRefreshError }}</span>
+      </div>
     </GlassPanel>
 
     <template v-if="activeRealView === 'control'">
@@ -249,6 +256,12 @@ const topologyStatusTone = computed<"running" | "ok" | "bad" | "warn" | "pending
   if (status === "FAILED") return "bad";
   return "pending";
 });
+const lastRefreshLabel = computed(() => {
+  if (!store.lastRealRefreshAt) return "尚未刷新";
+  const date = new Date(store.lastRealRefreshAt);
+  if (Number.isNaN(date.getTime())) return store.lastRealRefreshAt;
+  return date.toLocaleTimeString("zh-CN", { hour12: false });
+});
 
 watch(currentStage, (stage) => {
   selectedStage.value = stage;
@@ -277,14 +290,12 @@ const PanelState = defineComponent({
 
 async function refresh(): Promise<void> {
   try {
-    await Promise.allSettled([
-      store.fetchWorkspace(props.taskId),
-      store.fetchTaskJobs(props.taskId),
-      store.fetchEventHistory(props.taskId),
-      store.listArtifacts(props.taskId),
-      store.refreshRealMissionView(props.taskId),
-    ]);
-    void message.success("真实视图已刷新");
+    await store.refreshRealMissionOnce(props.taskId, { jobId: store.realJobId ?? undefined });
+    if (store.realRefreshError) {
+      void message.warning("部分真实视图刷新失败，请查看面板错误信息");
+    } else {
+      void message.success("真实视图已刷新");
+    }
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     void message.error(msg);
@@ -364,6 +375,27 @@ function submitRealAppend(): void {
 .view-switcher small {
   margin-top: 4px;
   color: var(--mactav-text-muted);
+}
+
+.sync-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  color: var(--mactav-text-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.sync-error {
+  max-width: 100%;
+  padding: 5px 9px;
+  border: 1px solid rgba(220, 38, 38, 0.22);
+  border-radius: 999px;
+  color: #b91c1c;
+  background: rgba(254, 226, 226, 0.5);
+  overflow-wrap: anywhere;
 }
 
 .repair-chip {

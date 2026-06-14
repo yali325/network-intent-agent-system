@@ -166,7 +166,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onUnmounted, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { message, Modal } from "ant-design-vue";
 import { useRouter } from "vue-router";
@@ -213,13 +213,29 @@ const realJobTone = computed<"running" | "signal" | "bad" | "pending">(() => {
 
 const realTaskIdLabel = computed(() => store.realTaskId ?? props.taskId);
 
-onMounted(async () => {
-  try {
-    await store.loadTask(props.taskId);
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    void message.error(msg);
-  }
+watch(
+  () => props.taskId,
+  async (taskId, previousTaskId) => {
+    if (previousTaskId && previousTaskId !== taskId) {
+      store.stopRealMissionRefresh();
+    }
+    try {
+      await store.loadTask(taskId);
+      if (apiModeStore.isReal) {
+        store.startRealMissionRefresh(taskId, store.realJobId ?? undefined);
+      } else {
+        store.stopRealMissionRefresh();
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      void message.error(msg);
+    }
+  },
+  { immediate: true },
+);
+
+onUnmounted(() => {
+  store.stopRealMissionRefresh();
 });
 
 function confirmNewTask(): void {

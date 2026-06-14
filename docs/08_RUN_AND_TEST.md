@@ -53,6 +53,18 @@ Start the Web/API entry:
 mvn -pl mac-tav-web -am spring-boot:run
 ```
 
+Start one professional Agent service:
+
+```bash
+mvn -pl mac-tav-intent-agent -am spring-boot:run
+mvn -pl mac-tav-planning-agent -am spring-boot:run
+```
+
+The root `pom.xml` keeps `spring-boot.run.skip=true` so aggregator and library
+modules do not try to boot. Bootable modules explicitly override the Spring
+Boot Maven plugin with their own `mainClass` and `skip=false`, so the `-pl ...
+-am spring-boot:run` form can be used for targeted local validation.
+
 Codex must not leave `spring-boot:run`, `npm run dev`, uvicorn, Ryu, or Mininet
 running as long-lived foreground processes.
 

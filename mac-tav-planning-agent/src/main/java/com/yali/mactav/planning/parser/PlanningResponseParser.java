@@ -9,7 +9,9 @@ import com.yali.mactav.planning.schema.PlanningResponseSchema;
 import com.yali.mactav.planning.schema.PlanningResponseSchema.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Converts PlanningResponseSchema into the shared NetworkPlan DTO.
@@ -41,7 +43,7 @@ public class PlanningResponseParser implements AgentResponseParser<PlanningRespo
                 .zones(mapZones(safeSchema.getZones()))
                 .addressPlan(mapAddressPlan(safeSchema.getAddressPlan()))
                 .vlanPlan(mapVlanPlan(safeSchema.getVlanPlan()))
-                .routingPlan(mapRoutingPlan(safeSchema.getRoutingPlan()))
+                .routingPlan(mapRoutingPlan(safeSchema.getRoutingPlan(), safeSchema))
                 .securityPolicyPlan(mapSecurityPolicies(safeSchema.getSecurityPolicies()))
                 .natPlan(mapNatPlan(safeSchema.getNatPlan()))
                 .planConstraints(mapPlanConstraints(safeSchema.getPlanConstraints()))
@@ -196,10 +198,13 @@ public class PlanningResponseParser implements AgentResponseParser<PlanningRespo
         return items;
     }
 
-    private RoutingPlan mapRoutingPlan(RoutingPlanSchema schema) {
+    private RoutingPlan mapRoutingPlan(RoutingPlanSchema schema, PlanningResponseSchema fullSchema) {
         if (schema == null) {
             return null;
         }
+        List<String> routingTraceIds = firstNonEmpty(
+                schema.getTraceIntentNodeIds(),
+                collectIntentNodeIds(fullSchema));
         List<RoutingRouter> routers = new ArrayList<>();
         for (RoutingRouterSchema rr : safeList(schema.getRouters())) {
             if (rr == null) {
@@ -210,8 +215,20 @@ public class PlanningResponseParser implements AgentResponseParser<PlanningRespo
                     .deviceId(rr.getDeviceId())
                     .routerId(rr.getRouterId())
                     .advertisedNetworks(safeList(rr.getAdvertisedNetworks()))
-                    .traceRefs(intentTraceRefs(rr.getTraceIntentNodeIds()))
+                    .traceRefs(intentTraceRefs(firstNonEmpty(rr.getTraceIntentNodeIds(), routingTraceIds)))
                     .build());
+        }
+        if (routers.isEmpty()) {
+            TopologyNodeSchema routerNode = firstRouterNode(fullSchema);
+            if (routerNode != null) {
+                List<String> routerTraceIds = firstNonEmpty(routerNode.getTraceIntentNodeIds(), routingTraceIds);
+                routers.add(RoutingRouter.builder()
+                        .id("router-" + routerNode.getId())
+                        .deviceId(routerNode.getId())
+                        .advertisedNetworks(List.of())
+                        .traceRefs(intentTraceRefs(routerTraceIds))
+                        .build());
+            }
         }
         DefaultRoute defaultRoute = null;
         if (schema.getDefaultRoute() != null) {
@@ -230,7 +247,7 @@ public class PlanningResponseParser implements AgentResponseParser<PlanningRespo
                 .area(schema.getArea())
                 .routers(routers)
                 .defaultRoute(defaultRoute)
-                .traceRefs(intentTraceRefs(schema.getTraceIntentNodeIds()))
+                .traceRefs(intentTraceRefs(routingTraceIds))
                 .build();
     }
 
@@ -322,6 +339,14 @@ public class PlanningResponseParser implements AgentResponseParser<PlanningRespo
                 intentNodeIds.addAll(safeList(sp.getTraceIntentNodeIds()));
             }
         }
+        if (schema.getRoutingPlan() != null) {
+            intentNodeIds.addAll(safeList(schema.getRoutingPlan().getTraceIntentNodeIds()));
+            for (RoutingRouterSchema router : safeList(schema.getRoutingPlan().getRouters())) {
+                if (router != null) {
+                    intentNodeIds.addAll(safeList(router.getTraceIntentNodeIds()));
+                }
+            }
+        }
         TraceRefs refs = new TraceRefs();
         refs.setIntentNodeIds(intentNodeIds.stream().distinct().toList());
         return refs;
@@ -337,5 +362,46 @@ public class PlanningResponseParser implements AgentResponseParser<PlanningRespo
 
     private <T> List<T> safeList(List<T> values) {
         return values == null ? List.of() : values;
+    }
+
+    private List<String> collectIntentNodeIds(PlanningResponseSchema schema) {
+        Set<String> ids = new LinkedHashSet<>();
+        for (TopologyNodeSchema node : safeList(schema.getTopologyNodes())) {
+            if (node != null) {
+                ids.addAll(safeList(node.getTraceIntentNodeIds()));
+            }
+        }
+        for (ZoneSchema zone : safeList(schema.getZones())) {
+            if (zone != null && zone.getMappedFromIntentNode() != null && !zone.getMappedFromIntentNode().isBlank()) {
+                ids.add(zone.getMappedFromIntentNode());
+            }
+        }
+        for (AddressPlanItemSchema address : safeList(schema.getAddressPlan())) {
+            if (address != null) {
+                ids.addAll(safeList(address.getTraceIntentNodeIds()));
+            }
+        }
+        for (SecurityPolicySchema policy : safeList(schema.getSecurityPolicies())) {
+            if (policy != null) {
+                ids.addAll(safeList(policy.getTraceIntentNodeIds()));
+            }
+        }
+        return new ArrayList<>(ids);
+    }
+
+    private TopologyNodeSchema firstRouterNode(PlanningResponseSchema schema) {
+        for (TopologyNodeSchema node : safeList(schema.getTopologyNodes())) {
+            if (node == null) {
+                continue;
+            }
+            if ("ROUTER".equalsIgnoreCase(node.getNodeType()) || "GATEWAY".equalsIgnoreCase(node.getRole())) {
+                return node;
+            }
+        }
+        return null;
+    }
+
+    private <T> List<T> firstNonEmpty(List<T> preferred, List<T> fallback) {
+        return preferred != null && !preferred.isEmpty() ? preferred : safeList(fallback);
     }
 }

@@ -30,6 +30,23 @@ class IntentExtractToolTest {
     }
 
     @Test
+    void extractIntentHintsShouldUnderstandChineseRelations() {
+        IntentExtractionHints hints = tool.extractIntentHints("办公区与访客区隔离，访客区不能访问服务器区。");
+
+        assertTrue(hints.businessObjects().stream().anyMatch(node -> node.id().equals("node-office")));
+        assertTrue(hints.businessObjects().stream().anyMatch(node -> node.id().equals("node-guest")));
+        assertTrue(hints.businessObjects().stream().anyMatch(node -> node.id().equals("node-server")));
+        assertTrue(hints.relations().stream().anyMatch(relation ->
+                relation.id().equals("rel-office-guest")
+                        && relation.type().equals("ISOLATION")
+                        && relation.action().equals("DENY")));
+        assertTrue(hints.relations().stream().anyMatch(relation ->
+                relation.id().equals("rel-guest-server")
+                        && relation.type().equals("ACCESS")
+                        && relation.action().equals("DENY")));
+    }
+
+    @Test
     void extractIntentHintsShouldIgnoreImplementationDetails() {
         IntentExtractionHints hints = tool.extractIntentHints(
                 "Office can access server. Configure interface GigabitEthernet0/0/1 with ip address 10.1.1.1/24."

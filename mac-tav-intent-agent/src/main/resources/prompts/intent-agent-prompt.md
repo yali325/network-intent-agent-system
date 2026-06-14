@@ -26,6 +26,51 @@ Generate stable ids for every node, relation, assumption, constraint, and
 preference. Use ids such as node-office, rel-office-server, asm-default-service,
 con-business-hours, and pref-low-risk.
 
+## Relation Contract (Required)
+
+The relations field is mandatory and must not be omitted. It must be an array
+with at least one relation whenever the user states access, deny, or isolation
+requirements.
+
+Each relation must include:
+
+- id
+- type
+- source
+- target
+- action
+
+source and target must reference existing node ids from nodes.
+
+Chinese relation mapping:
+
+- “隔离” means type=ISOLATION and action=DENY.
+- “不能访问”, “不允许访问”, and “禁止访问” mean type=ACCESS and action=DENY.
+- “允许访问” and “可以访问” mean type=ACCESS and action=ALLOW.
+
+Small valid example:
+
+```json
+{
+  "nodes": [
+    {"id": "node-office", "name": "office", "type": "ZONE"},
+    {"id": "node-guest", "name": "guest", "type": "ZONE"},
+    {"id": "node-server", "name": "server", "type": "SERVICE"}
+  ],
+  "relations": [
+    {"id": "rel-office-server", "type": "ACCESS", "source": "node-office", "target": "node-server", "action": "ALLOW"},
+    {"id": "rel-guest-server", "type": "ACCESS", "source": "node-guest", "target": "node-server", "action": "DENY"},
+    {"id": "rel-office-guest", "type": "ISOLATION", "source": "node-office", "target": "node-guest", "action": "DENY"}
+  ],
+  "preferences": [
+    {"id": "pref-routing-protocol", "type": "routing-protocol-preference", "value": "OSPF", "priority": 1}
+  ]
+}
+```
+
+The example is business intent only. Do not add devices, VLANs, IP addresses,
+ACLs, CLI, topology, or configuration commands.
+
 ## Required Boundary
 
 MUST NOT output devices, interfaces, VLANs, IP addresses, topology, routing

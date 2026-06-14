@@ -6,6 +6,7 @@ import com.yali.mactav.model.enums.StageStatus;
 import com.yali.mactav.model.plan.NetworkPlan;
 import com.yali.mactav.planning.PlanningTestFixtures;
 import com.yali.mactav.planning.schema.PlanningResponseSchema;
+import com.yali.mactav.planning.schema.PlanningResponseSchema.RoutingPlanSchema;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -111,5 +112,25 @@ class PlanningResponseParserTest {
         assertTrue(plan.getTopology().getNodes().isEmpty());
         assertTrue(plan.getZones().isEmpty());
         assertEquals(StageStatus.SUCCESS, plan.getStageStatus());
+    }
+
+    @Test
+    void parseShouldNormalizeRoutingFromSameSchemaTopologyAndTraceRefs() {
+        PlanningResponseSchema schema = PlanningTestFixtures.enterprisePlanSchema();
+        schema.setRoutingPlan(RoutingPlanSchema.builder()
+                .id("routing-static")
+                .protocol("STATIC")
+                .routers(List.of())
+                .traceIntentNodeIds(List.of())
+                .build());
+
+        NetworkPlan plan = parser.parse(schema, PlanningTestFixtures.context());
+
+        assertNotNull(plan.getRoutingPlan());
+        assertEquals(1, plan.getRoutingPlan().getRouters().size());
+        assertEquals("rtr-edge", plan.getRoutingPlan().getRouters().get(0).getDeviceId());
+        assertFalse(plan.getRoutingPlan().getTraceRefs().getIntentNodeIds().isEmpty());
+        assertFalse(plan.getRoutingPlan().getRouters().get(0).getTraceRefs().getIntentNodeIds().isEmpty());
+        assertFalse(plan.getTraceRefs().getIntentNodeIds().isEmpty());
     }
 }

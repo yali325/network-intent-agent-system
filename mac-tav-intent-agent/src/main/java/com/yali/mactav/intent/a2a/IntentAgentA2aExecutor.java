@@ -54,6 +54,7 @@ public class IntentAgentA2aExecutor implements AgentExecutor {
     @Override
     public void execute(RequestContext context, EventQueue eventQueue) throws JSONRPCError {
         TaskUpdater updater = new TaskUpdater(context, eventQueue);
+        A2aRequest request = null;
         try {
             String userInput = extractUserInput(context);
             LOGGER.info(
@@ -61,7 +62,7 @@ public class IntentAgentA2aExecutor implements AgentExecutor {
                     context.getContextId(),
                     context.getTaskId(),
                     userInput.length());
-            A2aRequest request = parseA2aRequest(userInput);
+            request = parseA2aRequest(userInput);
             IntentAgentInvokePayload payload = parsePayload(request);
             LOGGER.info(
                     "Executing IntentAgent A2A request taskId={}, traceId={}, stage={}, payloadLength={}",
@@ -69,24 +70,73 @@ public class IntentAgentA2aExecutor implements AgentExecutor {
                     request.getTraceId(),
                     request.getStage(),
                     request.getPayloadJson() == null ? 0 : request.getPayloadJson().length());
-            NetworkIntent intent = intentRunner.apply(toIntentRequest(request, payload));
+            IntentAgentRequest intentRequest = toIntentRequest(request, payload);
+            LOGGER.info(
+                    "IntentAgent.run start taskId={}, traceId={}, stage={}, payloadLength={}",
+                    intentRequest.getTaskId(),
+                    intentRequest.getTraceId(),
+                    request.getStage(),
+                    request.getPayloadJson() == null ? 0 : request.getPayloadJson().length());
+            long runStart = System.nanoTime();
+            NetworkIntent intent = intentRunner.apply(intentRequest);
+            LOGGER.info(
+                    "IntentAgent.run completed taskId={}, traceId={}, stage={}, durationMs={}, nodeCount={}, relationCount={}",
+                    intentRequest.getTaskId(),
+                    intentRequest.getTraceId(),
+                    request.getStage(),
+                    elapsedMillis(runStart),
+                    intentNodeCount(intent),
+                    intentRelationCount(intent));
             String payloadJson = objectMapper.writeValueAsString(intent);
+            LOGGER.info(
+                    "IntentAgentA2aExecutor addArtifact start taskId={}, traceId={}, stage={}, outputJsonLength={}",
+                    intentRequest.getTaskId(),
+                    intentRequest.getTraceId(),
+                    request.getStage(),
+                    payloadJson.length());
             updater.addArtifact(
                     List.of(new TextPart(payloadJson)),
                     UUID.randomUUID().toString(),
                     "conversation_result",
                     Map.of(OUTPUT_METADATA_KEY, payloadJson));
             updater.complete();
+            LOGGER.info(
+                    "IntentAgentA2aExecutor complete taskId={}, traceId={}, stage={}",
+                    intentRequest.getTaskId(),
+                    intentRequest.getTraceId(),
+                    request.getStage());
         }
         catch (BusinessException ex) {
+            LOGGER.warn(
+                    "IntentAgentA2aExecutor fail taskId={}, traceId={}, stage={}, errorCode={}, errorClass={}, message={}",
+                    request == null ? null : request.getTaskId(),
+                    request == null ? null : request.getTraceId(),
+                    request == null ? null : request.getStage(),
+                    ex.getErrorCode(),
+                    ex.getClass().getSimpleName(),
+                    summarize(ex.getMessage()));
             fail(updater, ex.getErrorCode() + ": " + ex.getMessage());
             throw new InvalidParamsError("IntentAgent A2A execution failed: " + ex.getErrorCode() + ": " + ex.getMessage());
         }
         catch (JsonProcessingException ex) {
+            LOGGER.warn(
+                    "IntentAgentA2aExecutor fail taskId={}, traceId={}, stage={}, errorClass={}, message={}",
+                    request == null ? null : request.getTaskId(),
+                    request == null ? null : request.getTraceId(),
+                    request == null ? null : request.getStage(),
+                    ex.getClass().getSimpleName(),
+                    summarize(ex.getOriginalMessage()));
             fail(updater, "IntentAgent A2A JSON processing failed");
             throw new InvalidParamsError("IntentAgent A2A JSON processing failed: " + ex.getOriginalMessage());
         }
         catch (RuntimeException ex) {
+            LOGGER.warn(
+                    "IntentAgentA2aExecutor fail taskId={}, traceId={}, stage={}, errorClass={}, message={}",
+                    request == null ? null : request.getTaskId(),
+                    request == null ? null : request.getTraceId(),
+                    request == null ? null : request.getStage(),
+                    ex.getClass().getSimpleName(),
+                    summarize(ex.getMessage()));
             fail(updater, "IntentAgent A2A execution failed");
             throw new InvalidParamsError("IntentAgent A2A execution failed: " + ex.getMessage());
         }
@@ -167,5 +217,31 @@ public class IntentAgentA2aExecutor implements AgentExecutor {
 
     private String firstNonBlank(String first, String second) {
         return first != null && !first.isBlank() ? first : second;
+    }
+
+    private long elapsedMillis(long startNanos) {
+        return (System.nanoTime() - startNanos) / 1_000_000;
+    }
+
+    private int intentNodeCount(NetworkIntent intent) {
+        return intent == null || intent.getSemanticIntentGraph() == null
+                || intent.getSemanticIntentGraph().getNodes() == null
+                ? 0
+                : intent.getSemanticIntentGraph().getNodes().size();
+    }
+
+    private int intentRelationCount(NetworkIntent intent) {
+        return intent == null || intent.getSemanticIntentGraph() == null
+                || intent.getSemanticIntentGraph().getRelations() == null
+                ? 0
+                : intent.getSemanticIntentGraph().getRelations().size();
+    }
+
+    private String summarize(String message) {
+        if (message == null) {
+            return "";
+        }
+        String normalized = message.replaceAll("\\s+", " ").trim();
+        return normalized.length() <= 240 ? normalized : normalized.substring(0, 240) + "...";
     }
 }

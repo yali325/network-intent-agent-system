@@ -35,6 +35,7 @@ class MacTavWorkflowOrchestratorTest {
 
     private static ObjectMapper om() { var o = new ObjectMapper(); o.registerModule(new JavaTimeModule()); o.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS); return o; }
     private static String j(Object o) { try { return om().writeValueAsString(o); } catch (Exception e) { throw new RuntimeException(e); } }
+    private static PlanningAgentInvokePayload planningPayload(ObjectMapper om, String payloadJson) { try { return om.readValue(payloadJson, PlanningAgentInvokePayload.class); } catch (Exception e) { throw new RuntimeException(e); } }
 
     private NetworkWorkspaceService ws(ObjectMapper om) {
         rr = new InMemoryNetworkWorkspaceRepository(); vv = new WorkspaceStateValidator();
@@ -102,6 +103,18 @@ class MacTavWorkflowOrchestratorTest {
                                 .stageStatus(StageStatus.SUCCESS).traceId(r.getTraceId())
                                 .createTime(LocalDateTime.now()).build())).build();
             }
+            var planningPayload = planningPayload(om, r.getPayloadJson());
+            assertEquals(r.getTaskId(), planningPayload.getTaskId());
+            assertNotNull(planningPayload.getIntentJson());
+            assertTrue(planningPayload.getIntentJson().contains("semanticIntentGraph"));
+            assertNotNull(planningPayload.getWorkspaceSnapshot());
+            assertTrue(planningPayload.getWorkspaceSnapshot().contains("\"currentArtifactRefs\""));
+            assertTrue(planningPayload.getWorkspaceSnapshot().contains("NETWORK_INTENT"));
+            assertFalse(planningPayload.getWorkspaceSnapshot().contains("\"artifacts\""));
+            assertFalse(planningPayload.getWorkspaceSnapshot().contains("\"payloadJson\""));
+            assertFalse(planningPayload.getWorkspaceSnapshot().contains("\"events\""));
+            assertFalse(planningPayload.getWorkspaceSnapshot().contains("\"agentExecutionRecords\""));
+            assertFalse(planningPayload.getWorkspaceSnapshot().contains("\"changeHistory\""));
             var plan = NetworkPlan.builder()
                     .taskId(r.getTaskId())
                     .intentVersion(1)

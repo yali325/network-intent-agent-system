@@ -58,6 +58,12 @@ export const useTaskStore = defineStore("task", () => {
   const realTopology = ref<RealTopologyView | null>(null);
   const realConfigBlocks = ref<RealConfigBlocksView | null>(null);
   const realExecutionLogs = ref<RealExecutionLogsView | null>(null);
+  const isRealRefreshing = ref(false);
+  const lastRealRefreshAt = ref<string | null>(null);
+  const realRefreshError = ref<string | null>(null);
+  const observedRealTaskId = ref<string | null>(null);
+  const observedRealJobId = ref<string | null>(null);
+  const realRefreshIntervalMs = ref(1800);
   const realViewPanels = ref<Record<string, { loading: boolean; status: string; error: string | null }>>({
     summary: { loading: false, status: "idle", error: null },
     trace: { loading: false, status: "idle", error: null },
@@ -84,12 +90,16 @@ export const useTaskStore = defineStore("task", () => {
     return failedAssertion.value && topologyPolicyState.value !== "repaired" ? "failed" : "normal";
   });
 
+  let realRefreshTimer: number | null = null;
+  let realRefreshInFlight = false;
+
   async function createTask(rawText: string): Promise<DemoTask | RealTaskCreated> {
     draftIntent.value = rawText;
     const { isReal } = useApiModeStore();
 
     if (isReal) {
       activeTask.value = null;
+      stopRealMissionRefresh();
       resetRealData();
       realError.value = null;
       try {
@@ -97,11 +107,6 @@ export const useTaskStore = defineStore("task", () => {
         realTaskId.value = created.taskId;
         const submitResp = await realClient.startWorkflow(created.taskId);
         realJobId.value = submitResp.jobId;
-        await pollJob(submitResp.jobId);
-        await fetchWorkspace(created.taskId);
-        await fetchEventHistory(created.taskId);
-        await listArtifacts(created.taskId);
-        await refreshRealMissionView(created.taskId);
         appendedIntents.value = [];
         resetClosedLoop();
         return created;
@@ -129,18 +134,7 @@ export const useTaskStore = defineStore("task", () => {
       realError.value = null;
       resetRealData();
       activeTask.value = null;
-      const results = await Promise.allSettled([
-        fetchWorkspace(taskId),
-        fetchTaskJobs(taskId),
-        fetchEventHistory(taskId),
-        listArtifacts(taskId),
-        refreshRealMissionView(taskId),
-      ]);
-      const firstFailure = results.find((result) => result.status === "rejected");
-      if (firstFailure && firstFailure.status === "rejected") {
-        const err = firstFailure.reason as unknown;
-        realError.value = err instanceof ApiError ? err.message : err instanceof Error ? err.message : String(err);
-      }
+      await refreshRealMissionOnce(taskId);
       return null;
     }
     activeTask.value = getMockTask(taskId);
@@ -185,7 +179,7 @@ export const useTaskStore = defineStore("task", () => {
     try {
       const jobs = await realClient.getTaskJobs(tid);
       realTaskJobs.value = jobs;
-      const latestJob = jobs[0] ?? jobs[jobs.length - 1] ?? null;
+      const latestJob = pickLatestJob(jobs);
       if (!realJob.value && latestJob) {
         realJob.value = latestJob;
         realJobId.value = latestJob.jobId;
@@ -195,6 +189,96 @@ export const useTaskStore = defineStore("task", () => {
       const msg = err instanceof ApiError ? err.message : String(err);
       realError.value = msg;
       throw err;
+    }
+  }
+
+  async function refreshRealMissionOnce(
+    taskId?: string,
+    options: { jobId?: string } = {},
+  ): Promise<void> {
+    const tid = taskId ?? realTaskId.value;
+    if (!tid) throw new Error("No taskId available for real mission refresh");
+    if (realRefreshInFlight) return;
+
+    realRefreshInFlight = true;
+    isRealRefreshing.value = true;
+    realRefreshError.value = null;
+
+    try {
+      const requestedJobId = options.jobId ?? realJobId.value ?? observedRealJobId.value ?? undefined;
+      const refreshTasks: Array<Promise<unknown>> = [];
+      if (requestedJobId) {
+        refreshTasks.push(pollJob(requestedJobId));
+      }
+      refreshTasks.push(fetchWorkspace(tid));
+      refreshTasks.push(fetchTaskJobs(tid));
+      refreshTasks.push(fetchEventHistory(tid));
+      refreshTasks.push(listArtifacts(tid));
+      refreshTasks.push(refreshRealMissionView(tid));
+
+      const results = await Promise.allSettled(refreshTasks);
+      const firstFailure = results.find((result) => result.status === "rejected");
+      if (firstFailure && firstFailure.status === "rejected") {
+        const err = firstFailure.reason as unknown;
+        realRefreshError.value = err instanceof ApiError ? err.message : err instanceof Error ? err.message : String(err);
+      }
+
+      const latestJob = pickLatestJob(realTaskJobs.value);
+      if (!realJobId.value && latestJob) {
+        realJobId.value = latestJob.jobId;
+      }
+      if (!realJob.value && latestJob) {
+        realJob.value = latestJob;
+      }
+      lastRealRefreshAt.value = new Date().toISOString();
+    } finally {
+      isRealRefreshing.value = false;
+      realRefreshInFlight = false;
+    }
+  }
+
+  function startRealMissionRefresh(taskId: string, jobId?: string): void {
+    if (!taskId) return;
+    const normalizedJobId = jobId ?? realJobId.value ?? undefined;
+    if (realRefreshTimer && observedRealTaskId.value === taskId && observedRealJobId.value === (normalizedJobId ?? null)) {
+      return;
+    }
+    stopRealMissionRefresh();
+    realTaskId.value = taskId;
+    if (normalizedJobId) {
+      realJobId.value = normalizedJobId;
+    }
+    observedRealTaskId.value = taskId;
+    observedRealJobId.value = normalizedJobId ?? null;
+
+    void runObservedRefresh(taskId, normalizedJobId);
+    realRefreshTimer = window.setInterval(() => {
+      void runObservedRefresh(taskId, observedRealJobId.value ?? realJobId.value ?? undefined);
+    }, realRefreshIntervalMs.value);
+  }
+
+  function stopRealMissionRefresh(): void {
+    if (realRefreshTimer) {
+      window.clearInterval(realRefreshTimer);
+      realRefreshTimer = null;
+    }
+    observedRealTaskId.value = null;
+    observedRealJobId.value = null;
+  }
+
+  async function runObservedRefresh(taskId: string, jobId?: string): Promise<void> {
+    try {
+      await refreshRealMissionOnce(taskId, { jobId });
+      const latestJob = realJob.value ?? pickLatestJob(realTaskJobs.value);
+      if (latestJob) {
+        observedRealJobId.value = latestJob.jobId;
+      }
+      if (latestJob && isTerminalJobStatus(latestJob.jobStatus)) {
+        await refreshRealMissionOnce(taskId, { jobId: latestJob.jobId });
+        stopRealMissionRefresh();
+      }
+    } catch (err: unknown) {
+      realRefreshError.value = err instanceof ApiError ? err.message : err instanceof Error ? err.message : String(err);
     }
   }
 
@@ -291,6 +375,9 @@ export const useTaskStore = defineStore("task", () => {
     realTopology.value = null;
     realConfigBlocks.value = null;
     realExecutionLogs.value = null;
+    isRealRefreshing.value = false;
+    lastRealRefreshAt.value = null;
+    realRefreshError.value = null;
     Object.keys(realViewPanels.value).forEach((key) => {
       realViewPanels.value[key] = { loading: false, status: "idle", error: null };
     });
@@ -419,6 +506,12 @@ export const useTaskStore = defineStore("task", () => {
     realTopology,
     realConfigBlocks,
     realExecutionLogs,
+    isRealRefreshing,
+    lastRealRefreshAt,
+    realRefreshError,
+    observedRealTaskId,
+    observedRealJobId,
+    realRefreshIntervalMs,
     realViewPanels,
     realNotImplemented,
     topologyPolicyState,
@@ -434,6 +527,9 @@ export const useTaskStore = defineStore("task", () => {
     fetchTimeline,
     listArtifacts,
     refreshRealMissionView,
+    refreshRealMissionOnce,
+    startRealMissionRefresh,
+    stopRealMissionRefresh,
     prepareNewIntent,
     appendIntent,
     resetClosedLoop,
@@ -454,4 +550,19 @@ function cloneRepairPlan(): RepairPlanDemo {
       candidateSnippet: action.candidateSnippet ? [...action.candidateSnippet] : undefined,
     })),
   };
+}
+
+function isTerminalJobStatus(status?: string | null): boolean {
+  return ["SUCCESS", "FAILED", "CANCELLED", "INTERRUPTED", "ERROR"].includes(String(status ?? "").toUpperCase());
+}
+
+function pickLatestJob(jobs: RealWorkflowJob[]): RealWorkflowJob | null {
+  if (!jobs.length) return null;
+  return [...jobs].sort((left, right) => jobTime(right) - jobTime(left))[0] ?? null;
+}
+
+function jobTime(job: RealWorkflowJob): number {
+  const value = job.updateTime ?? job.createTime ?? job.startTime ?? job.finishTime;
+  const time = value ? Date.parse(value) : Number.NaN;
+  return Number.isNaN(time) ? 0 : time;
 }
