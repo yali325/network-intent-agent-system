@@ -36,18 +36,22 @@ public class ConfigTemplateTool {
     @Tool(name = "suggestConfigTemplate",
             description = "Suggest structured configuration templates by device type, feature, and target environment. Does not execute commands or write workspace state.")
     public ConfigTemplateResponse suggestConfigTemplate(
-            @ToolParam(required = true, description = "Template lookup request with deviceType, feature, and targetEnvironment.") ConfigTemplateRequest request) {
+            @ToolParam(required = false, description = "Optional device type keyword, for example SWITCH or SWITCH_L3.")
+            String deviceType,
+            @ToolParam(required = false, description = "Optional feature keyword, for example VLAN, ROUTING, or ACL.")
+            String feature,
+            @ToolParam(required = false, description = "Optional target environment keyword, for example generic.")
+            String targetEnvironment,
+            @ToolParam(required = false, description = "Optional maximum number of templates to return. Defaults to 5 and is capped at 10.")
+            Integer limit) {
 
-        ConfigTemplateRequest safeRequest = request == null
-                ? new ConfigTemplateRequest(null, null, null, 5)
-                : request;
-        int limit = safeRequest.limit() == null || safeRequest.limit() <= 0 ? 5 : Math.min(safeRequest.limit(), 10);
+        int safeLimit = limit == null || limit <= 0 ? 5 : Math.min(limit, 10);
 
         List<ConfigTemplate> matched = TEMPLATES.stream()
-                .filter(template -> matches(template.deviceType(), safeRequest.deviceType()))
-                .filter(template -> matches(template.feature(), safeRequest.feature()))
-                .filter(template -> matches(template.targetEnvironment(), safeRequest.targetEnvironment()))
-                .limit(limit)
+                .filter(template -> matches(template.deviceType(), deviceType))
+                .filter(template -> matches(template.feature(), feature))
+                .filter(template -> matches(template.targetEnvironment(), targetEnvironment))
+                .limit(safeLimit)
                 .toList();
 
         List<String> warnings = new ArrayList<>();
@@ -62,16 +66,6 @@ public class ConfigTemplateTool {
             return true;
         }
         return candidate != null && candidate.toLowerCase(Locale.ROOT).contains(requested.toLowerCase(Locale.ROOT));
-    }
-
-    /**
-     * Request for configuration template lookup.
-     */
-    public record ConfigTemplateRequest(
-            String deviceType,
-            String feature,
-            String targetEnvironment,
-            Integer limit) {
     }
 
     /**

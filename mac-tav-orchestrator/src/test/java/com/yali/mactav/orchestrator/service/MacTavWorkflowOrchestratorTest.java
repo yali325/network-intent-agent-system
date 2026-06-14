@@ -36,6 +36,7 @@ class MacTavWorkflowOrchestratorTest {
     private static ObjectMapper om() { var o = new ObjectMapper(); o.registerModule(new JavaTimeModule()); o.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS); return o; }
     private static String j(Object o) { try { return om().writeValueAsString(o); } catch (Exception e) { throw new RuntimeException(e); } }
     private static PlanningAgentInvokePayload planningPayload(ObjectMapper om, String payloadJson) { try { return om.readValue(payloadJson, PlanningAgentInvokePayload.class); } catch (Exception e) { throw new RuntimeException(e); } }
+    private static ConfigurationAgentInvokePayload configurationPayload(ObjectMapper om, String payloadJson) { try { return om.readValue(payloadJson, ConfigurationAgentInvokePayload.class); } catch (Exception e) { throw new RuntimeException(e); } }
 
     private NetworkWorkspaceService ws(ObjectMapper om) {
         rr = new InMemoryNetworkWorkspaceRepository(); vv = new WorkspaceStateValidator();
@@ -196,6 +197,20 @@ class MacTavWorkflowOrchestratorTest {
 
         assertEquals(WorkflowStage.CONFIGURATION, requests.get(2).getStage());
         assertEquals("ConfigurationAgent", requests.get(2).getTargetAgent());
+        var configurationPayload = configurationPayload(om, requests.get(2).getPayloadJson());
+        assertEquals(cr.getTask().getTaskId(), configurationPayload.getTaskId());
+        assertNotNull(configurationPayload.getPlanJson());
+        assertTrue(configurationPayload.getPlanJson().contains("topology"));
+        assertNotNull(configurationPayload.getWorkspaceSnapshot());
+        assertTrue(configurationPayload.getWorkspaceSnapshot().contains("\"currentArtifactRefs\""));
+        assertTrue(configurationPayload.getWorkspaceSnapshot().contains("NETWORK_INTENT"));
+        assertTrue(configurationPayload.getWorkspaceSnapshot().contains("NETWORK_PLAN"));
+        assertTrue(configurationPayload.getWorkspaceSnapshot().contains("\"currentPlanSummary\""));
+        assertFalse(configurationPayload.getWorkspaceSnapshot().contains("\"artifacts\""));
+        assertFalse(configurationPayload.getWorkspaceSnapshot().contains("\"payloadJson\""));
+        assertFalse(configurationPayload.getWorkspaceSnapshot().contains("\"events\""));
+        assertFalse(configurationPayload.getWorkspaceSnapshot().contains("\"agentExecutionRecords\""));
+        assertFalse(configurationPayload.getWorkspaceSnapshot().contains("\"changeHistory\""));
         assertNotNull(res.getCurrentConfigSet());
         assertEquals(1, res.getCurrentConfigVersion());
         assertEquals(ArtifactType.CONFIG_SET, res.getArtifacts().get(2).getArtifactType());

@@ -1,0 +1,101 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] ------------------------< com.yali:mac-tav-web >------------------------
+[INFO] Building mac-tav-web 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] >>> spring-boot:3.5.14:run (default-cli) > test-compile @ mac-tav-web >>>
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ mac-tav-web ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.14.1:compile (default-compile) @ mac-tav-web ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ mac-tav-web ---
+[INFO] skip non existing resourceDirectory E:\code\network-intent-agent-system\mac-tav-web\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.14.1:testCompile (default-testCompile) @ mac-tav-web ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] <<< spring-boot:3.5.14:run (default-cli) < test-compile @ mac-tav-web <<<
+[INFO] 
+[INFO] 
+[INFO] --- spring-boot:3.5.14:run (default-cli) @ mac-tav-web ---
+[INFO] Attaching agents: []
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::               (v3.5.14)
+
+2026-06-14T21:33:33.270+08:00  INFO 22352 --- [           main] com.yali.mactav.web.MacTavApplication    : Starting MacTavApplication using Java 21.0.7 with PID 22352 (E:\code\network-intent-agent-system\mac-tav-web\target\classes started by w in E:\code\network-intent-agent-system\mac-tav-web)
+2026-06-14T21:33:33.275+08:00  INFO 22352 --- [           main] com.yali.mactav.web.MacTavApplication    : No active profile set, falling back to 1 default profile: "default"
+2026-06-14T21:33:34.597+08:00  INFO 22352 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
+2026-06-14T21:33:34.611+08:00  INFO 22352 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-06-14T21:33:34.660+08:00  INFO 22352 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 23 ms. Found 0 Redis repository interfaces.
+2026-06-14T21:33:35.543+08:00  INFO 22352 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 18080 (http)
+2026-06-14T21:33:35.569+08:00  INFO 22352 --- [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-06-14T21:33:35.570+08:00  INFO 22352 --- [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.54]
+2026-06-14T21:33:35.685+08:00  INFO 22352 --- [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-06-14T21:33:35.687+08:00  INFO 22352 --- [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 2348 ms
+2026-06-14T21:33:36.858+08:00  INFO 22352 --- [           main] c.a.nacos.client.logging.NacosLogging    : Nacos Logging Adapter Builder: com.alibaba.nacos.logger.adapter.logback12.LogbackNacosLoggingAdapterBuilder
+2026-06-14T21:33:36.875+08:00  INFO 22352 --- [           main] c.a.nacos.client.logging.NacosLogging    : Nacos Logging Adapter Builder: com.alibaba.nacos.logger.adapter.logback14.LogbackNacosLoggingAdapterBuilder
+2026-06-14T21:33:36.877+08:00  INFO 22352 --- [           main] c.a.nacos.client.logging.NacosLogging    : Nacos Logging Adapter: com.alibaba.nacos.logger.adapter.logback14.LogbackNacosLoggingAdapter match ch.qos.logback.classic.Logger success.
+2026-06-14T21:33:36.884+08:00  INFO 22352 --- [           main] c.a.nacos.client.logging.NacosLogging    : Nacos Logging Adapter Builder: com.alibaba.nacos.logger.adapter.log4j2.Log4j2NacosLoggingAdapterBuilder
+2026-06-14T21:33:38.098+08:00  INFO 22352 --- [           main] c.a.n.c.a.AbstractAbilityControlManager  : Ready to get current node abilities...
+2026-06-14T21:33:38.112+08:00  INFO 22352 --- [           main] c.a.n.c.a.AbstractAbilityControlManager  : Ready to initialize current node abilities, support modes: [SDK_CLIENT]
+2026-06-14T21:33:38.113+08:00  INFO 22352 --- [           main] c.a.n.c.a.AbstractAbilityControlManager  : Initialize current abilities finish...
+2026-06-14T21:33:38.115+08:00  INFO 22352 --- [           main] c.a.n.c.a.d.NacosAbilityManagerHolder    : [AbilityControlManager] Successfully initialize AbilityControlManager
+2026-06-14T21:33:38.153+08:00  INFO 22352 --- [           main] c.a.n.p.a.s.c.ClientAuthPluginManager    : [ClientAuthPluginManager] Load ClientAuthService com.alibaba.nacos.client.auth.impl.NacosClientAuthServiceImpl success.
+2026-06-14T21:33:38.154+08:00  INFO 22352 --- [           main] c.a.n.p.a.s.c.ClientAuthPluginManager    : [ClientAuthPluginManager] Load ClientAuthService com.alibaba.nacos.client.auth.ram.RamClientAuthServiceImpl success.
+2026-06-14T21:33:39.293+08:00  INFO 22352 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port 18080 (http) with context path '/'
+2026-06-14T21:33:41.010+08:00  INFO 22352 --- [           main] com.yali.mactav.web.MacTavApplication    : Started MacTavApplication in 8.354 seconds (process running for 9.029)
+2026-06-14T21:33:41.035+08:00  INFO 22352 --- [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-06-14T21:33:41.521+08:00  INFO 22352 --- [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@46ee9cfd
+2026-06-14T21:33:41.524+08:00  INFO 22352 --- [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-06-14T21:36:02.785+08:00  INFO 22352 --- [io-18080-exec-2] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-06-14T21:36:02.796+08:00  INFO 22352 --- [io-18080-exec-2] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-06-14T21:36:02.799+08:00  INFO 22352 --- [io-18080-exec-2] o.s.web.servlet.DispatcherServlet        : Completed initialization in 2 ms
+2026-06-14T21:36:03.901+08:00  INFO 22352 --- [ctav-workflow-1] c.y.m.o.remote.client.OfficialA2aClient  : Invoking SAA A2A agent targetAgent=IntentAgent, taskId=task-0e5e0764-60d6-4e9d-b98f-8242a47836a5, traceId=trace-169892db-09fd-4970-9e56-83ca798304b7, payloadLength=2074, requestJsonLength=2688, timeoutMs=180000, agentCardStreaming=false, url=http://192.168.109.1:18081/a2a
+[SAA_A2A_REQUEST_URL_REDACTED]
+[SAA_A2A_REQUEST_REDACTED]
+2026-06-14T21:36:18.144+08:00  INFO 22352 --- [ctav-workflow-2] c.y.m.o.s.MacTavWorkflowOrchestrator     : Planning A2A payload compacted taskId=task-0e5e0764-60d6-4e9d-b98f-8242a47836a5, traceId=trace-cc55a624-13e2-4f1d-b412-07b042f31026, intentJsonLength=2000, compactWorkspaceLength=733, payloadLength=3369, networkIntentArtifactRefPresent=true
+2026-06-14T21:36:18.198+08:00  INFO 22352 --- [ctav-workflow-2] c.y.m.o.remote.client.OfficialA2aClient  : Invoking SAA A2A agent targetAgent=PlanningAgent, taskId=task-0e5e0764-60d6-4e9d-b98f-8242a47836a5, traceId=trace-cc55a624-13e2-4f1d-b412-07b042f31026, payloadLength=3369, requestJsonLength=4297, timeoutMs=180000, agentCardStreaming=false, url=http://192.168.109.1:18082/a2a
+[SAA_A2A_REQUEST_URL_REDACTED]
+[SAA_A2A_REQUEST_REDACTED]
+2026-06-14T21:37:52.976+08:00  INFO 22352 --- [ctav-workflow-3] c.y.m.o.s.MacTavWorkflowOrchestrator     : Configuration A2A payload compacted taskId=task-0e5e0764-60d6-4e9d-b98f-8242a47836a5, traceId=trace-22cd0fd3-4a32-4dfa-a913-d9a77f5229b9, planJsonLength=9759, compactWorkspaceLength=970, payloadLength=12403, networkPlanArtifactRefPresent=true
+2026-06-14T21:37:53.051+08:00  INFO 22352 --- [ctav-workflow-3] c.y.m.o.remote.client.OfficialA2aClient  : Invoking SAA A2A agent targetAgent=ConfigurationAgent, taskId=task-0e5e0764-60d6-4e9d-b98f-8242a47836a5, traceId=trace-22cd0fd3-4a32-4dfa-a913-d9a77f5229b9, payloadLength=12403, requestJsonLength=15386, timeoutMs=180000, agentCardStreaming=false, url=http://192.168.109.1:18083/a2a
+[SAA_A2A_REQUEST_URL_REDACTED]
+[SAA_A2A_REQUEST_REDACTED]
+2026-06-14T21:44:35.979+08:00  INFO 22352 --- [ctav-workflow-4] c.y.m.o.remote.client.OfficialA2aClient  : Invoking SAA A2A agent targetAgent=IntentAgent, taskId=task-a66dcd90-5afd-4aaa-bd51-a1f848cf9df5, traceId=trace-78771e6a-b5cf-45e4-8f80-f3fa97287c87, payloadLength=2056, requestJsonLength=2670, timeoutMs=180000, agentCardStreaming=false, url=http://192.168.109.1:18081/a2a
+[SAA_A2A_REQUEST_URL_REDACTED]
+[SAA_A2A_REQUEST_REDACTED]
+2026-06-14T21:44:47.151+08:00  INFO 22352 --- [ctav-workflow-4] c.y.m.o.s.MacTavWorkflowOrchestrator     : Planning A2A payload compacted taskId=task-a66dcd90-5afd-4aaa-bd51-a1f848cf9df5, traceId=trace-5551b766-e1f5-473c-b3d6-9a4acb0429ad, intentJsonLength=1918, compactWorkspaceLength=717, payloadLength=3246, networkIntentArtifactRefPresent=true
+2026-06-14T21:44:47.185+08:00  INFO 22352 --- [ctav-workflow-4] c.y.m.o.remote.client.OfficialA2aClient  : Invoking SAA A2A agent targetAgent=PlanningAgent, taskId=task-a66dcd90-5afd-4aaa-bd51-a1f848cf9df5, traceId=trace-5551b766-e1f5-473c-b3d6-9a4acb0429ad, payloadLength=3246, requestJsonLength=4146, timeoutMs=180000, agentCardStreaming=false, url=http://192.168.109.1:18082/a2a
+[SAA_A2A_REQUEST_URL_REDACTED]
+[SAA_A2A_REQUEST_REDACTED]
+2026-06-14T21:46:00.201+08:00  INFO 22352 --- [ctav-workflow-4] c.y.m.o.s.MacTavWorkflowOrchestrator     : Configuration A2A payload compacted taskId=task-a66dcd90-5afd-4aaa-bd51-a1f848cf9df5, traceId=trace-39bb62c0-2007-4c9c-b968-c6288498aba6, planJsonLength=9914, compactWorkspaceLength=1053, payloadLength=12622, networkPlanArtifactRefPresent=true
+2026-06-14T21:46:00.217+08:00  INFO 22352 --- [ctav-workflow-4] c.y.m.o.remote.client.OfficialA2aClient  : Invoking SAA A2A agent targetAgent=ConfigurationAgent, taskId=task-a66dcd90-5afd-4aaa-bd51-a1f848cf9df5, traceId=trace-39bb62c0-2007-4c9c-b968-c6288498aba6, payloadLength=12622, requestJsonLength=15590, timeoutMs=180000, agentCardStreaming=false, url=http://192.168.109.1:18083/a2a
+[SAA_A2A_REQUEST_URL_REDACTED]
+[SAA_A2A_REQUEST_REDACTED]
+2026-06-14T21:46:02.580+08:00  WARN 22352 --- [ctav-workflow-4] c.y.m.o.remote.client.OfficialA2aClient  : SAA A2A invocation failed targetAgent=ConfigurationAgent, taskId=task-a66dcd90-5afd-4aaa-bd51-a1f848cf9df5, traceId=trace-39bb62c0-2007-4c9c-b968-c6288498aba6, timeoutMs=180000, agentCardStreaming=false, url=http://192.168.109.1:18083/a2a, errorClass=IllegalStateException, message=remote errorCode=MODEL_CALL_FAILED message=ReactAgent schema call failed
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  27:20 min
+[INFO] Finished at: 2026-06-14T22:00:46+08:00
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.springframework.boot:spring-boot-maven-plugin:3.5.14:run (default-cli) on project mac-tav-web: Process terminated with exit code: -1 -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoExecutionException

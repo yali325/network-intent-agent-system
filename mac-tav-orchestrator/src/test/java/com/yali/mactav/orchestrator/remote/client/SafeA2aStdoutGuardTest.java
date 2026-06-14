@@ -24,6 +24,7 @@ class SafeA2aStdoutGuardTest {
         redacting.println("plain startup line");
         redacting.print("{\"jsonrpc\":\"2.0\",\"method\":\"message/send\",\"params\":{\"payloadJson\":\"secret\"}}");
         redacting.println();
+        redacting.println("{\"jsonrpc\":\"2.0\",\"method\":\"message/stream\",\"params\":{\"payloadJson\":\"secret\"}}");
         redacting.println((Object) "{\"workspaceSnapshot\":\"secret\",\"rawText\":\"secret\"}");
         redacting.print((Object) "http://127.0.0.1:18082/a2a");
 
@@ -35,6 +36,7 @@ class SafeA2aStdoutGuardTest {
         assertEquals(-1, output.indexOf("workspaceSnapshot"));
         assertEquals(-1, output.indexOf("rawText"));
         assertEquals(-1, output.indexOf("message/send"));
+        assertEquals(-1, output.indexOf("message/stream"));
         assertEquals(-1, output.indexOf("http://127.0.0.1:18082/a2a"));
     }
 

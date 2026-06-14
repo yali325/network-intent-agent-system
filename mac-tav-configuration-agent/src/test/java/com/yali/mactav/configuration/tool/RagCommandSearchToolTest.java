@@ -26,8 +26,7 @@ class RagCommandSearchToolTest {
                 .build()));
         RagCommandSearchTool tool = new RagCommandSearchTool(retriever);
 
-        var response = tool.searchCommandKnowledge(new RagCommandSearchTool.RagCommandSearchRequest(
-                "vlan isolation", "HUAWEI", "VRP", "VLAN", 3));
+        var response = tool.searchCommandKnowledge("vlan isolation", "HUAWEI", "VRP", "VLAN", 3);
 
         assertEquals(1, retriever.calls);
         assertEquals("vlan isolation", retriever.requests.get(0).getQuery());
@@ -47,8 +46,7 @@ class RagCommandSearchToolTest {
         RecordingRetriever retriever = new RecordingRetriever(List.of());
         RagCommandSearchTool tool = new RagCommandSearchTool(retriever);
 
-        var response = tool.searchCommandKnowledge(new RagCommandSearchTool.RagCommandSearchRequest(
-                "unknown", "HUAWEI", "VRP", "UNKNOWN", 2));
+        var response = tool.searchCommandKnowledge("unknown", "HUAWEI", "VRP", "UNKNOWN", 2);
 
         assertTrue(response.matchedDocuments().isEmpty());
         assertFalse(response.warnings().isEmpty());
@@ -60,10 +58,45 @@ class RagCommandSearchToolTest {
         RecordingRetriever retriever = new RecordingRetriever(List.of());
         RagCommandSearchTool tool = new RagCommandSearchTool(retriever);
 
-        tool.searchCommandKnowledge(new RagCommandSearchTool.RagCommandSearchRequest(
-                "vlan", "HUAWEI", "VRP", "VLAN", 0));
+        tool.searchCommandKnowledge("vlan", "HUAWEI", "VRP", "VLAN", 0);
 
         assertEquals(5, retriever.requests.get(0).getTopK());
+    }
+
+    @Test
+    void shouldNotAddOptionalFiltersWhenFilterValuesAreBlank() {
+        RecordingRetriever retriever = new RecordingRetriever(List.of());
+        RagCommandSearchTool tool = new RagCommandSearchTool(retriever);
+
+        tool.searchCommandKnowledge("acl command", null, "", "  ", 3);
+
+        assertEquals(1, retriever.calls);
+        assertEquals("acl command", retriever.requests.get(0).getQuery());
+        assertEquals(3, retriever.requests.get(0).getTopK());
+    }
+
+    @Test
+    void shouldReturnWarningWhenQueryIsBlankWithoutCallingRetriever() {
+        RecordingRetriever retriever = new RecordingRetriever(List.of());
+        RagCommandSearchTool tool = new RagCommandSearchTool(retriever);
+
+        var response = tool.searchCommandKnowledge(" ", null, null, null, null);
+
+        assertTrue(response.matchedDocuments().isEmpty());
+        assertFalse(response.warnings().isEmpty());
+        assertEquals(0, retriever.calls);
+    }
+
+    @Test
+    void shouldReturnWarningWhenRetrieverFails() {
+        FailingRetriever retriever = new FailingRetriever();
+        RagCommandSearchTool tool = new RagCommandSearchTool(retriever);
+
+        var response = tool.searchCommandKnowledge("vlan command", null, null, null, 3);
+
+        assertTrue(response.matchedDocuments().isEmpty());
+        assertEquals(1, retriever.calls);
+        assertTrue(response.warnings().stream().anyMatch(warning -> warning.contains("unavailable")));
     }
 
     private Map<String, Object> metadata() {
@@ -95,6 +128,17 @@ class RagCommandSearchToolTest {
             calls++;
             requests.add(request);
             return documents;
+        }
+    }
+
+    private static final class FailingRetriever implements VectorStoreRetriever {
+
+        private int calls;
+
+        @Override
+        public List<Document> similaritySearch(SearchRequest request) {
+            calls++;
+            throw new IllegalStateException("collection not ready");
         }
     }
 }

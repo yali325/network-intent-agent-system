@@ -179,7 +179,7 @@ public class OfficialA2aClient implements A2aClient {
             throws Exception {
         ExecutorService executorService = Executors.newSingleThreadExecutor(daemonThreadFactory(request));
         Future<Optional<OverAllState>> future = executorService.submit(
-                () -> SafeA2aStdoutGuard.call(() -> remoteAgent.invoke(input)));
+                () -> SafeA2aStdoutGuard.call(() -> remoteAgent.invoke(buildInvokeState(input))));
         try {
             return future.get(callTimeout.toMillis(), TimeUnit.MILLISECONDS);
         }
@@ -253,6 +253,13 @@ public class OfficialA2aClient implements A2aClient {
         finally {
             executorService.shutdownNow();
         }
+    }
+
+    Map<String, Object> buildInvokeState(String input) {
+        if (input == null || input.isBlank()) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "Serialized A2A request input must not be blank");
+        }
+        return Map.of("input", input);
     }
 
     private ThreadFactory daemonThreadFactory(A2aRequest request) {

@@ -26,5 +26,9 @@ class ConfigurationPromptTest {
         assertTrue(prompt.contains("LLM"));
         assertTrue(prompt.contains("RAG"));
         assertTrue(prompt.contains("TEMPLATE"));
+        assertTrue(prompt.contains("deviceType, feature, targetEnvironment, limit"));
+        assertTrue(prompt.contains("query, vendor, platform, feature, topK"));
+        assertTrue(prompt.contains("Do not call tools with empty arguments"));
+        assertTrue(prompt.contains("continue to produce a valid"));
     }
 }

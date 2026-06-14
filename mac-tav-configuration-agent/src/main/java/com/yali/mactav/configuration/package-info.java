@@ -1,4 +1,4 @@
 /**
- * Configuration agent module package. Real agent implementation is added in a later phase.
+ * Configuration agent module package with real ConfigSet generation and A2A service adaptation.
  */
 package com.yali.mactav.configuration;

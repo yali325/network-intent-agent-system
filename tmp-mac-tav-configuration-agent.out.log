@@ -1,0 +1,1062 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] ----------------< com.yali:mac-tav-configuration-agent >----------------
+[INFO] Building mac-tav-configuration-agent 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] >>> spring-boot:3.5.14:run (default-cli) > test-compile @ mac-tav-configuration-agent >>>
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ mac-tav-configuration-agent ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 10 resources from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.14.1:compile (default-compile) @ mac-tav-configuration-agent ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 16 source files with javac [debug parameters release 17] to target\classes
+[INFO] 由于在类路径中发现了一个或多个处理程序，因此启用了
+  批注处理。未来发行版的 javac 可能会禁用批注处理，
+  除非至少按名称指定了一个处理程序 (-processor)，
+  或指定了搜索路径 (--processor-path, --processor-module-path)，
+  或显式启用了批注处理 (-proc:only, -proc:full)。
+  可使用 -Xlint:-options 隐藏此消息。
+  可使用 -proc:none 禁用批注处理。
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ mac-tav-configuration-agent ---
+[INFO] Copying 4 resources from src\test\resources to target\test-classes
+[INFO] 
+[INFO] --- compiler:3.14.1:testCompile (default-testCompile) @ mac-tav-configuration-agent ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 11 source files with javac [debug parameters release 17] to target\test-classes
+[INFO] 由于在类路径中发现了一个或多个处理程序，因此启用了
+  批注处理。未来发行版的 javac 可能会禁用批注处理，
+  除非至少按名称指定了一个处理程序 (-processor)，
+  或指定了搜索路径 (--processor-path, --processor-module-path)，
+  或显式启用了批注处理 (-proc:only, -proc:full)。
+  可使用 -Xlint:-options 隐藏此消息。
+  可使用 -proc:none 禁用批注处理。
+[INFO] 
+[INFO] <<< spring-boot:3.5.14:run (default-cli) < test-compile @ mac-tav-configuration-agent <<<
+[INFO] 
+[INFO] 
+[INFO] --- spring-boot:3.5.14:run (default-cli) @ mac-tav-configuration-agent ---
+[INFO] Attaching agents: []
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::               (v3.5.14)
+
+2026-06-14T21:33:40.338+08:00  INFO 27124 --- [           main] c.y.m.c.ConfigurationAgentApplication    : Starting ConfigurationAgentApplication using Java 21.0.7 with PID 27124 (E:\code\network-intent-agent-system\mac-tav-configuration-agent\target\classes started by w in E:\code\network-intent-agent-system\mac-tav-configuration-agent)
+2026-06-14T21:33:40.341+08:00  INFO 27124 --- [           main] c.y.m.c.ConfigurationAgentApplication    : No active profile set, falling back to 1 default profile: "default"
+2026-06-14T21:33:41.441+08:00  INFO 27124 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 18083 (http)
+2026-06-14T21:33:41.468+08:00  INFO 27124 --- [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-06-14T21:33:41.469+08:00  INFO 27124 --- [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.54]
+2026-06-14T21:33:41.521+08:00  INFO 27124 --- [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-06-14T21:33:41.522+08:00  INFO 27124 --- [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 1135 ms
+2026-06-14T21:33:42.547+08:00  WARN 27124 --- [           main] io.qdrant.client.QdrantGrpcClient        : Qdrant client version 1.13.0 is incompatible with server version 1.18.1. Major versions should match and minor version difference must not exceed 1. Set checkCompatibility=false to skip version check.
+2026-06-14T21:33:43.636+08:00  INFO 27124 --- [           main] c.a.nacos.client.logging.NacosLogging    : Nacos Logging Adapter Builder: com.alibaba.nacos.logger.adapter.logback12.LogbackNacosLoggingAdapterBuilder
+2026-06-14T21:33:43.648+08:00  INFO 27124 --- [           main] c.a.nacos.client.logging.NacosLogging    : Nacos Logging Adapter Builder: com.alibaba.nacos.logger.adapter.logback14.LogbackNacosLoggingAdapterBuilder
+2026-06-14T21:33:43.650+08:00  INFO 27124 --- [           main] c.a.nacos.client.logging.NacosLogging    : Nacos Logging Adapter: com.alibaba.nacos.logger.adapter.logback14.LogbackNacosLoggingAdapter match ch.qos.logback.classic.Logger success.
+2026-06-14T21:33:43.653+08:00  INFO 27124 --- [           main] c.a.nacos.client.logging.NacosLogging    : Nacos Logging Adapter Builder: com.alibaba.nacos.logger.adapter.log4j2.Log4j2NacosLoggingAdapterBuilder
+2026-06-14T21:33:44.391+08:00  INFO 27124 --- [           main] c.a.n.c.a.AbstractAbilityControlManager  : Ready to get current node abilities...
+2026-06-14T21:33:44.394+08:00  INFO 27124 --- [           main] c.a.n.c.a.AbstractAbilityControlManager  : Ready to initialize current node abilities, support modes: [SDK_CLIENT]
+2026-06-14T21:33:44.396+08:00  INFO 27124 --- [           main] c.a.n.c.a.AbstractAbilityControlManager  : Initialize current abilities finish...
+2026-06-14T21:33:44.398+08:00  INFO 27124 --- [           main] c.a.n.c.a.d.NacosAbilityManagerHolder    : [AbilityControlManager] Successfully initialize AbilityControlManager
+2026-06-14T21:33:44.437+08:00  INFO 27124 --- [           main] c.a.n.p.a.s.c.ClientAuthPluginManager    : [ClientAuthPluginManager] Load ClientAuthService com.alibaba.nacos.client.auth.impl.NacosClientAuthServiceImpl success.
+2026-06-14T21:33:44.438+08:00  INFO 27124 --- [           main] c.a.n.p.a.s.c.ClientAuthPluginManager    : [ClientAuthPluginManager] Load ClientAuthService com.alibaba.nacos.client.auth.ram.RamClientAuthServiceImpl success.
+2026-06-14T21:33:44.734+08:00  INFO 27124 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port 18083 (http) with context path '/'
+2026-06-14T21:33:44.752+08:00  INFO 27124 --- [           main] c.y.m.c.ConfigurationAgentApplication    : Started ConfigurationAgentApplication in 4.938 seconds (process running for 5.356)
+2026-06-14T21:33:44.755+08:00  INFO 27124 --- [           main] .y.m.c.c.ConfigurationAgentConfiguration : AgentExecutor bean inventory count=1, hasConfigurationAgentA2aExecutor=true, hasGraphAgentExecutor=false
+2026-06-14T21:33:44.756+08:00  INFO 27124 --- [           main] .y.m.c.c.ConfigurationAgentConfiguration : AgentExecutor bean: name=agentExecutor, class=com.yali.mactav.configuration.a2a.ConfigurationAgentA2aExecutor
+2026-06-14T21:33:44.757+08:00  INFO 27124 --- [           main] c.a.c.a.a.c.r.AgentRegistryService       : Auto register agent ConfigurationAgent into Registry Nacos[127.0.0.1:18848].
+2026-06-14T21:33:44.759+08:00  INFO 27124 --- [           main] c.a.c.a.a.r.n.s.NacosA2aOperationService : Register agent card ConfigurationAgent to Nacos namespace public. 
+2026-06-14T21:33:45.052+08:00  INFO 27124 --- [           main] c.a.c.a.a.r.n.s.NacosA2aOperationService : Register agent card ConfigurationAgent to Nacos namespace public successfully. 
+2026-06-14T21:33:45.062+08:00  INFO 27124 --- [           main] c.a.c.a.a.c.r.AgentRegistryService       : Auto register agent ConfigurationAgent into Registry Nacos[127.0.0.1:18848] successfully.
+2026-06-14T21:37:53.169+08:00  INFO 27124 --- [io-18083-exec-2] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-06-14T21:37:53.172+08:00  INFO 27124 --- [io-18083-exec-2] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-06-14T21:37:53.176+08:00  INFO 27124 --- [io-18083-exec-2] o.s.web.servlet.DispatcherServlet        : Completed initialization in 1 ms
+2026-06-14T21:37:53.310+08:00  INFO 27124 --- [pool-3-thread-1] c.y.m.c.a.ConfigurationAgentA2aExecutor  : ConfigurationAgentA2aExecutor entry taskId=task-0e5e0764-60d6-4e9d-b98f-8242a47836a5, traceId=trace-22cd0fd3-4a32-4dfa-a913-d9a77f5229b9, contextId=34e9f453-baf2-4a4b-89b9-06205f934b59, requestTaskId=22f16311-b76d-4cb7-9dbd-5253ecbd91c3, stage=CONFIGURATION, messageTextLength=15386, payloadLength=12403
+2026-06-14T21:37:53.312+08:00  INFO 27124 --- [pool-3-thread-1] c.y.m.c.a.ConfigurationAgentA2aExecutor  : ConfigurationAgent.run start taskId=task-0e5e0764-60d6-4e9d-b98f-8242a47836a5, traceId=trace-22cd0fd3-4a32-4dfa-a913-d9a77f5229b9, payloadLength=12403, compactWorkspaceLength=970
+2026-06-14T21:37:53.460+08:00  INFO 27124 --- [pool-3-thread-1] c.a.c.ai.graph.agent.node.AgentLlmNode   : [ThreadId $default] Agent ConfigurationAgent reasoning round 0 model chain has started.
+2026-06-14T21:37:53.460+08:00  INFO 27124 --- [pool-3-thread-1] c.a.c.ai.graph.agent.node.AgentLlmNode   : [ThreadId $default] Agent ConfigurationAgent reasoning round 0 with system prompt: .
+2026-06-14T21:37:57.687+08:00  INFO 27124 --- [pool-3-thread-1] c.a.c.ai.graph.agent.node.AgentLlmNode   : [ThreadId $default] Agent ConfigurationAgent reasoning round 0 returned: AssistantMessage [messageType=ASSISTANT, toolCalls=[ToolCall[id=call_9f0df4f5f377430abdbaad, type=function, name=suggestConfigTemplate, arguments={"request": {"deviceType": "SWITCH", "feature": "vlan", "limit": 3, "targetEnvironment": "huawei-vrp"}}], ToolCall[id=call_18d59d5cdb84493694352f, type=function, name=suggestConfigTemplate, arguments={"request": {"deviceType": "SWITCH", "feature": "acl", "limit": 3, "targetEnvironment": "huawei-vrp"}}], ToolCall[id=call_e5e356bc0b7545b3aefc49, type=function, name=searchHuaweiCommandKnowledge, arguments={"request": {"query": "configure vlan interface and trunk ports on Huawei switch", "vendor": "Huawei", "platform": "VRP", "feature": "vlan", "topK": 3}}], ToolCall[id=call_25997f1539a54c909e1615, type=function, name=searchHuaweiCommandKnowledge, arguments={"request": {"query": "configure ACL to deny traffic between VLANs on Huawei VRP", "vendor": "Huawei", "platform": "VRP", "feature": "acl", "topK": 3}}]], textContent=, metadata={finishReason=TOOL_CALLS, search_info=, id=6b1e28a5-0a83-98f7-a083-fa02421da93a, role=ASSISTANT, messageType=ASSISTANT, reasoningContent=}].
+2026-06-14T21:37:57.713+08:00  INFO 27124 --- [pool-3-thread-1] c.a.c.ai.graph.agent.node.AgentToolNode  : [ThreadId $default] Agent ConfigurationAgent acting with 4 tools.
+2026-06-14T21:37:57.720+08:00  INFO 27124 --- [pool-3-thread-1] c.a.c.ai.graph.agent.node.AgentToolNode  : [ThreadId $default] Agent ConfigurationAgent acting, executing tool suggestConfigTemplate.
+2026-06-14T21:37:57.720+08:00  INFO 27124 --- [pool-3-thread-1] c.a.c.ai.graph.agent.node.AgentToolNode  : [ThreadId $default] Agent ConfigurationAgent acting, tool suggestConfigTemplate finished
+2026-06-14T21:37:57.734+08:00  INFO 27124 --- [pool-3-thread-1] c.a.c.ai.graph.agent.node.AgentToolNode  : [ThreadId $default] Agent ConfigurationAgent acting, executing tool suggestConfigTemplate.
+2026-06-14T21:37:57.734+08:00  INFO 27124 --- [pool-3-thread-1] c.a.c.ai.graph.agent.node.AgentToolNode  : [ThreadId $default] Agent ConfigurationAgent acting, tool suggestConfigTemplate finished
+2026-06-14T21:37:57.734+08:00  INFO 27124 --- [pool-3-thread-1] c.a.c.ai.graph.agent.node.AgentToolNode  : [ThreadId $default] Agent ConfigurationAgent acting, executing tool searchHuaweiCommandKnowledge.
+2026-06-14T21:37:58.343+08:00  INFO 27124 --- [pool-3-thread-1] c.a.c.ai.graph.agent.node.AgentToolNode  : [ThreadId $default] Agent ConfigurationAgent acting, tool searchHuaweiCommandKnowledge finished
+2026-06-14T21:37:58.344+08:00  INFO 27124 --- [pool-3-thread-1] c.a.c.ai.graph.agent.node.AgentToolNode  : [ThreadId $default] Agent ConfigurationAgent acting, executing tool searchHuaweiCommandKnowledge.
+2026-06-14T21:37:58.660+08:00  INFO 27124 --- [pool-3-thread-1] c.a.c.ai.graph.agent.node.AgentToolNode  : [ThreadId $default] Agent ConfigurationAgent acting, tool searchHuaweiCommandKnowledge finished
+2026-06-14T21:37:58.677+08:00  INFO 27124 --- [pool-3-thread-1] c.a.c.ai.graph.agent.node.AgentToolNode  : [ThreadId $default] Agent ConfigurationAgent acting returned: ToolResponseMessage{responses=[ToolResponse[id=call_9f0df4f5f377430abdbaad, name=suggestConfigTemplate, responseData={"templates":[],"warnings":["No configuration template matched the requested deviceType, feature, and targetEnvironment."]}], ToolResponse[id=call_18d59d5cdb84493694352f, name=suggestConfigTemplate, responseData={"templates":[],"warnings":["No configuration template matched the requested deviceType, feature, and targetEnvironment."]}], ToolResponse[id=call_e5e356bc0b7545b3aefc49, name=searchHuaweiCommandKnowledge, responseData={"matchedDocuments":[],"warnings":["No command knowledge matched the request."]}], ToolResponse[id=call_25997f1539a54c909e1615, name=searchHuaweiCommandKnowledge, responseData={"matchedDocuments":[],"warnings":["No command knowledge matched the request."]}]], messageType=TOOL, metadata={messageType=TOOL}}
+2026-06-14T21:37:58.692+08:00  INFO 27124 --- [pool-3-thread-1] c.a.c.ai.graph.agent.node.AgentLlmNode   : [ThreadId $default] Agent ConfigurationAgent reasoning round 1 model chain has started.
+2026-06-14T21:37:58.693+08:00  INFO 27124 --- [pool-3-thread-1] c.a.c.ai.graph.agent.node.AgentLlmNode   : [ThreadId $default] Agent ConfigurationAgent reasoning round 1 with system prompt: .
+2026-06-14T21:39:17.545+08:00  INFO 27124 --- [pool-3-thread-1] c.a.c.ai.graph.agent.node.AgentLlmNode   : [ThreadId $default] Agent ConfigurationAgent reasoning round 1 returned: AssistantMessage [messageType=ASSISTANT, toolCalls=[], textContent={
+  "taskId": "task-0e5e0764-60d6-4e9d-b98f-8242a47836a5",
+  "planVersion": 1,
+  "configVersion": 1,
+  "targetEnvironment": {
+    "vendor": "Huawei",
+    "configStyle": "vrp",
+    "simulationTarget": "eNSP",
+    "adapterType": "huawei-vrp"
+  },
+  "generationSummary": "Generated Huawei VRP configuration for three-zone network (office, guest, server) with VLAN segmentation and ACL-based isolation. Core switch enforces inter-zone policies; access switches assign VLANs; edge router provides static routing. All command blocks include idempotent commands and explicit rollback instructions.",
+  "generationSources": [
+    {
+      "sourceType": "LLM",
+      "sourceId": "llm-mac-tav-20260614",
+      "sourceName": "MAC-TAV LLM Policy Engine",
+      "artifactRef": "network_plan-107c65b1-97dd-4ee0-bbea-346d2e10b0d9",
+      "description": "Primary generation using LLM inference from NetworkPlan topology, zones, VLAN plan, and security policy plan.",
+      "sourceDescription": "LLM-derived configuration adhering to Huawei VRP syntax and intent constraints.",
+      "confidence": 0.92
+    }
+  ],
+  "deviceConfigs": [
+    {
+      "deviceId": "sw-core",
+      "deviceName": "core-switch",
+      "deviceType": "SWITCH",
+      "vendor": "Huawei",
+      "traceRefs": {
+        "intentNodeIds": ["node-office", "node-guest", "node-server"],
+        "intentRelationIds": [],
+        "planElementIds": [],
+        "configBlockIds": [],
+        "testIds": [],
+        "validationItemIds": [],
+        "repairActionIds": []
+      },
+      "endpointConfig": {
+        "nodeId": "sw-core",
+        "nodeType": "CORE",
+        "zoneId": "zone-core",
+        "commands": [],
+        "explanation": "Core switch serves as central policy enforcement point for inter-zone traffic.",
+        "traceRefs": {
+          "intentNodeIds": ["node-office", "node-guest", "node-server"],
+          "intentRelationIds": [],
+          "planElementIds": [],
+          "configBlockIds": [],
+          "testIds": [],
+          "validationItemIds": [],
+          "repairActionIds": []
+        }
+      },
+      "commandBlocks": [
+        {
+          "blockId": "vlan-core-creation",
+          "blockType": "VLAN",
+          "title": "VLAN Creation and Assignment",
+          "explanation": "Create VLANs 100 (office), 110 (guest), and 120 (server) on core switch and assign them to corresponding trunk interfaces.",
+          "commands": [
+            "system-view",
+            "vlan batch 100 110 120",
+            "interface GigabitEthernet0/0/1",
+            "port link-type trunk",
+            "port trunk allow-pass vlan 100",
+            "quit",
+            "interface GigabitEthernet0/0/2",
+            "port link-type trunk",
+            "port trunk allow-pass vlan 110",
+            "quit",
+            "interface GigabitEthernet0/0/3",
+            "port link-type trunk",
+            "port trunk allow-pass vlan 120",
+            "quit"
+          ],
+          "rollbackCommands": [
+            "system-view",
+            "undo vlan 100",
+            "undo vlan 110",
+            "undo vlan 120",
+            "interface GigabitEthernet0/0/1",
+            "undo port trunk allow-pass vlan 100",
+            "quit",
+            "interface GigabitEthernet0/0/2",
+            "undo port trunk allow-pass vlan 110",
+            "quit",
+            "interface GigabitEthernet0/0/3",
+            "undo port trunk allow-pass vlan 120",
+            "quit"
+          ],
+          "isIdempotent": true,
+          "riskLevel": "MEDIUM",
+          "order": 1,
+          "dependsOn": [],
+          "traceRefs": {
+            "intentNodeIds": ["node-office", "node-guest", "node-server"],
+            "intentRelationIds": [],
+            "planElementIds": ["vlan-office", "vlan-guest", "vlan-server"],
+            "configBlockIds": [],
+            "testIds": [],
+            "validationItemIds": [],
+            "repairActionIds": []
+          },
+          "rollbackStrategy": "REVERSE"
+        },
+        {
+          "blockId": "acl-core-office-to-server",
+          "blockType": "ACL",
+          "title": "Office-to-Server Allow ACL",
+          "explanation": "Configure ACL 3001 to permit traffic from office VLAN (10.1.0.0/24) to server VLAN (10.3.0.0/24) and apply it inbound on Vlanif100.",
+          "commands": [
+            "system-view",
+            "acl number 3001",
+            "rule 5 permit ip source 10.1.0.0 0.0.0.255 destination 10.3.0.0 0.0.0.255",
+            "quit",
+            "interface Vlanif100",
+            "traffic-filter inbound acl 3001",
+            "quit"
+          ],
+          "rollbackCommands": [
+            "system-view",
+            "interface Vlanif100",
+            "undo traffic-filter inbound acl 3001",
+            "quit",
+            "undo acl number 3001"
+          ],
+          "isIdempotent": true,
+          "riskLevel": "HIGH",
+          "order": 2,
+          "dependsOn": ["vlan-core-creation"],
+          "traceRefs": {
+            "intentNodeIds": ["node-office", "node-server"],
+            "intentRelationIds": ["rel-office-server"],
+            "planElementIds": ["sec-office-to-server"],
+            "configBlockIds": [],
+            "testIds": [],
+            "validationItemIds": [],
+            "repairActionIds": []
+          },
+          "rollbackStrategy": "REVERSE"
+        },
+        {
+          "blockId": "acl-core-guest-to-server",
+          "blockType": "ACL",
+          "title": "Guest-to-Server Deny ACL",
+          "explanation": "Configure ACL 3002 to deny all traffic from guest VLAN (10.2.0.0/24) to server VLAN (10.3.0.0/24) and apply it inbound on Vlanif110.",
+          "commands": [
+            "system-view",
+            "acl number 3002",
+            "rule 5 deny ip source 10.2.0.0 0.0.0.255 destination 10.3.0.0 0.0.0.255",
+            "rule 10 permit ip",
+            "quit",
+            "interface Vlanif110",
+            "traffic-filter inbound acl 3002",
+            "quit"
+          ],
+          "rollbackCommands": [
+            "system-view",
+            "interface Vlanif110",
+            "undo traffic-filter inbound acl 3002",
+            "quit",
+            "undo acl number 3002"
+          ],
+          "isIdempotent": true,
+          "riskLevel": "HIGH",
+          "order": 3,
+          "dependsOn": ["vlan-core-creation"],
+          "traceRefs": {
+            "intentNodeIds": ["node-guest", "node-server"],
+            "intentRelationIds": ["rel-guest-server"],
+            "planElementIds": ["sec-guest-to-server"],
+            "configBlockIds": [],
+            "testIds": [],
+            "validationItemIds": [],
+            "repairActionIds": []
+          },
+          "rollbackStrategy": "REVERSE"
+        },
+        {
+          "blockId": "acl-core-office-guest-isolation",
+          "blockType": "ACL",
+          "title": "Office-Guest Isolation ACL",
+          "explanation": "Configure ACL 3003 to deny all traffic between office VLAN (10.1.0.0/24) and guest VLAN (10.2.0.0/24) and apply it inbound on Vlanif100.",
+          "commands": [
+            "system-view",
+            "acl number 3003",
+            "rule 5 deny ip source 10.1.0.0 0.0.0.255 destination 10.2.0.0 0.0.0.255",
+            "rule 10 deny ip source 10.2.0.0 0.0.0.255 destination 10.1.0.0 0.0.0.255",
+            "rule 15 permit ip",
+            "quit",
+            "interface Vlanif100",
+            "traffic-filter inbound acl 3003",
+            "quit"
+          ],
+          "rollbackCommands": [
+            "system-view",
+            "interface Vlanif100",
+            "undo traffic-filter inbound acl 3003",
+            "quit",
+            "undo acl number 3003"
+          ],
+          "isIdempotent": true,
+          "riskLevel": "HIGH",
+          "order": 4,
+          "dependsOn": ["vlan-core-creation"],
+          "traceRefs": {
+            "intentNodeIds": ["node-office", "node-guest"],
+            "intentRelationIds": ["rel-office-guest"],
+            "planElementIds": ["sec-office-guest-isolation"],
+            "configBlockIds": [],
+            "testIds": [],
+            "validationItemIds": [],
+            "repairActionIds": []
+          },
+          "rollbackStrategy": "REVERSE"
+        }
+      ]
+    },
+    {
+      "deviceId": "sw-office",
+      "deviceName": "office-switch",
+      "deviceType": "SWITCH",
+      "vendor": "Huawei",
+      "traceRefs": {
+        "intentNodeIds": ["node-office"],
+        "intentRelationIds": [],
+        "planElementIds": [],
+        "configBlockIds": [],
+        "testIds": [],
+        "validationItemIds": [],
+        "repairActionIds": []
+      },
+      "endpointConfig": {
+        "nodeId": "sw-office",
+        "nodeType": "ACCESS",
+        "zoneId": "zone-office",
+        "commands": [],
+        "explanation": "Access switch for office zone; assigns hosts to VLAN 100.",
+        "traceRefs": {
+          "intentNodeIds": ["node-office"],
+          "intentRelationIds": [],
+          "planElementIds": [],
+          "configBlockIds": [],
+          "testIds": [],
+          "validationItemIds": [],
+          "repairActionIds": []
+        }
+      },
+      "commandBlocks": [
+        {
+          "blockId": "vlan-office-access",
+          "blockType": "VLAN",
+          "title": "Office Access Port VLAN Assignment",
+          "explanation": "Assign access ports on office switch to VLAN 100.",
+          "commands": [
+            "system-view",
+            "interface GigabitEthernet0/0/1",
+            "port link-type access",
+            "port default vlan 100",
+            "quit"
+          ],
+          "rollbackCommands": [
+            "system-view",
+            "interface GigabitEthernet0/0/1",
+            "undo port default vlan",
+            "quit"
+          ],
+          "isIdempotent": true,
+          "riskLevel": "LOW",
+          "order": 1,
+          "dependsOn": [],
+          "traceRefs": {
+            "intentNodeIds": ["node-office"],
+            "intentRelationIds": [],
+            "planElementIds": ["vlan-office"],
+            "configBlockIds": [],
+            "testIds": [],
+            "validationItemIds": [],
+            "repairActionIds": []
+          },
+          "rollbackStrategy": "REVERSE"
+        }
+      ]
+    },
+    {
+      "deviceId": "sw-guest",
+      "deviceName": "guest-switch",
+      "deviceType": "SWITCH",
+      "vendor": "Huawei",
+      "traceRefs": {
+        "intentNodeIds": ["node-guest"],
+        "intentRelationIds": [],
+        "planElementIds": [],
+        "configBlockIds": [],
+        "testIds": [],
+        "validationItemIds": [],
+        "repairActionIds": []
+      },
+      "endpointConfig": {
+        "nodeId": "sw-guest",
+        "nodeType": "ACCESS",
+        "zoneId": "zone-guest",
+        "commands": [],
+        "explanation": "Access switch for guest zone; assigns hosts to VLAN 110.",
+        "traceRefs": {
+          "intentNodeIds": ["node-guest"],
+          "intentRelationIds": [],
+          "planElementIds": [],
+          "configBlockIds": [],
+          "testIds": [],
+          "validationItemIds": [],
+          "repairActionIds": []
+        }
+      },
+      "commandBlocks": [
+        {
+          "blockId": "vlan-guest-access",
+          "blockType": "VLAN",
+          "title": "Guest Access Port VLAN Assignment",
+          "explanation": "Assign access ports on guest switch to VLAN 110.",
+          "commands": [
+            "system-view",
+            "interface GigabitEthernet0/0/1",
+            "port link-type access",
+            "port default vlan 110",
+            "quit"
+          ],
+          "rollbackCommands": [
+            "system-view",
+            "interface GigabitEthernet0/0/1",
+            "undo port default vlan",
+            "quit"
+          ],
+          "isIdempotent": true,
+          "riskLevel": "LOW",
+          "order": 1,
+          "dependsOn": [],
+          "traceRefs": {
+            "intentNodeIds": ["node-guest"],
+            "intentRelationIds": [],
+            "planElementIds": ["vlan-guest"],
+            "configBlockIds": [],
+            "testIds": [],
+            "validationItemIds": [],
+            "repairActionIds": []
+          },
+          "rollbackStrategy": "REVERSE"
+        }
+      ]
+    },
+    {
+      "deviceId": "sw-server",
+      "deviceName": "server-switch",
+      "deviceType": "SWITCH",
+      "vendor": "Huawei",
+      "traceRefs": {
+        "intentNodeIds": ["node-server"],
+        "intentRelationIds": [],
+        "planElementIds": [],
+        "configBlockIds": [],
+        "testIds": [],
+        "validationItemIds": [],
+        "repairActionIds": []
+      },
+      "endpointConfig": {
+        "nodeId": "sw-server",
+        "nodeType": "ACCESS",
+        "zoneId": "zone-server",
+        "commands": [],
+        "explanation": "Access switch for server zone; assigns servers to VLAN 120.",
+        "traceRefs": {
+          "intentNodeIds": ["node-server"],
+          "intentRelationIds": [],
+          "planElementIds": [],
+          "configBlockIds": [],
+          "testIds": [],
+          "validationItemIds": [],
+          "repairActionIds": []
+        }
+      },
+      "commandBlocks": [
+        {
+          "blockId": "vlan-server-access",
+          "blockType": "VLAN",
+          "title": "Server Access Port VLAN Assignment",
+          "explanation": "Assign access ports on server switch to VLAN 120.",
+          "commands": [
+            "system-view",
+            "interface GigabitEthernet0/0/1",
+            "port link-type access",
+            "port default vlan 120",
+            "quit"
+          ],
+          "rollbackCommands": [
+            "system-view",
+            "interface GigabitEthernet0/0/1",
+            "undo port default vlan",
+            "quit"
+          ],
+          "isIdempotent": true,
+          "riskLevel": "LOW",
+          "order": 1,
+          "dependsOn": [],
+          "traceRefs": {
+            "intentNodeIds": ["node-server"],
+            "intentRelationIds": [],
+            "planElementIds": ["vlan-server"],
+            "configBlockIds": [],
+            "testIds": [],
+            "validationItemIds": [],
+            "repairActionIds": []
+          },
+          "rollbackStrategy": "REVERSE"
+        }
+      ]
+    },
+    {
+      "deviceId": "rtr-edge",
+      "deviceName": "edge-router",
+      "deviceType": "ROUTER",
+      "vendor": "Huawei",
+      "traceRefs": {
+        "intentNodeIds": ["node-office", "node-guest", "node-server"],
+        "intentRelationIds": [],
+        "planElementIds": [],
+        "configBlockIds": [],
+        "testIds": [],
+        "validationItemIds": [],
+        "repairActionIds": []
+      },
+      "endpointConfig": {
+        "nodeId": "rtr-edge",
+        "nodeType": "GATEWAY",
+        "zoneId": "zone-core",
+        "commands": [],
+        "explanation": "Edge router provides static routing to all three zones.",
+        "traceRefs": {
+          "intentNodeIds": ["node-office", "node-guest", "node-server"],
+          "intentRelationIds": [],
+          "planElementIds": [],
+          "configBlockIds": [],
+          "testIds": [],
+          "validationItemIds": [],
+          "repairActionIds": []
+        }
+      },
+      "commandBlocks": [
+        {
+          "blockId": "static-routing-edge",
+          "blockType": "ROUTING",
+          "title": "Static Route Configuration",
+          "explanation": "Configure static routes for office (10.1.0.0/24), guest (10.2.0.0/24), and server (10.3.0.0/24) subnets.",
+          "commands": [
+            "system-view",
+            "ip route-static 10.1.0.0 255.255.255.0 10.1.0.1",
+            "ip route-static 10.2.0.0 255.255.255.0 10.2.0.1",
+            "ip route-static 10.3.0.0 255.255.255.0 10.3.0.1"
+          ],
+          "rollbackCommands": [
+            "system-view",
+            "undo ip route-static 10.1.0.0 255.255.255.0 10.1.0.1",
+            "undo ip route-static 10.2.0.0 255.255.255.0 10.2.0.1",
+            "undo ip route-static 10.3.0.0 255.255.255.0 10.3.0.1"
+          ],
+          "isIdempotent": true,
+          "riskLevel": "MEDIUM",
+          "order": 1,
+          "dependsOn": [],
+          "traceRefs": {
+            "intentNodeIds": ["node-office", "node-guest", "node-server"],
+            "intentRelationIds": [],
+            "planElementIds": ["routing-static"],
+            "configBlockIds": [],
+            "testIds": [],
+            "validationItemIds": [],
+            "repairActionIds": []
+          },
+          "rollbackStrategy": "REVERSE"
+        }
+      ]
+    }
+  ],
+  "endpointConfigs": [],
+  "rollbackPlan": {
+    "strategy": "SEQUENTIAL_REVERSE",
+    "description": "Rollback executes command blocks in reverse order per device, using precomputed rollbackCommands for each block.",
+    "rollbackBlocks": [
+      {
+        "blockId": "acl-core-office-guest-isolation",
+        "deviceId": "sw-core",
+        "order": 1,
+        "commands": [
+          "system-view",
+          "interface Vlanif100",
+          "undo traffic-filter inbound acl 3003",
+          "quit",
+          "undo acl number 3003"
+        ]
+      },
+      {
+        "blockId": "acl-core-guest-to-server",
+        "deviceId": "sw-core",
+        "order": 2,
+        "commands": [
+          "system-view",
+          "interface Vlanif110",
+          "undo traffic-filter inbound acl 3002",
+          "quit",
+          "undo acl number 3002"
+        ]
+      },
+      {
+        "blockId": "acl-core-office-to-server",
+        "deviceId": "sw-core",
+        "order": 3,
+        "commands": [
+          "system-view",
+          "interface Vlanif100",
+          "undo traffic-filter inbound acl 3001",
+          "quit",
+          "undo acl number 3001"
+        ]
+      },
+      {
+        "blockId": "vlan-core-creation",
+        "deviceId": "sw-core",
+        "order": 4,
+        "commands": [
+          "system-view",
+          "undo vlan 100",
+          "undo vlan 110",
+          "undo vlan 120",
+          "interface GigabitEthernet0/0/1",
+          "undo port trunk allow-pass vlan 100",
+          "quit",
+          "interface GigabitEthernet0/0/2",
+          "undo port trunk allow-pass vlan 110",
+          "quit",
+          "interface GigabitEthernet0/0/3",
+          "undo port trunk allow-pass vlan 120",
+          "quit"
+        ]
+      },
+      {
+        "blockId": "vlan-office-access",
+        "deviceId": "sw-office",
+        "order": 5,
+        "commands": [
+          "system-view",
+          "interface GigabitEthernet0/0/1",
+          "undo port default vlan",
+          "quit"
+        ]
+      },
+      {
+        "blockId": "vlan-guest-access",
+        "deviceId": "sw-guest",
+        "order": 6,
+        "commands": [
+          "system-view",
+          "interface GigabitEthernet0/0/1",
+          "undo port default vlan",
+          "quit"
+        ]
+      },
+      {
+        "blockId": "vlan-server-access",
+        "deviceId": "sw-server",
+        "order": 7,
+        "commands": [
+          "system-view",
+          "interface GigabitEthernet0/0/1",
+          "undo port default vlan",
+          "quit"
+        ]
+      },
+      {
+        "blockId": "static-routing-edge",
+        "deviceId": "rtr-edge",
+        "order": 8,
+        "commands": [
+          "system-view",
+          "undo ip route-static 10.1.0.0 255.255.255.0 10.1.0.1",
+          "undo ip route-static 10.2.0.0 255.255.255.0 10.2.0.1",
+          "undo ip route-static 10.3.0.0 255.255.255.0 10.3.0.1"
+        ]
+      }
+    ]
+  },
+  "traceRefs": {
+    "intentNodeIds": ["node-office", "node-guest", "node-server"],
+    "intentRelationIds": [],
+    "planElementIds": [],
+    "configBlockIds": [],
+    "testIds": [],
+    "validationItemIds": [],
+    "repairActionIds": []
+  },
+  "warnings": [
+    {
+      "level": "INFO",
+      "message": "No matching templates or RAG knowledge found; configuration generated via LLM inference from NetworkPlan structure.",
+      "relatedBlockId": "N/A"
+    }
+  ]
+}, metadata={finishReason=STOP, search_info=, id=209edcdf-191c-9e2c-867f-935d0cafb07a, role=ASSISTANT, messageType=ASSISTANT, reasoningContent=}].
+2026-06-14T21:39:17.619+08:00  INFO 27124 --- [pool-3-thread-1] c.y.m.c.a.ConfigurationAgentA2aExecutor  : ConfigurationAgent.run completed taskId=task-0e5e0764-60d6-4e9d-b98f-8242a47836a5, traceId=trace-22cd0fd3-4a32-4dfa-a913-d9a77f5229b9, durationMs=84303, deviceCount=5, commandBlockCount=8, endpointCount=0
+2026-06-14T21:39:17.637+08:00  INFO 27124 --- [pool-3-thread-1] c.y.m.c.a.ConfigurationAgentA2aExecutor  : ConfigurationAgentA2aExecutor addArtifact start taskId=task-0e5e0764-60d6-4e9d-b98f-8242a47836a5, traceId=trace-22cd0fd3-4a32-4dfa-a913-d9a77f5229b9, outputJsonLength=13474
+2026-06-14T21:39:17.640+08:00  INFO 27124 --- [pool-3-thread-1] c.y.m.c.a.ConfigurationAgentA2aExecutor  : ConfigurationAgentA2aExecutor complete taskId=task-0e5e0764-60d6-4e9d-b98f-8242a47836a5, traceId=trace-22cd0fd3-4a32-4dfa-a913-d9a77f5229b9
+2026-06-14T21:46:00.256+08:00  INFO 27124 --- [pool-3-thread-2] c.y.m.c.a.ConfigurationAgentA2aExecutor  : ConfigurationAgentA2aExecutor entry taskId=task-a66dcd90-5afd-4aaa-bd51-a1f848cf9df5, traceId=trace-39bb62c0-2007-4c9c-b968-c6288498aba6, contextId=e149ea18-f0c5-43fd-b6fd-86db1e0d9d3f, requestTaskId=a075fa9a-c906-40c1-a7c5-0565143f29b9, stage=CONFIGURATION, messageTextLength=15590, payloadLength=12622
+2026-06-14T21:46:00.256+08:00  INFO 27124 --- [pool-3-thread-2] c.y.m.c.a.ConfigurationAgentA2aExecutor  : ConfigurationAgent.run start taskId=task-a66dcd90-5afd-4aaa-bd51-a1f848cf9df5, traceId=trace-39bb62c0-2007-4c9c-b968-c6288498aba6, payloadLength=12622, compactWorkspaceLength=1053
+2026-06-14T21:46:00.278+08:00  INFO 27124 --- [pool-3-thread-2] c.a.c.ai.graph.agent.node.AgentLlmNode   : [ThreadId $default] Agent ConfigurationAgent reasoning round 0 model chain has started.
+2026-06-14T21:46:00.278+08:00  INFO 27124 --- [pool-3-thread-2] c.a.c.ai.graph.agent.node.AgentLlmNode   : [ThreadId $default] Agent ConfigurationAgent reasoning round 0 with system prompt: .
+2026-06-14T21:46:02.460+08:00  INFO 27124 --- [pool-3-thread-2] c.a.c.ai.graph.agent.node.AgentLlmNode   : [ThreadId $default] Agent ConfigurationAgent reasoning round 0 returned: AssistantMessage [messageType=ASSISTANT, toolCalls=[ToolCall[id=call_804b3286cc86410aa1af77, type=function, name=suggestConfigTemplate, arguments={"request": {"deviceType": "SWITCH", "feature": "access-control", "limit": 3, "targetEnvironment": "cisco"}], ToolCall[id=call_2ca954c346134c5f8a1b0a, type=function, name=searchHuaweiCommandKnowledge, arguments={"request": {"query": "configure ACL to deny traffic between VLANs on core switch", "vendor": "cisco", "platform": "ios", "feature": "acl", "topK": 2}]], textContent=, metadata={finishReason=TOOL_CALLS, search_info=, id=5ee4eba0-ee96-9d0f-87c0-b2ddc93206e2, role=ASSISTANT, messageType=ASSISTANT, reasoningContent=}].
+2026-06-14T21:46:02.485+08:00  INFO 27124 --- [pool-3-thread-2] c.a.c.ai.graph.agent.node.AgentToolNode  : [ThreadId $default] Agent ConfigurationAgent acting with 2 tools.
+2026-06-14T21:46:02.485+08:00  INFO 27124 --- [pool-3-thread-2] c.a.c.ai.graph.agent.node.AgentToolNode  : [ThreadId $default] Agent ConfigurationAgent acting, executing tool suggestConfigTemplate.
+2026-06-14T21:46:02.485+08:00  WARN 27124 --- [pool-3-thread-2] o.s.ai.tool.method.MethodToolCallback    : Conversion from JSON failed
+
+java.lang.IllegalStateException: Conversion from JSON to java.util.Map<java.lang.String, java.lang.Object> failed
+	at org.springframework.ai.util.json.JsonParser.fromJson(JsonParser.java:97) ~[spring-ai-model-1.1.2.jar:1.1.2]
+	at org.springframework.ai.tool.method.MethodToolCallback.extractToolArguments(MethodToolCallback.java:132) ~[spring-ai-model-1.1.2.jar:1.1.2]
+	at org.springframework.ai.tool.method.MethodToolCallback.call(MethodToolCallback.java:108) ~[spring-ai-model-1.1.2.jar:1.1.2]
+	at com.alibaba.cloud.ai.graph.agent.node.AgentToolNode.executeSyncTool(AgentToolNode.java:778) ~[spring-ai-alibaba-agent-framework-1.1.2.0.jar:1.1.2.0]
+	at com.alibaba.cloud.ai.graph.agent.node.AgentToolNode.executeToolByType(AgentToolNode.java:649) ~[spring-ai-alibaba-agent-framework-1.1.2.0.jar:1.1.2.0]
+	at com.alibaba.cloud.ai.graph.agent.node.AgentToolNode.lambda$executeToolCallWithInterceptors$4(AgentToolNode.java:569) ~[spring-ai-alibaba-agent-framework-1.1.2.0.jar:1.1.2.0]
+	at com.alibaba.cloud.ai.graph.agent.node.AgentToolNode.executeToolCallWithInterceptors(AgentToolNode.java:577) ~[spring-ai-alibaba-agent-framework-1.1.2.0.jar:1.1.2.0]
+	at com.alibaba.cloud.ai.graph.agent.node.AgentToolNode.executeToolCallWithInterceptors(AgentToolNode.java:511) ~[spring-ai-alibaba-agent-framework-1.1.2.0.jar:1.1.2.0]
+	at com.alibaba.cloud.ai.graph.agent.node.AgentToolNode.executeToolCallsSequential(AgentToolNode.java:230) ~[spring-ai-alibaba-agent-framework-1.1.2.0.jar:1.1.2.0]
+	at com.alibaba.cloud.ai.graph.agent.node.AgentToolNode.apply(AgentToolNode.java:171) ~[spring-ai-alibaba-agent-framework-1.1.2.0.jar:1.1.2.0]
+	at com.alibaba.cloud.ai.graph.action.AsyncNodeActionWithConfig.lambda$node_async$0(AsyncNodeActionWithConfig.java:41) ~[spring-ai-alibaba-graph-core-1.1.2.0.jar:1.1.2.0]
+	at com.alibaba.cloud.ai.graph.executor.NodeExecutor.executeNode(NodeExecutor.java:123) ~[spring-ai-alibaba-graph-core-1.1.2.0.jar:1.1.2.0]
+	at com.alibaba.cloud.ai.graph.executor.NodeExecutor.execute(NodeExecutor.java:85) ~[spring-ai-alibaba-graph-core-1.1.2.0.jar:1.1.2.0]
+	at com.alibaba.cloud.ai.graph.executor.MainGraphExecutor.execute(MainGraphExecutor.java:108) ~[spring-ai-alibaba-graph-core-1.1.2.0.jar:1.1.2.0]
+	at com.alibaba.cloud.ai.graph.executor.NodeExecutor.lambda$handleActionResult$3(NodeExecutor.java:207) ~[spring-ai-alibaba-graph-core-1.1.2.0.jar:1.1.2.0]
+	at reactor.core.publisher.FluxDefer.subscribe(FluxDefer.java:46) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.Flux.subscribe(Flux.java:8891) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.FluxConcatArray$ConcatArraySubscriber.onComplete(FluxConcatArray.java:238) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.FluxConcatArray.subscribe(FluxConcatArray.java:79) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.Flux.subscribe(Flux.java:8891) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoFlatMapMany$FlatMapManyMain.onNext(MonoFlatMapMany.java:196) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoCompletionStage$MonoCompletionStageSubscription.apply(MonoCompletionStage.java:121) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoCompletionStage$MonoCompletionStageSubscription.apply(MonoCompletionStage.java:67) ~[reactor-core-3.7.18.jar:3.7.18]
+	at java.base/java.util.concurrent.CompletableFuture.uniHandle(CompletableFuture.java:934) ~[na:na]
+	at java.base/java.util.concurrent.CompletableFuture.uniHandleStage(CompletableFuture.java:950) ~[na:na]
+	at java.base/java.util.concurrent.CompletableFuture.handle(CompletableFuture.java:2372) ~[na:na]
+	at java.base/java.util.concurrent.CompletableFuture.handle(CompletableFuture.java:144) ~[na:na]
+	at reactor.core.publisher.MonoCompletionStage$MonoCompletionStageSubscription.request(MonoCompletionStage.java:145) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoFlatMapMany$FlatMapManyMain.onSubscribe(MonoFlatMapMany.java:141) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoCompletionStage.subscribe(MonoCompletionStage.java:56) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.InternalFluxOperator.subscribe(InternalFluxOperator.java:68) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.FluxDefer.subscribe(FluxDefer.java:54) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.Flux.subscribe(Flux.java:8891) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.FluxConcatArray$ConcatArraySubscriber.onComplete(FluxConcatArray.java:238) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.FluxConcatArray.subscribe(FluxConcatArray.java:79) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.Flux.subscribe(Flux.java:8891) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoFlatMapMany$FlatMapManyMain.onNext(MonoFlatMapMany.java:196) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoCompletionStage$MonoCompletionStageSubscription.apply(MonoCompletionStage.java:121) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoCompletionStage$MonoCompletionStageSubscription.apply(MonoCompletionStage.java:67) ~[reactor-core-3.7.18.jar:3.7.18]
+	at java.base/java.util.concurrent.CompletableFuture.uniHandle(CompletableFuture.java:934) ~[na:na]
+	at java.base/java.util.concurrent.CompletableFuture.uniHandleStage(CompletableFuture.java:950) ~[na:na]
+	at java.base/java.util.concurrent.CompletableFuture.handle(CompletableFuture.java:2372) ~[na:na]
+	at java.base/java.util.concurrent.CompletableFuture.handle(CompletableFuture.java:144) ~[na:na]
+	at reactor.core.publisher.MonoCompletionStage$MonoCompletionStageSubscription.request(MonoCompletionStage.java:145) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoFlatMapMany$FlatMapManyMain.onSubscribe(MonoFlatMapMany.java:141) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoCompletionStage.subscribe(MonoCompletionStage.java:56) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.InternalFluxOperator.subscribe(InternalFluxOperator.java:68) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.FluxDefer.subscribe(FluxDefer.java:54) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.Flux.subscribe(Flux.java:8891) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.FluxConcatArray$ConcatArraySubscriber.onComplete(FluxConcatArray.java:238) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.FluxConcatArray.subscribe(FluxConcatArray.java:79) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.Flux.subscribe(Flux.java:8891) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoFlatMapMany$FlatMapManyMain.onNext(MonoFlatMapMany.java:196) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoCompletionStage$MonoCompletionStageSubscription.apply(MonoCompletionStage.java:121) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoCompletionStage$MonoCompletionStageSubscription.apply(MonoCompletionStage.java:67) ~[reactor-core-3.7.18.jar:3.7.18]
+	at java.base/java.util.concurrent.CompletableFuture.uniHandle(CompletableFuture.java:934) ~[na:na]
+	at java.base/java.util.concurrent.CompletableFuture.uniHandleStage(CompletableFuture.java:950) ~[na:na]
+	at java.base/java.util.concurrent.CompletableFuture.handle(CompletableFuture.java:2372) ~[na:na]
+	at java.base/java.util.concurrent.CompletableFuture.handle(CompletableFuture.java:144) ~[na:na]
+	at reactor.core.publisher.MonoCompletionStage$MonoCompletionStageSubscription.request(MonoCompletionStage.java:145) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoFlatMapMany$FlatMapManyMain.onSubscribe(MonoFlatMapMany.java:141) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoCompletionStage.subscribe(MonoCompletionStage.java:56) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.InternalFluxOperator.subscribe(InternalFluxOperator.java:68) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.FluxDefer.subscribe(FluxDefer.java:54) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.Flux.subscribe(Flux.java:8891) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.FluxConcatArray$ConcatArraySubscriber.onComplete(FluxConcatArray.java:238) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.FluxConcatArray.subscribe(FluxConcatArray.java:79) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.Flux.subscribe(Flux.java:8891) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoFlatMapMany$FlatMapManyMain.onNext(MonoFlatMapMany.java:196) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoCompletionStage$MonoCompletionStageSubscription.apply(MonoCompletionStage.java:121) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoCompletionStage$MonoCompletionStageSubscription.apply(MonoCompletionStage.java:67) ~[reactor-core-3.7.18.jar:3.7.18]
+	at java.base/java.util.concurrent.CompletableFuture.uniHandle(CompletableFuture.java:934) ~[na:na]
+	at java.base/java.util.concurrent.CompletableFuture.uniHandleStage(CompletableFuture.java:950) ~[na:na]
+	at java.base/java.util.concurrent.CompletableFuture.handle(CompletableFuture.java:2372) ~[na:na]
+	at java.base/java.util.concurrent.CompletableFuture.handle(CompletableFuture.java:144) ~[na:na]
+	at reactor.core.publisher.MonoCompletionStage$MonoCompletionStageSubscription.request(MonoCompletionStage.java:145) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoFlatMapMany$FlatMapManyMain.onSubscribe(MonoFlatMapMany.java:141) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoCompletionStage.subscribe(MonoCompletionStage.java:56) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.InternalFluxOperator.subscribe(InternalFluxOperator.java:68) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.FluxDefer.subscribe(FluxDefer.java:54) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.Flux.subscribe(Flux.java:8891) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.FluxConcatArray$ConcatArraySubscriber.onComplete(FluxConcatArray.java:238) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.FluxConcatArray.subscribe(FluxConcatArray.java:79) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.Flux.subscribe(Flux.java:8891) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoFlatMapMany$FlatMapManyMain.onNext(MonoFlatMapMany.java:196) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoCompletionStage$MonoCompletionStageSubscription.apply(MonoCompletionStage.java:121) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoCompletionStage$MonoCompletionStageSubscription.apply(MonoCompletionStage.java:67) ~[reactor-core-3.7.18.jar:3.7.18]
+	at java.base/java.util.concurrent.CompletableFuture.uniHandle(CompletableFuture.java:934) ~[na:na]
+	at java.base/java.util.concurrent.CompletableFuture.uniHandleStage(CompletableFuture.java:950) ~[na:na]
+	at java.base/java.util.concurrent.CompletableFuture.handle(CompletableFuture.java:2372) ~[na:na]
+	at java.base/java.util.concurrent.CompletableFuture.handle(CompletableFuture.java:144) ~[na:na]
+	at reactor.core.publisher.MonoCompletionStage$MonoCompletionStageSubscription.request(MonoCompletionStage.java:145) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoFlatMapMany$FlatMapManyMain.onSubscribe(MonoFlatMapMany.java:141) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoCompletionStage.subscribe(MonoCompletionStage.java:56) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.InternalFluxOperator.subscribe(InternalFluxOperator.java:68) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.FluxDefer.subscribe(FluxDefer.java:54) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.Flux.subscribe(Flux.java:8891) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.FluxConcatArray$ConcatArraySubscriber.onComplete(FluxConcatArray.java:238) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.FluxConcatArray.subscribe(FluxConcatArray.java:79) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.Flux.subscribe(Flux.java:8891) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoFlatMapMany$FlatMapManyMain.onNext(MonoFlatMapMany.java:196) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoCompletionStage$MonoCompletionStageSubscription.apply(MonoCompletionStage.java:121) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoCompletionStage$MonoCompletionStageSubscription.apply(MonoCompletionStage.java:67) ~[reactor-core-3.7.18.jar:3.7.18]
+	at java.base/java.util.concurrent.CompletableFuture.uniHandle(CompletableFuture.java:934) ~[na:na]
+	at java.base/java.util.concurrent.CompletableFuture.uniHandleStage(CompletableFuture.java:950) ~[na:na]
+	at java.base/java.util.concurrent.CompletableFuture.handle(CompletableFuture.java:2372) ~[na:na]
+	at java.base/java.util.concurrent.CompletableFuture.handle(CompletableFuture.java:144) ~[na:na]
+	at reactor.core.publisher.MonoCompletionStage$MonoCompletionStageSubscription.request(MonoCompletionStage.java:145) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoFlatMapMany$FlatMapManyMain.onSubscribe(MonoFlatMapMany.java:141) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoCompletionStage.subscribe(MonoCompletionStage.java:56) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.InternalFluxOperator.subscribe(InternalFluxOperator.java:68) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.FluxDefer.subscribe(FluxDefer.java:54) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.Flux.subscribe(Flux.java:8891) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.FluxConcatArray$ConcatArraySubscriber.onComplete(FluxConcatArray.java:238) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.FluxConcatArray.subscribe(FluxConcatArray.java:79) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.Flux.subscribe(Flux.java:8891) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoFlatMapMany$FlatMapManyMain.onNext(MonoFlatMapMany.java:196) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoCompletionStage$MonoCompletionStageSubscription.apply(MonoCompletionStage.java:121) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoCompletionStage$MonoCompletionStageSubscription.apply(MonoCompletionStage.java:67) ~[reactor-core-3.7.18.jar:3.7.18]
+	at java.base/java.util.concurrent.CompletableFuture.uniHandle(CompletableFuture.java:934) ~[na:na]
+	at java.base/java.util.concurrent.CompletableFuture.uniHandleStage(CompletableFuture.java:950) ~[na:na]
+	at java.base/java.util.concurrent.CompletableFuture.handle(CompletableFuture.java:2372) ~[na:na]
+	at java.base/java.util.concurrent.CompletableFuture.handle(CompletableFuture.java:144) ~[na:na]
+	at reactor.core.publisher.MonoCompletionStage$MonoCompletionStageSubscription.request(MonoCompletionStage.java:145) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoFlatMapMany$FlatMapManyMain.onSubscribe(MonoFlatMapMany.java:141) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoCompletionStage.subscribe(MonoCompletionStage.java:56) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.InternalFluxOperator.subscribe(InternalFluxOperator.java:68) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.FluxDefer.subscribe(FluxDefer.java:54) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.Flux.subscribe(Flux.java:8891) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.FluxConcatArray$ConcatArraySubscriber.onComplete(FluxConcatArray.java:238) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.FluxConcatArray.subscribe(FluxConcatArray.java:79) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.FluxDefer.subscribe(FluxDefer.java:54) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.Mono.subscribe(Mono.java:4576) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.Mono.block(Mono.java:1778) ~[reactor-core-3.7.18.jar:3.7.18]
+	at com.alibaba.cloud.ai.graph.CompiledGraph.invoke(CompiledGraph.java:640) ~[spring-ai-alibaba-graph-core-1.1.2.0.jar:1.1.2.0]
+	at com.alibaba.cloud.ai.graph.agent.Agent.doInvoke(Agent.java:499) ~[spring-ai-alibaba-agent-framework-1.1.2.0.jar:1.1.2.0]
+	at com.alibaba.cloud.ai.graph.agent.ReactAgent.doMessageInvoke(ReactAgent.java:261) ~[spring-ai-alibaba-agent-framework-1.1.2.0.jar:1.1.2.0]
+	at com.alibaba.cloud.ai.graph.agent.ReactAgent.call(ReactAgent.java:165) ~[spring-ai-alibaba-agent-framework-1.1.2.0.jar:1.1.2.0]
+	at com.yali.mactav.agent.core.agent.AgentUtils.callSchema(AgentUtils.java:58) ~[mac-tav-agent-core-0.0.1-SNAPSHOT.jar:0.0.1-SNAPSHOT]
+	at com.yali.mactav.configuration.agent.ConfigurationAgent.run(ConfigurationAgent.java:45) ~[classes/:na]
+	at com.yali.mactav.configuration.a2a.ConfigurationAgentA2aExecutor.execute(ConfigurationAgentA2aExecutor.java:78) ~[classes/:na]
+	at io.a2a.server.requesthandlers.DefaultRequestHandler$1.run(DefaultRequestHandler.java:371) ~[a2a-java-sdk-server-common-0.2.5.Beta2.jar:na]
+	at java.base/java.util.concurrent.CompletableFuture$AsyncRun.run(CompletableFuture.java:1804) ~[na:na]
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144) ~[na:na]
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642) ~[na:na]
+	at java.base/java.lang.Thread.run(Thread.java:1583) ~[na:na]
+Caused by: com.fasterxml.jackson.core.io.JsonEOFException: Unexpected end-of-input: expected close marker for Object (start marker at [Source: REDACTED (`StreamReadFeature.INCLUDE_SOURCE_IN_LOCATION` disabled); line: 1, column: 1])
+ at [Source: REDACTED (`StreamReadFeature.INCLUDE_SOURCE_IN_LOCATION` disabled); line: 1, column: 108]
+	at com.fasterxml.jackson.core.base.ParserMinimalBase._reportInvalidEOF(ParserMinimalBase.java:643) ~[jackson-core-2.21.2.jar:2.21.2]
+	at com.fasterxml.jackson.core.base.ParserBase._handleEOF(ParserBase.java:534) ~[jackson-core-2.21.2.jar:2.21.2]
+	at com.fasterxml.jackson.core.base.ParserBase._eofAsNextChar(ParserBase.java:551) ~[jackson-core-2.21.2.jar:2.21.2]
+	at com.fasterxml.jackson.core.json.ReaderBasedJsonParser._skipWSOrEnd(ReaderBasedJsonParser.java:2490) ~[jackson-core-2.21.2.jar:2.21.2]
+	at com.fasterxml.jackson.core.json.ReaderBasedJsonParser.nextFieldName(ReaderBasedJsonParser.java:912) ~[jackson-core-2.21.2.jar:2.21.2]
+	at com.fasterxml.jackson.databind.deser.std.MapDeserializer._readAndBindStringKeyMap(MapDeserializer.java:608) ~[jackson-databind-2.21.2.jar:2.21.2]
+	at com.fasterxml.jackson.databind.deser.std.MapDeserializer.deserialize(MapDeserializer.java:450) ~[jackson-databind-2.21.2.jar:2.21.2]
+	at com.fasterxml.jackson.databind.deser.std.MapDeserializer.deserialize(MapDeserializer.java:31) ~[jackson-databind-2.21.2.jar:2.21.2]
+	at com.fasterxml.jackson.databind.deser.DefaultDeserializationContext.readRootValue(DefaultDeserializationContext.java:342) ~[jackson-databind-2.21.2.jar:2.21.2]
+	at com.fasterxml.jackson.databind.ObjectMapper._readMapAndClose(ObjectMapper.java:5052) ~[jackson-databind-2.21.2.jar:2.21.2]
+	at com.fasterxml.jackson.databind.ObjectMapper.readValue(ObjectMapper.java:3954) ~[jackson-databind-2.21.2.jar:2.21.2]
+	at com.fasterxml.jackson.databind.ObjectMapper.readValue(ObjectMapper.java:3937) ~[jackson-databind-2.21.2.jar:2.21.2]
+	at org.springframework.ai.util.json.JsonParser.fromJson(JsonParser.java:94) ~[spring-ai-model-1.1.2.jar:1.1.2]
+	... 145 common frames omitted
+
+2026-06-14T21:46:02.501+08:00 ERROR 27124 --- [pool-3-thread-2] c.a.c.ai.graph.agent.node.AgentToolNode  : Tool suggestConfigTemplate execution failed, handling with processor: org.springframework.ai.tool.execution.DefaultToolExecutionExceptionProcessor
+
+org.springframework.ai.tool.execution.ToolExecutionException: Unexpected end-of-input: expected close marker for Object (start marker at [Source: REDACTED (`StreamReadFeature.INCLUDE_SOURCE_IN_LOCATION` disabled); line: 1, column: 1])
+ at [Source: REDACTED (`StreamReadFeature.INCLUDE_SOURCE_IN_LOCATION` disabled); line: 1, column: 108]
+	at org.springframework.ai.tool.method.MethodToolCallback.extractToolArguments(MethodToolCallback.java:138) ~[spring-ai-model-1.1.2.jar:1.1.2]
+	at org.springframework.ai.tool.method.MethodToolCallback.call(MethodToolCallback.java:108) ~[spring-ai-model-1.1.2.jar:1.1.2]
+	at com.alibaba.cloud.ai.graph.agent.node.AgentToolNode.executeSyncTool(AgentToolNode.java:778) ~[spring-ai-alibaba-agent-framework-1.1.2.0.jar:1.1.2.0]
+	at com.alibaba.cloud.ai.graph.agent.node.AgentToolNode.executeToolByType(AgentToolNode.java:649) ~[spring-ai-alibaba-agent-framework-1.1.2.0.jar:1.1.2.0]
+	at com.alibaba.cloud.ai.graph.agent.node.AgentToolNode.lambda$executeToolCallWithInterceptors$4(AgentToolNode.java:569) ~[spring-ai-alibaba-agent-framework-1.1.2.0.jar:1.1.2.0]
+	at com.alibaba.cloud.ai.graph.agent.node.AgentToolNode.executeToolCallWithInterceptors(AgentToolNode.java:577) ~[spring-ai-alibaba-agent-framework-1.1.2.0.jar:1.1.2.0]
+	at com.alibaba.cloud.ai.graph.agent.node.AgentToolNode.executeToolCallWithInterceptors(AgentToolNode.java:511) ~[spring-ai-alibaba-agent-framework-1.1.2.0.jar:1.1.2.0]
+	at com.alibaba.cloud.ai.graph.agent.node.AgentToolNode.executeToolCallsSequential(AgentToolNode.java:230) ~[spring-ai-alibaba-agent-framework-1.1.2.0.jar:1.1.2.0]
+	at com.alibaba.cloud.ai.graph.agent.node.AgentToolNode.apply(AgentToolNode.java:171) ~[spring-ai-alibaba-agent-framework-1.1.2.0.jar:1.1.2.0]
+	at com.alibaba.cloud.ai.graph.action.AsyncNodeActionWithConfig.lambda$node_async$0(AsyncNodeActionWithConfig.java:41) ~[spring-ai-alibaba-graph-core-1.1.2.0.jar:1.1.2.0]
+	at com.alibaba.cloud.ai.graph.executor.NodeExecutor.executeNode(NodeExecutor.java:123) ~[spring-ai-alibaba-graph-core-1.1.2.0.jar:1.1.2.0]
+	at com.alibaba.cloud.ai.graph.executor.NodeExecutor.execute(NodeExecutor.java:85) ~[spring-ai-alibaba-graph-core-1.1.2.0.jar:1.1.2.0]
+	at com.alibaba.cloud.ai.graph.executor.MainGraphExecutor.execute(MainGraphExecutor.java:108) ~[spring-ai-alibaba-graph-core-1.1.2.0.jar:1.1.2.0]
+	at com.alibaba.cloud.ai.graph.executor.NodeExecutor.lambda$handleActionResult$3(NodeExecutor.java:207) ~[spring-ai-alibaba-graph-core-1.1.2.0.jar:1.1.2.0]
+	at reactor.core.publisher.FluxDefer.subscribe(FluxDefer.java:46) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.Flux.subscribe(Flux.java:8891) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.FluxConcatArray$ConcatArraySubscriber.onComplete(FluxConcatArray.java:238) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.FluxConcatArray.subscribe(FluxConcatArray.java:79) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.Flux.subscribe(Flux.java:8891) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoFlatMapMany$FlatMapManyMain.onNext(MonoFlatMapMany.java:196) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoCompletionStage$MonoCompletionStageSubscription.apply(MonoCompletionStage.java:121) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoCompletionStage$MonoCompletionStageSubscription.apply(MonoCompletionStage.java:67) ~[reactor-core-3.7.18.jar:3.7.18]
+	at java.base/java.util.concurrent.CompletableFuture.uniHandle(CompletableFuture.java:934) ~[na:na]
+	at java.base/java.util.concurrent.CompletableFuture.uniHandleStage(CompletableFuture.java:950) ~[na:na]
+	at java.base/java.util.concurrent.CompletableFuture.handle(CompletableFuture.java:2372) ~[na:na]
+	at java.base/java.util.concurrent.CompletableFuture.handle(CompletableFuture.java:144) ~[na:na]
+	at reactor.core.publisher.MonoCompletionStage$MonoCompletionStageSubscription.request(MonoCompletionStage.java:145) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoFlatMapMany$FlatMapManyMain.onSubscribe(MonoFlatMapMany.java:141) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoCompletionStage.subscribe(MonoCompletionStage.java:56) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.InternalFluxOperator.subscribe(InternalFluxOperator.java:68) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.FluxDefer.subscribe(FluxDefer.java:54) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.Flux.subscribe(Flux.java:8891) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.FluxConcatArray$ConcatArraySubscriber.onComplete(FluxConcatArray.java:238) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.FluxConcatArray.subscribe(FluxConcatArray.java:79) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.Flux.subscribe(Flux.java:8891) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoFlatMapMany$FlatMapManyMain.onNext(MonoFlatMapMany.java:196) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoCompletionStage$MonoCompletionStageSubscription.apply(MonoCompletionStage.java:121) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoCompletionStage$MonoCompletionStageSubscription.apply(MonoCompletionStage.java:67) ~[reactor-core-3.7.18.jar:3.7.18]
+	at java.base/java.util.concurrent.CompletableFuture.uniHandle(CompletableFuture.java:934) ~[na:na]
+	at java.base/java.util.concurrent.CompletableFuture.uniHandleStage(CompletableFuture.java:950) ~[na:na]
+	at java.base/java.util.concurrent.CompletableFuture.handle(CompletableFuture.java:2372) ~[na:na]
+	at java.base/java.util.concurrent.CompletableFuture.handle(CompletableFuture.java:144) ~[na:na]
+	at reactor.core.publisher.MonoCompletionStage$MonoCompletionStageSubscription.request(MonoCompletionStage.java:145) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoFlatMapMany$FlatMapManyMain.onSubscribe(MonoFlatMapMany.java:141) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoCompletionStage.subscribe(MonoCompletionStage.java:56) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.InternalFluxOperator.subscribe(InternalFluxOperator.java:68) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.FluxDefer.subscribe(FluxDefer.java:54) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.Flux.subscribe(Flux.java:8891) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.FluxConcatArray$ConcatArraySubscriber.onComplete(FluxConcatArray.java:238) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.FluxConcatArray.subscribe(FluxConcatArray.java:79) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.Flux.subscribe(Flux.java:8891) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoFlatMapMany$FlatMapManyMain.onNext(MonoFlatMapMany.java:196) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoCompletionStage$MonoCompletionStageSubscription.apply(MonoCompletionStage.java:121) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoCompletionStage$MonoCompletionStageSubscription.apply(MonoCompletionStage.java:67) ~[reactor-core-3.7.18.jar:3.7.18]
+	at java.base/java.util.concurrent.CompletableFuture.uniHandle(CompletableFuture.java:934) ~[na:na]
+	at java.base/java.util.concurrent.CompletableFuture.uniHandleStage(CompletableFuture.java:950) ~[na:na]
+	at java.base/java.util.concurrent.CompletableFuture.handle(CompletableFuture.java:2372) ~[na:na]
+	at java.base/java.util.concurrent.CompletableFuture.handle(CompletableFuture.java:144) ~[na:na]
+	at reactor.core.publisher.MonoCompletionStage$MonoCompletionStageSubscription.request(MonoCompletionStage.java:145) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoFlatMapMany$FlatMapManyMain.onSubscribe(MonoFlatMapMany.java:141) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoCompletionStage.subscribe(MonoCompletionStage.java:56) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.InternalFluxOperator.subscribe(InternalFluxOperator.java:68) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.FluxDefer.subscribe(FluxDefer.java:54) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.Flux.subscribe(Flux.java:8891) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.FluxConcatArray$ConcatArraySubscriber.onComplete(FluxConcatArray.java:238) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.FluxConcatArray.subscribe(FluxConcatArray.java:79) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.Flux.subscribe(Flux.java:8891) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoFlatMapMany$FlatMapManyMain.onNext(MonoFlatMapMany.java:196) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoCompletionStage$MonoCompletionStageSubscription.apply(MonoCompletionStage.java:121) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoCompletionStage$MonoCompletionStageSubscription.apply(MonoCompletionStage.java:67) ~[reactor-core-3.7.18.jar:3.7.18]
+	at java.base/java.util.concurrent.CompletableFuture.uniHandle(CompletableFuture.java:934) ~[na:na]
+	at java.base/java.util.concurrent.CompletableFuture.uniHandleStage(CompletableFuture.java:950) ~[na:na]
+	at java.base/java.util.concurrent.CompletableFuture.handle(CompletableFuture.java:2372) ~[na:na]
+	at java.base/java.util.concurrent.CompletableFuture.handle(CompletableFuture.java:144) ~[na:na]
+	at reactor.core.publisher.MonoCompletionStage$MonoCompletionStageSubscription.request(MonoCompletionStage.java:145) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoFlatMapMany$FlatMapManyMain.onSubscribe(MonoFlatMapMany.java:141) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoCompletionStage.subscribe(MonoCompletionStage.java:56) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.InternalFluxOperator.subscribe(InternalFluxOperator.java:68) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.FluxDefer.subscribe(FluxDefer.java:54) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.Flux.subscribe(Flux.java:8891) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.FluxConcatArray$ConcatArraySubscriber.onComplete(FluxConcatArray.java:238) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.FluxConcatArray.subscribe(FluxConcatArray.java:79) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.Flux.subscribe(Flux.java:8891) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoFlatMapMany$FlatMapManyMain.onNext(MonoFlatMapMany.java:196) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoCompletionStage$MonoCompletionStageSubscription.apply(MonoCompletionStage.java:121) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoCompletionStage$MonoCompletionStageSubscription.apply(MonoCompletionStage.java:67) ~[reactor-core-3.7.18.jar:3.7.18]
+	at java.base/java.util.concurrent.CompletableFuture.uniHandle(CompletableFuture.java:934) ~[na:na]
+	at java.base/java.util.concurrent.CompletableFuture.uniHandleStage(CompletableFuture.java:950) ~[na:na]
+	at java.base/java.util.concurrent.CompletableFuture.handle(CompletableFuture.java:2372) ~[na:na]
+	at java.base/java.util.concurrent.CompletableFuture.handle(CompletableFuture.java:144) ~[na:na]
+	at reactor.core.publisher.MonoCompletionStage$MonoCompletionStageSubscription.request(MonoCompletionStage.java:145) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoFlatMapMany$FlatMapManyMain.onSubscribe(MonoFlatMapMany.java:141) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoCompletionStage.subscribe(MonoCompletionStage.java:56) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.InternalFluxOperator.subscribe(InternalFluxOperator.java:68) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.FluxDefer.subscribe(FluxDefer.java:54) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.Flux.subscribe(Flux.java:8891) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.FluxConcatArray$ConcatArraySubscriber.onComplete(FluxConcatArray.java:238) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.FluxConcatArray.subscribe(FluxConcatArray.java:79) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.Flux.subscribe(Flux.java:8891) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoFlatMapMany$FlatMapManyMain.onNext(MonoFlatMapMany.java:196) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoCompletionStage$MonoCompletionStageSubscription.apply(MonoCompletionStage.java:121) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoCompletionStage$MonoCompletionStageSubscription.apply(MonoCompletionStage.java:67) ~[reactor-core-3.7.18.jar:3.7.18]
+	at java.base/java.util.concurrent.CompletableFuture.uniHandle(CompletableFuture.java:934) ~[na:na]
+	at java.base/java.util.concurrent.CompletableFuture.uniHandleStage(CompletableFuture.java:950) ~[na:na]
+	at java.base/java.util.concurrent.CompletableFuture.handle(CompletableFuture.java:2372) ~[na:na]
+	at java.base/java.util.concurrent.CompletableFuture.handle(CompletableFuture.java:144) ~[na:na]
+	at reactor.core.publisher.MonoCompletionStage$MonoCompletionStageSubscription.request(MonoCompletionStage.java:145) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoFlatMapMany$FlatMapManyMain.onSubscribe(MonoFlatMapMany.java:141) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoCompletionStage.subscribe(MonoCompletionStage.java:56) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.InternalFluxOperator.subscribe(InternalFluxOperator.java:68) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.FluxDefer.subscribe(FluxDefer.java:54) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.Flux.subscribe(Flux.java:8891) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.FluxConcatArray$ConcatArraySubscriber.onComplete(FluxConcatArray.java:238) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.FluxConcatArray.subscribe(FluxConcatArray.java:79) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.Flux.subscribe(Flux.java:8891) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoFlatMapMany$FlatMapManyMain.onNext(MonoFlatMapMany.java:196) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoCompletionStage$MonoCompletionStageSubscription.apply(MonoCompletionStage.java:121) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoCompletionStage$MonoCompletionStageSubscription.apply(MonoCompletionStage.java:67) ~[reactor-core-3.7.18.jar:3.7.18]
+	at java.base/java.util.concurrent.CompletableFuture.uniHandle(CompletableFuture.java:934) ~[na:na]
+	at java.base/java.util.concurrent.CompletableFuture.uniHandleStage(CompletableFuture.java:950) ~[na:na]
+	at java.base/java.util.concurrent.CompletableFuture.handle(CompletableFuture.java:2372) ~[na:na]
+	at java.base/java.util.concurrent.CompletableFuture.handle(CompletableFuture.java:144) ~[na:na]
+	at reactor.core.publisher.MonoCompletionStage$MonoCompletionStageSubscription.request(MonoCompletionStage.java:145) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoFlatMapMany$FlatMapManyMain.onSubscribe(MonoFlatMapMany.java:141) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.MonoCompletionStage.subscribe(MonoCompletionStage.java:56) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.InternalFluxOperator.subscribe(InternalFluxOperator.java:68) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.FluxDefer.subscribe(FluxDefer.java:54) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.Flux.subscribe(Flux.java:8891) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.FluxConcatArray$ConcatArraySubscriber.onComplete(FluxConcatArray.java:238) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.FluxConcatArray.subscribe(FluxConcatArray.java:79) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.FluxDefer.subscribe(FluxDefer.java:54) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.Mono.subscribe(Mono.java:4576) ~[reactor-core-3.7.18.jar:3.7.18]
+	at reactor.core.publisher.Mono.block(Mono.java:1778) ~[reactor-core-3.7.18.jar:3.7.18]
+	at com.alibaba.cloud.ai.graph.CompiledGraph.invoke(CompiledGraph.java:640) ~[spring-ai-alibaba-graph-core-1.1.2.0.jar:1.1.2.0]
+	at com.alibaba.cloud.ai.graph.agent.Agent.doInvoke(Agent.java:499) ~[spring-ai-alibaba-agent-framework-1.1.2.0.jar:1.1.2.0]
+	at com.alibaba.cloud.ai.graph.agent.ReactAgent.doMessageInvoke(ReactAgent.java:261) ~[spring-ai-alibaba-agent-framework-1.1.2.0.jar:1.1.2.0]
+	at com.alibaba.cloud.ai.graph.agent.ReactAgent.call(ReactAgent.java:165) ~[spring-ai-alibaba-agent-framework-1.1.2.0.jar:1.1.2.0]
+	at com.yali.mactav.agent.core.agent.AgentUtils.callSchema(AgentUtils.java:58) ~[mac-tav-agent-core-0.0.1-SNAPSHOT.jar:0.0.1-SNAPSHOT]
+	at com.yali.mactav.configuration.agent.ConfigurationAgent.run(ConfigurationAgent.java:45) ~[classes/:na]
+	at com.yali.mactav.configuration.a2a.ConfigurationAgentA2aExecutor.execute(ConfigurationAgentA2aExecutor.java:78) ~[classes/:na]
+	at io.a2a.server.requesthandlers.DefaultRequestHandler$1.run(DefaultRequestHandler.java:371) ~[a2a-java-sdk-server-common-0.2.5.Beta2.jar:na]
+	at java.base/java.util.concurrent.CompletableFuture$AsyncRun.run(CompletableFuture.java:1804) ~[na:na]
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144) ~[na:na]
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642) ~[na:na]
+	at java.base/java.lang.Thread.run(Thread.java:1583) ~[na:na]
+Caused by: com.fasterxml.jackson.core.io.JsonEOFException: Unexpected end-of-input: expected close marker for Object (start marker at [Source: REDACTED (`StreamReadFeature.INCLUDE_SOURCE_IN_LOCATION` disabled); line: 1, column: 1])
+ at [Source: REDACTED (`StreamReadFeature.INCLUDE_SOURCE_IN_LOCATION` disabled); line: 1, column: 108]
+	at com.fasterxml.jackson.core.base.ParserMinimalBase._reportInvalidEOF(ParserMinimalBase.java:643) ~[jackson-core-2.21.2.jar:2.21.2]
+	at com.fasterxml.jackson.core.base.ParserBase._handleEOF(ParserBase.java:534) ~[jackson-core-2.21.2.jar:2.21.2]
+	at com.fasterxml.jackson.core.base.ParserBase._eofAsNextChar(ParserBase.java:551) ~[jackson-core-2.21.2.jar:2.21.2]
+	at com.fasterxml.jackson.core.json.ReaderBasedJsonParser._skipWSOrEnd(ReaderBasedJsonParser.java:2490) ~[jackson-core-2.21.2.jar:2.21.2]
+	at com.fasterxml.jackson.core.json.ReaderBasedJsonParser.nextFieldName(ReaderBasedJsonParser.java:912) ~[jackson-core-2.21.2.jar:2.21.2]
+	at com.fasterxml.jackson.databind.deser.std.MapDeserializer._readAndBindStringKeyMap(MapDeserializer.java:608) ~[jackson-databind-2.21.2.jar:2.21.2]
+	at com.fasterxml.jackson.databind.deser.std.MapDeserializer.deserialize(MapDeserializer.java:450) ~[jackson-databind-2.21.2.jar:2.21.2]
+	at com.fasterxml.jackson.databind.deser.std.MapDeserializer.deserialize(MapDeserializer.java:31) ~[jackson-databind-2.21.2.jar:2.21.2]
+	at com.fasterxml.jackson.databind.deser.DefaultDeserializationContext.readRootValue(DefaultDeserializationContext.java:342) ~[jackson-databind-2.21.2.jar:2.21.2]
+	at com.fasterxml.jackson.databind.ObjectMapper._readMapAndClose(ObjectMapper.java:5052) ~[jackson-databind-2.21.2.jar:2.21.2]
+	at com.fasterxml.jackson.databind.ObjectMapper.readValue(ObjectMapper.java:3954) ~[jackson-databind-2.21.2.jar:2.21.2]
+	at com.fasterxml.jackson.databind.ObjectMapper.readValue(ObjectMapper.java:3937) ~[jackson-databind-2.21.2.jar:2.21.2]
+	at org.springframework.ai.util.json.JsonParser.fromJson(JsonParser.java:94) ~[spring-ai-model-1.1.2.jar:1.1.2]
+	at org.springframework.ai.tool.method.MethodToolCallback.extractToolArguments(MethodToolCallback.java:132) ~[spring-ai-model-1.1.2.jar:1.1.2]
+	... 144 common frames omitted
+
+2026-06-14T21:46:02.517+08:00  WARN 27124 --- [pool-3-thread-2] c.y.m.c.a.ConfigurationAgentA2aExecutor  : ConfigurationAgentA2aExecutor fail taskId=task-a66dcd90-5afd-4aaa-bd51-a1f848cf9df5, traceId=trace-39bb62c0-2007-4c9c-b968-c6288498aba6, stage=CONFIGURATION, errorCode=MODEL_CALL_FAILED, errorClass=BusinessException, message=ReactAgent schema call failed
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  27:26 min
+[INFO] Finished at: 2026-06-14T22:00:48+08:00
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.springframework.boot:spring-boot-maven-plugin:3.5.14:run (default-cli) on project mac-tav-configuration-agent: Process terminated with exit code: -1 -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoExecutionException

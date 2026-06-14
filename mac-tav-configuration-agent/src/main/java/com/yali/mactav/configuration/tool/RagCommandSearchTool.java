@@ -27,35 +27,55 @@ public class RagCommandSearchTool {
     @Tool(name = "searchHuaweiCommandKnowledge",
             description = "Search Huawei command knowledge using VectorStore similarity search. Read-only; does not execute commands, write workspace state, or mutate the vector store.")
     public RagCommandSearchResponse searchCommandKnowledge(
-            @ToolParam(required = true, description = "RAG search request with query, vendor, platform, feature, and topK.") RagCommandSearchRequest request) {
+            @ToolParam(required = false, description = "Search query for Huawei command knowledge. Use a short feature or command intent summary.")
+            String query,
+            @ToolParam(required = false, description = "Optional vendor filter, for example HUAWEI.")
+            String vendor,
+            @ToolParam(required = false, description = "Optional platform filter, for example VRP.")
+            String platform,
+            @ToolParam(required = false, description = "Optional feature filter, for example VLAN, ACL, or ROUTING.")
+            String feature,
+            @ToolParam(required = false, description = "Optional maximum number of documents to return. Defaults to 5 and is capped at 10.")
+            Integer topK) {
 
-        RagCommandSearchRequest safeRequest = request == null
-                ? new RagCommandSearchRequest("", null, null, null, 5)
-                : request;
-        int topK = safeRequest.topK() == null || safeRequest.topK() <= 0 ? 5 : Math.min(safeRequest.topK(), 10);
+        String safeQuery = query == null ? "" : query.trim();
+        if (safeQuery.isBlank()) {
+            return new RagCommandSearchResponse(
+                    List.of(),
+                    List.of("RAG command knowledge search skipped because query is blank."));
+        }
+
+        int safeTopK = topK == null || topK <= 0 ? 5 : Math.min(topK, 10);
         SearchRequest.Builder builder = SearchRequest.builder()
-                .query(safeRequest.query() == null ? "" : safeRequest.query())
-                .topK(topK)
+                .query(safeQuery)
+                .topK(safeTopK)
                 .similarityThresholdAll();
 
-        var filter = buildFilter(safeRequest);
+        var filter = buildFilter(vendor, platform, feature);
         if (filter != null) {
             builder.filterExpression(filter.build());
         }
 
-        List<MatchedDocument> matches = vectorStoreRetriever.similaritySearch(builder.build()).stream()
-                .map(this::toMatchedDocument)
-                .toList();
-        return new RagCommandSearchResponse(matches,
-                matches.isEmpty() ? List.of("No command knowledge matched the request.") : List.of());
+        try {
+            List<MatchedDocument> matches = vectorStoreRetriever.similaritySearch(builder.build()).stream()
+                    .map(this::toMatchedDocument)
+                    .toList();
+            return new RagCommandSearchResponse(matches,
+                    matches.isEmpty() ? List.of("No command knowledge matched the request.") : List.of());
+        }
+        catch (RuntimeException ex) {
+            return new RagCommandSearchResponse(
+                    List.of(),
+                    List.of("RAG command knowledge search unavailable: " + safeExceptionSummary(ex)));
+        }
     }
 
-    private Op buildFilter(RagCommandSearchRequest request) {
+    private Op buildFilter(String vendor, String platform, String feature) {
         FilterExpressionBuilder b = new FilterExpressionBuilder();
         Op filter = null;
-        filter = andIfPresent(b, filter, "vendor", request.vendor());
-        filter = andIfPresent(b, filter, "platform", request.platform());
-        filter = andIfPresent(b, filter, "feature", request.feature());
+        filter = andIfPresent(b, filter, "vendor", vendor);
+        filter = andIfPresent(b, filter, "platform", platform);
+        filter = andIfPresent(b, filter, "feature", feature);
         filter = andIfPresent(b, filter, "status", "READY");
         return filter;
     }
@@ -90,15 +110,15 @@ public class RagCommandSearchTool {
         return normalized.length() <= 240 ? normalized : normalized.substring(0, 240);
     }
 
-    /**
-     * Request for read-only RAG command knowledge search.
-     */
-    public record RagCommandSearchRequest(
-            String query,
-            String vendor,
-            String platform,
-            String feature,
-            Integer topK) {
+    private String safeExceptionSummary(RuntimeException ex) {
+        String type = ex.getClass().getSimpleName();
+        String message = ex.getMessage();
+        if (message == null || message.isBlank()) {
+            return type;
+        }
+        String normalized = message.replaceAll("\\s+", " ").trim();
+        String bounded = normalized.length() <= 160 ? normalized : normalized.substring(0, 160);
+        return type + ": " + bounded;
     }
 
     /**

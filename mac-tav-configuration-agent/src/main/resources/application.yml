@@ -22,9 +22,9 @@ spring:
     alibaba:
       a2a:
         nacos:
-          server-addr: 127.0.0.1:18848
-          username: nacos
-          password: nacos
+          server-addr: ${NACOS_ADDRESS:127.0.0.1:18848}
+          username: ${NACOS_USERNAME:nacos}
+          password: ${NACOS_PASSWORD:nacos}
           discovery:
             enabled: false
           registry:
@@ -34,14 +34,19 @@ spring:
           card:
             name: ConfigurationAgent
             description: MAC-TAV structured network configuration generation agent
+            capabilities:
+              streaming: false
+              push-notifications: false
+              state-transition-history: false
+              extensions: []
             provider:
               name: MAC-TAV
               organization: yali
               url: http://127.0.0.1:18083
     vectorstore:
       qdrant:
-        host: 127.0.0.1
-        port: 16334
-        collection-name: mactav_huawei_command_kb
-        use-tls: false
-        initialize-schema: true
+        host: ${QDRANT_HOST:127.0.0.1}
+        port: ${QDRANT_PORT:16334}
+        collection-name: ${QDRANT_COLLECTION_NAME:mactav_huawei_command_kb}
+        use-tls: ${QDRANT_USE_TLS:false}
+        initialize-schema: ${QDRANT_INITIALIZE_SCHEMA:true}

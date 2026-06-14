@@ -686,6 +686,7 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
         String planJson = serialize(currentPlan,
                 ErrorCode.AGENT_PARSE_FAILED,
                 "Failed to serialize current NetworkPlan for configuration request");
+        String compactWorkspaceSnapshot = compactConfigurationWorkspaceSnapshot(workspace, currentPlan);
         ConfigurationAgentInvokePayload payload = ConfigurationAgentInvokePayload.builder()
                 .taskId(workspace.getTask().getTaskId())
                 .rawText(workspace.getTask().getRawText())
@@ -695,18 +696,28 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
                 .configVersion(configVersion)
                 .traceId(traceId)
                 .userContext(userContextWithRepairGuidance(workspace.getTask().getTaskId()))
-                .workspaceSnapshot(workspaceSnapshot(workspace))
+                .workspaceSnapshot(compactWorkspaceSnapshot)
                 .targetEnvironmentHint(targetEnvironmentHints.get(workspace.getTask().getTaskId()))
                 .createdBy(workspace.getTask().getCreatedBy())
                 .build();
+        String payloadJson = serialize(payload, ErrorCode.A2A_CALL_FAILED,
+                "Configuration A2A payload serialization failed");
+        LOGGER.info(
+                "Configuration A2A payload compacted taskId={}, traceId={}, planJsonLength={}, compactWorkspaceLength={}, payloadLength={}, networkPlanArtifactRefPresent={}",
+                workspace.getTask().getTaskId(),
+                traceId,
+                planJson.length(),
+                compactWorkspaceSnapshot.length(),
+                payloadJson.length(),
+                workspace.getCurrentArtifactRefs() != null
+                        && workspace.getCurrentArtifactRefs().containsKey(ArtifactType.NETWORK_PLAN));
         return A2aRequest.builder()
                 .taskId(workspace.getTask().getTaskId())
                 .sourceAgent(ORCHESTRATOR_AGENT)
                 .targetAgent(CONFIGURATION_AGENT)
                 .stage(WorkflowStage.CONFIGURATION)
                 .artifactVersion(configVersion)
-                .payloadJson(serialize(payload, ErrorCode.A2A_CALL_FAILED,
-                        "Configuration A2A payload serialization failed"))
+                .payloadJson(payloadJson)
                 .traceId(traceId)
                 .timestamp(LocalDateTime.now())
                 .build();
@@ -848,6 +859,23 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
                 "Failed to serialize compact planning workspace snapshot");
     }
 
+    private String compactConfigurationWorkspaceSnapshot(NetworkWorkspace workspace, NetworkPlan currentPlan) {
+        Map<String, Object> compact = new LinkedHashMap<>();
+        compact.put("task", compactTask(workspace == null ? null : workspace.getTask()));
+        compact.put("currentIntentVersion", workspace == null ? null : workspace.getCurrentIntentVersion());
+        compact.put("currentPlanVersion", workspace == null ? null : workspace.getCurrentPlanVersion());
+        compact.put("currentConfigVersion", workspace == null ? null : workspace.getCurrentConfigVersion());
+        compact.put("currentStage", workspace == null || workspace.getTask() == null
+                ? null
+                : workspace.getTask().getCurrentStage());
+        compact.put("workspaceStatus", workspace == null ? null : workspace.getWorkspaceStatus());
+        compact.put("currentArtifactRefs", compactArtifactRefs(workspace));
+        compact.put("currentPlanSummary", compactPlanSummary(currentPlan));
+        return serialize(compact,
+                ErrorCode.A2A_CALL_FAILED,
+                "Failed to serialize compact configuration workspace snapshot");
+    }
+
     private Map<String, Object> compactTask(NetworkTask task) {
         Map<String, Object> compact = new LinkedHashMap<>();
         if (task == null) {
@@ -872,6 +900,10 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
         if (intentArtifactRef != null && !intentArtifactRef.isBlank()) {
             compact.put(ArtifactType.NETWORK_INTENT.name(), intentArtifactRef);
         }
+        String planArtifactRef = workspace.getCurrentArtifactRefs().get(ArtifactType.NETWORK_PLAN);
+        if (planArtifactRef != null && !planArtifactRef.isBlank()) {
+            compact.put(ArtifactType.NETWORK_PLAN.name(), planArtifactRef);
+        }
         return compact;
     }
 
@@ -894,6 +926,31 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
             compact.put("semanticRelationCount", intent.getSemanticIntentGraph().getRelations() == null
                     ? 0
                     : intent.getSemanticIntentGraph().getRelations().size());
+        }
+        return compact;
+    }
+
+    private Map<String, Object> compactPlanSummary(NetworkPlan plan) {
+        Map<String, Object> compact = new LinkedHashMap<>();
+        if (plan == null) {
+            return compact;
+        }
+        compact.put("taskId", plan.getTaskId());
+        compact.put("intentVersion", plan.getIntentVersion());
+        compact.put("planVersion", plan.getPlanVersion());
+        compact.put("stageStatus", plan.getStageStatus());
+        compact.put("planSummary", plan.getPlanSummary());
+        compact.put("zoneCount", plan.getZones() == null ? 0 : plan.getZones().size());
+        compact.put("addressPlanCount", plan.getAddressPlan() == null ? 0 : plan.getAddressPlan().size());
+        compact.put("vlanPlanCount", plan.getVlanPlan() == null ? 0 : plan.getVlanPlan().size());
+        compact.put("securityPolicyCount", plan.getSecurityPolicyPlan() == null ? 0 : plan.getSecurityPolicyPlan().size());
+        if (plan.getTopology() != null) {
+            compact.put("topologyNodeCount", plan.getTopology().getNodes() == null
+                    ? 0
+                    : plan.getTopology().getNodes().size());
+            compact.put("topologyLinkCount", plan.getTopology().getLinks() == null
+                    ? 0
+                    : plan.getTopology().getLinks().size());
         }
         return compact;
     }
