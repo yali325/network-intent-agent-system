@@ -15,7 +15,7 @@ from .settings import Settings, settings
 
 
 class MininetRunner:
-    """Builds a bounded Mininet topology from structured node and link data."""
+    """Builds a Mininet topology from structured node and link data."""
 
     def __init__(self, config: Settings = settings) -> None:
         self._config = config
@@ -30,9 +30,9 @@ class MininetRunner:
             details={
                 "mininetInstalled": installed,
                 "networkRunning": running,
-                "maxHosts": self._config.max_hosts,
-                "maxSwitches": self._config.max_switches,
-                "maxLinks": self._config.max_links,
+                "maxHosts": self._limit_detail(self._config.max_hosts),
+                "maxSwitches": self._limit_detail(self._config.max_switches),
+                "maxLinks": self._limit_detail(self._config.max_links),
             },
         )
 
@@ -191,7 +191,7 @@ class MininetRunner:
     def _validate_topology(self, request: ExecutionRunRequest) -> list[ExecutionError]:
         host_count = sum(1 for node in request.topology.nodes if self._is_host(node))
         switch_count = sum(1 for node in request.topology.nodes if self._is_switch(node))
-        if host_count > self._config.max_hosts:
+        if self._limit_exceeded(host_count, self._config.max_hosts):
             return [
                 make_error(
                     "EXECUTOR_INVALID_REQUEST",
@@ -201,7 +201,7 @@ class MininetRunner:
                     trace_refs=request.traceRefs,
                 )
             ]
-        if switch_count > self._config.max_switches:
+        if self._limit_exceeded(switch_count, self._config.max_switches):
             return [
                 make_error(
                     "EXECUTOR_INVALID_REQUEST",
@@ -211,7 +211,7 @@ class MininetRunner:
                     trace_refs=request.traceRefs,
                 )
             ]
-        if len(request.topology.links) > self._config.max_links:
+        if self._limit_exceeded(len(request.topology.links), self._config.max_links):
             return [
                 make_error(
                     "EXECUTOR_INVALID_REQUEST",
@@ -245,6 +245,12 @@ class MininetRunner:
 
     def _mininet_importable(self) -> bool:
         return importlib.util.find_spec("mininet.net") is not None
+
+    def _limit_exceeded(self, value: int, limit: int) -> bool:
+        return limit > 0 and value > limit
+
+    def _limit_detail(self, limit: int) -> int | str:
+        return limit if limit > 0 else "unlimited"
 
     def _is_host(self, node: TopologyNode) -> bool:
         return self._has_type(node, "host")

@@ -3,6 +3,7 @@ package com.yali.mactav.configuration.service;
 import com.yali.mactav.agent.core.context.AgentRunContext;
 import com.yali.mactav.agent.core.parser.AgentResponseParser;
 import com.yali.mactav.agent.core.validator.AgentOutputValidator;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yali.mactav.configuration.schema.ConfigurationResponseSchema;
 import com.yali.mactav.model.config.ConfigSet;
 import com.yali.mactav.model.config.ConfigurationAgentInvokePayload;
@@ -17,10 +18,19 @@ public class ConfigurationServiceImpl implements ConfigurationService {
 
     private final AgentOutputValidator<ConfigSet> validator;
 
+    private final ConfigurationTraceRefsStabilizer traceRefsStabilizer;
+
     public ConfigurationServiceImpl(AgentResponseParser<ConfigurationResponseSchema, ConfigSet> parser,
                                     AgentOutputValidator<ConfigSet> validator) {
+        this(parser, validator, new ConfigurationTraceRefsStabilizer(new ObjectMapper()));
+    }
+
+    public ConfigurationServiceImpl(AgentResponseParser<ConfigurationResponseSchema, ConfigSet> parser,
+                                    AgentOutputValidator<ConfigSet> validator,
+                                    ConfigurationTraceRefsStabilizer traceRefsStabilizer) {
         this.parser = parser;
         this.validator = validator;
+        this.traceRefsStabilizer = traceRefsStabilizer;
     }
 
     @Override
@@ -33,7 +43,8 @@ public class ConfigurationServiceImpl implements ConfigurationService {
             safeSchema.setConfigVersion(payload.getConfigVersion());
         }
         ConfigSet configSet = parser.parse(safeSchema, toContext(payload));
-        return validator.validateAndReturn(configSet);
+        ConfigSet stabilizedConfigSet = traceRefsStabilizer.stabilize(configSet, payload);
+        return validator.validateAndReturn(stabilizedConfigSet);
     }
 
     private AgentRunContext toContext(ConfigurationAgentInvokePayload payload) {

@@ -4,8 +4,10 @@ import com.yali.mactav.common.enums.ErrorCode;
 import com.yali.mactav.common.exception.BusinessException;
 import com.yali.mactav.execution.client.MininetRyuExecutorClient;
 import com.yali.mactav.execution.client.dto.MininetRyuErrorResponse;
+import com.yali.mactav.execution.client.dto.MininetRyuHealthResponse;
 import com.yali.mactav.execution.client.dto.MininetRyuRunResponse;
 import com.yali.mactav.execution.client.dto.MininetRyuRuntimeStateResponse;
+import com.yali.mactav.execution.client.dto.MininetRyuStatusResponse;
 import com.yali.mactav.execution.client.dto.MininetRyuTestResultResponse;
 import com.yali.mactav.execution.converter.NetworkExecutionPlanConverter;
 import com.yali.mactav.execution.model.ExecutionRequest;
@@ -79,6 +81,7 @@ public class MininetRyuExecutionAdapter implements ExecutionAdapter {
             executionPlan = resolveExecutionPlan(request);
             validateExecutionPlan(executionPlan);
             safetyPolicy.validate(executionPlan);
+            preflightExecutor();
             String executionId = "execution-" + UUID.randomUUID();
             MininetRyuRunResponse response = executorClient.run(executionId, executionPlan, request.getExecutionVersion());
             return toReport(request, executionPlan, response, createTime);
@@ -156,6 +159,30 @@ public class MininetRyuExecutionAdapter implements ExecutionAdapter {
         if (executionPlan.getExecutionMode() != ExecutionMode.MININET_RYU) {
             throw new BusinessException(ErrorCode.PARAM_INVALID, "ExecutionPlan.executionMode must be MININET_RYU");
         }
+    }
+
+    private void preflightExecutor() {
+        MininetRyuHealthResponse health = executorClient.health();
+        if (health == null || isBlank(health.status())) {
+            throw new BusinessException(ErrorCode.EXECUTOR_UNAVAILABLE,
+                    "Mininet/Ryu executor /health returned an empty status");
+        }
+        MininetRyuStatusResponse ryu = executorClient.ryuStatus();
+        if (ryu == null || !"available".equalsIgnoreCase(ryu.status())) {
+            throw new BusinessException(ErrorCode.RYU_UNAVAILABLE,
+                    "Ryu REST status is not available: " + statusOrUnknown(ryu));
+        }
+        MininetRyuStatusResponse mininet = executorClient.mininetStatus();
+        if (mininet == null
+                || (!"available".equalsIgnoreCase(mininet.status())
+                && !"running".equalsIgnoreCase(mininet.status()))) {
+            throw new BusinessException(ErrorCode.MININET_UNAVAILABLE,
+                    "Mininet status is not available or running: " + statusOrUnknown(mininet));
+        }
+    }
+
+    private String statusOrUnknown(MininetRyuStatusResponse response) {
+        return response == null || isBlank(response.status()) ? "unknown" : response.status();
     }
 
     private ExecutionReport toReport(

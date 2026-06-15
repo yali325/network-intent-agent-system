@@ -17,6 +17,7 @@ import com.yali.mactav.model.enums.*;
 import com.yali.mactav.model.healing.*;
 import com.yali.mactav.model.intent.*;
 import com.yali.mactav.model.plan.*;
+import com.yali.mactav.model.verification.*;
 import com.yali.mactav.model.workspace.*;
 import com.yali.mactav.modelcore.artifact.*;
 import com.yali.mactav.modelcore.repository.*;
@@ -35,8 +36,11 @@ class MacTavWorkflowOrchestratorTest {
 
     private static ObjectMapper om() { var o = new ObjectMapper(); o.registerModule(new JavaTimeModule()); o.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS); return o; }
     private static String j(Object o) { try { return om().writeValueAsString(o); } catch (Exception e) { throw new RuntimeException(e); } }
+    private static ConfigSet readConfigSet(ObjectMapper om, String payloadJson) { try { return om.readValue(payloadJson, ConfigSet.class); } catch (Exception e) { throw new RuntimeException(e); } }
+    private static ValidationReport readValidationReport(ObjectMapper om, String payloadJson) { try { return om.readValue(payloadJson, ValidationReport.class); } catch (Exception e) { throw new RuntimeException(e); } }
     private static PlanningAgentInvokePayload planningPayload(ObjectMapper om, String payloadJson) { try { return om.readValue(payloadJson, PlanningAgentInvokePayload.class); } catch (Exception e) { throw new RuntimeException(e); } }
     private static ConfigurationAgentInvokePayload configurationPayload(ObjectMapper om, String payloadJson) { try { return om.readValue(payloadJson, ConfigurationAgentInvokePayload.class); } catch (Exception e) { throw new RuntimeException(e); } }
+    private static VerificationAgentInvokePayload verificationPayload(ObjectMapper om, String payloadJson) { try { return om.readValue(payloadJson, VerificationAgentInvokePayload.class); } catch (Exception e) { throw new RuntimeException(e); } }
 
     private NetworkWorkspaceService ws(ObjectMapper om) {
         rr = new InMemoryNetworkWorkspaceRepository(); vv = new WorkspaceStateValidator();
@@ -150,6 +154,8 @@ class MacTavWorkflowOrchestratorTest {
         o.runIntentStage(cr.getTask().getTaskId());
         var res = o.runPlanningStage(cr.getTask().getTaskId());
         assertNotNull(res.getCurrentPlan());
+        assertEquals("plan-" + cr.getTask().getTaskId() + "-v1", res.getCurrentPlan().getPlanId());
+        assertTrue(res.getCurrentPlan().getTraceRefs().getPlanElementIds().contains(res.getCurrentPlan().getPlanId()));
         assertEquals(ArtifactType.NETWORK_PLAN, res.getArtifacts().get(1).getArtifactType());
         assertEquals(2, res.getAgentExecutionRecords().size());
         assertEquals("PlanningAgent", res.getAgentExecutionRecords().get(1).getTargetAgentName());
@@ -213,12 +219,29 @@ class MacTavWorkflowOrchestratorTest {
         assertFalse(configurationPayload.getWorkspaceSnapshot().contains("\"changeHistory\""));
         assertNotNull(res.getCurrentConfigSet());
         assertEquals(1, res.getCurrentConfigVersion());
+        assertEquals(res.getCurrentPlan().getPlanId(), res.getCurrentConfigSet().getPlanId());
+        assertEquals("config-" + cr.getTask().getTaskId() + "-v1", res.getCurrentConfigSet().getConfigSetId());
+        assertEquals(cr.getTask().getTaskId(), res.getCurrentConfigSet().getTaskId());
+        assertEquals(res.getCurrentPlan().getPlanVersion(), res.getCurrentConfigSet().getPlanVersion());
+        assertEquals(1, res.getCurrentConfigSet().getConfigVersion());
+        assertNotNull(res.getCurrentConfigSet().getTraceRefs());
         assertEquals(ArtifactType.CONFIG_SET, res.getArtifacts().get(2).getArtifactType());
         assertEquals(res.getArtifacts().get(2).getArtifactId(), res.getCurrentArtifactRefs().get(ArtifactType.CONFIG_SET));
+        ConfigSet artifactConfigSet = readConfigSet(om, res.getArtifacts().get(2).getPayloadJson());
+        assertEquals(res.getCurrentPlan().getPlanId(), artifactConfigSet.getPlanId());
+        assertEquals("config-" + cr.getTask().getTaskId() + "-v1", artifactConfigSet.getConfigSetId());
+        assertEquals(cr.getTask().getTaskId(), artifactConfigSet.getTaskId());
+        assertEquals(res.getCurrentPlan().getPlanVersion(), artifactConfigSet.getPlanVersion());
+        assertEquals(1, artifactConfigSet.getConfigVersion());
+        assertNotNull(artifactConfigSet.getTraceRefs());
         assertEquals(3, res.getAgentExecutionRecords().size());
         assertEquals("ConfigurationAgent", res.getAgentExecutionRecords().get(2).getTargetAgentName());
         assertEquals(WorkflowStage.CONFIGURATION, res.getAgentExecutionRecords().get(2).getStage());
         assertTrue(res.getArtifacts().get(2).getPayloadSummary().contains("commandBlocks=2"));
+
+        var executionResult = o.runExecutionStage(cr.getTask().getTaskId());
+        assertNotNull(executionResult.getCurrentExecutionReport());
+        assertEquals(ArtifactType.EXECUTION_REPORT, executionResult.getArtifacts().get(3).getArtifactType());
     }
 
     @Test
@@ -328,10 +351,26 @@ class MacTavWorkflowOrchestratorTest {
 
         assertEquals(WorkflowStage.VERIFICATION, requests.get(0).getStage());
         assertEquals("VerificationAgent", requests.get(0).getTargetAgent());
+        var requestPayload = verificationPayload(om, requests.get(0).getPayloadJson());
+        assertEquals(taskId, requestPayload.getTaskId());
+        assertNotNull(requestPayload.getExecutionReportJson());
+        assertTrue(requestPayload.getExecutionReportJson().contains("\"testResults\""));
+        assertNotNull(requestPayload.getWorkspaceSnapshot());
+        assertTrue(requestPayload.getWorkspaceSnapshot().contains("\"currentArtifactRefs\""));
+        assertTrue(requestPayload.getWorkspaceSnapshot().contains("EXECUTION_REPORT"));
+        assertTrue(requestPayload.getWorkspaceSnapshot().contains("currentExecutionReportSummary"));
+        assertFalse(requestPayload.getWorkspaceSnapshot().contains("\"events\""));
+        assertFalse(requestPayload.getWorkspaceSnapshot().contains("\"agentExecutionRecords\""));
+        assertFalse(requestPayload.getWorkspaceSnapshot().contains("\"changeHistory\""));
+        assertFalse(requestPayload.getWorkspaceSnapshot().contains("\"artifacts\""));
+        assertFalse(requestPayload.getWorkspaceSnapshot().contains("\"payloadJson\""));
         assertNotNull(res.getCurrentValidationReport());
         assertEquals(1, res.getCurrentValidationVersion());
         assertEquals(ArtifactType.VALIDATION_REPORT, res.getArtifacts().get(4).getArtifactType());
         assertEquals(res.getArtifacts().get(4).getArtifactId(), res.getCurrentArtifactRefs().get(ArtifactType.VALIDATION_REPORT));
+        var artifactReport = readValidationReport(om, res.getArtifacts().get(4).getPayloadJson());
+        assertEquals(taskId, artifactReport.getTaskId());
+        assertFalse(res.getArtifacts().get(4).getPayloadJson().contains("VerificationResponseSchema"));
         assertEquals(1, res.getAgentExecutionRecords().size());
         assertEquals("VerificationAgent", res.getAgentExecutionRecords().get(0).getTargetAgentName());
         assertEquals(WorkflowStage.VERIFICATION, res.getAgentExecutionRecords().get(0).getStage());
@@ -652,8 +691,15 @@ class MacTavWorkflowOrchestratorTest {
                 .targetEnvironment(TargetEnvironment.builder().vendor("generic")
                         .configStyle("structured").adapterType("structured-validation").build())
                 .topology(Topology.builder()
-                        .nodes(java.util.List.of(TopologyNode.builder().id("sw-core").name("core").nodeType("SWITCH").build()))
-                        .links(java.util.List.of()).build())
+                        .nodes(java.util.List.of(
+                                TopologyNode.builder().id("host-office").name("office-host").nodeType("HOST").build(),
+                                TopologyNode.builder().id("sw-core").name("core").nodeType("SWITCH").build()))
+                        .links(java.util.List.of(TopologyLink.builder()
+                                .id("link-office-core")
+                                .sourceNode("host-office")
+                                .targetNode("sw-core")
+                                .build()))
+                        .build())
                 .zones(java.util.List.of(NetworkZone.builder().id("zone-office").name("office").build()))
                 .addressPlan(java.util.List.of(AddressPlanItem.builder().id("addr-office").zoneId("zone-office")
                         .subnet("10.1.0.0/24").gateway("10.1.0.1")

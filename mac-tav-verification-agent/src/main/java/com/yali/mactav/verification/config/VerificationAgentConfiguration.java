@@ -13,6 +13,7 @@ import com.yali.mactav.agent.core.hook.TraceHook;
 import com.yali.mactav.agent.core.parser.AgentResponseParser;
 import com.yali.mactav.agent.core.validator.AgentOutputValidator;
 import com.yali.mactav.model.verification.ValidationReport;
+import com.yali.mactav.verification.a2a.VerificationAgentA2aExecutor;
 import com.yali.mactav.verification.agent.VerificationAgent;
 import com.yali.mactav.verification.parser.VerificationResponseParser;
 import com.yali.mactav.verification.schema.VerificationResponseSchema;
@@ -20,8 +21,13 @@ import com.yali.mactav.verification.service.VerificationService;
 import com.yali.mactav.verification.service.VerificationServiceImpl;
 import com.yali.mactav.verification.tool.VerificationFactTool;
 import com.yali.mactav.verification.validator.VerificationOutputValidator;
+import io.a2a.server.agentexecution.AgentExecutor;
+import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -33,6 +39,8 @@ import org.springframework.context.annotation.Configuration;
 @Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties(VerificationAgentProperties.class)
 public class VerificationAgentConfiguration {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(VerificationAgentConfiguration.class);
 
     @Bean
     @ConditionalOnMissingBean
@@ -99,5 +107,30 @@ public class VerificationAgentConfiguration {
             ObjectMapper objectMapper,
             VerificationService verificationService) {
         return new VerificationAgent(verificationReactAgent, objectMapper, verificationService);
+    }
+
+    @Bean(name = "agentExecutor")
+    public AgentExecutor verificationAgentA2aExecutor(VerificationAgent verificationAgent, ObjectMapper objectMapper) {
+        return new VerificationAgentA2aExecutor(verificationAgent, objectMapper);
+    }
+
+    @Bean
+    public ApplicationRunner agentExecutorInventoryLogger(Map<String, AgentExecutor> executors) {
+        return args -> {
+            boolean hasVerificationExecutor = executors.values().stream()
+                    .anyMatch(VerificationAgentA2aExecutor.class::isInstance);
+            boolean hasGraphExecutor = executors.values().stream()
+                    .anyMatch(executor -> "com.alibaba.cloud.ai.a2a.core.server.GraphAgentExecutor"
+                            .equals(executor.getClass().getName()));
+            LOGGER.info(
+                    "AgentExecutor bean inventory count={}, hasVerificationAgentA2aExecutor={}, hasGraphAgentExecutor={}",
+                    executors.size(),
+                    hasVerificationExecutor,
+                    hasGraphExecutor);
+            executors.forEach((name, executor) -> LOGGER.info(
+                    "AgentExecutor bean: name={}, class={}",
+                    name,
+                    executor.getClass().getName()));
+        };
     }
 }

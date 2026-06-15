@@ -11,9 +11,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * Validate 阶段产物对象
- */
-/**
  * Verification-stage artifact summarizing whether execution satisfies intent.
  *
  * <p>ValidationReport carries findings and evidence for orchestration and

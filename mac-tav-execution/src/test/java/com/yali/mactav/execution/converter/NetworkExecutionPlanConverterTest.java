@@ -16,7 +16,9 @@ import com.yali.mactav.model.execution.ExecutionEnvironmentType;
 import com.yali.mactav.model.execution.ExecutionMode;
 import com.yali.mactav.model.execution.ExecutionPlan;
 import com.yali.mactav.model.execution.TestResultType;
+import com.yali.mactav.model.plan.AddressPlanItem;
 import com.yali.mactav.model.plan.NetworkPlan;
+import com.yali.mactav.model.plan.NetworkZone;
 import com.yali.mactav.model.plan.TargetEnvironment;
 import com.yali.mactav.model.plan.Topology;
 import com.yali.mactav.model.plan.TopologyLink;
@@ -72,6 +74,75 @@ class NetworkExecutionPlanConverterTest {
             assertFalse(action.getParameters().containsKey("command"));
             assertFalse(action.getParameters().containsKey("commands"));
         }
+    }
+
+    @Test
+    void derivesMininetHostsFromZonesAndAddressPlan() {
+        NetworkPlan plan = networkPlan();
+        plan.setTargetEnvironment(TargetEnvironment.builder()
+                .adapterType("MININET_RYU")
+                .simulationTarget("MININET_RYU")
+                .build());
+        plan.setTopology(Topology.builder()
+                .nodes(List.of(TopologyNode.builder()
+                        .id("rtr-edge")
+                        .nodeType("ROUTER")
+                        .deviceType("ROUTER")
+                        .traceRefs(traceRefs())
+                        .build()))
+                .links(List.of())
+                .build());
+        plan.setZones(List.of(
+                NetworkZone.builder().id("office").name("office").build(),
+                NetworkZone.builder().id("server").name("server").build()));
+        plan.setAddressPlan(List.of(
+                AddressPlanItem.builder().id("addr-office").zoneId("office").subnet("10.10.1.0/24").traceRefs(traceRefs()).build(),
+                AddressPlanItem.builder().id("addr-server").zoneId("server").subnet("10.10.2.0/24").traceRefs(traceRefs()).build()));
+
+        ExecutionPlan executionPlan = converter.convert(
+                plan,
+                configSet(),
+                1,
+                ExecutionMode.MININET_RYU,
+                ExecutionEnvironmentType.MININET_RYU,
+                traceRefs(),
+                Map.of("NETWORK_PLAN", "artifact-plan-1"));
+
+        assertEquals(ExecutionMode.MININET_RYU, executionPlan.getExecutionMode());
+        assertEquals(ExecutionEnvironmentType.MININET_RYU, executionPlan.getTargetEnvironment());
+        assertFalse(executionPlan.getTopology().getNodes().stream()
+                .filter(node -> "host".equalsIgnoreCase(node.getNodeType()))
+                .toList()
+                .isEmpty());
+        assertFalse(executionPlan.getTopology().getLinks().isEmpty());
+        assertFalse(executionPlan.getTestCommands().isEmpty());
+        new ExecutionSafetyPolicy().validate(executionPlan);
+    }
+
+    @Test
+    void failsMininetPlanWhenHostCannotBeDerived() {
+        NetworkPlan plan = networkPlan();
+        plan.setTargetEnvironment(TargetEnvironment.builder()
+                .adapterType("MININET_RYU")
+                .simulationTarget("MININET_RYU")
+                .build());
+        plan.setTopology(Topology.builder()
+                .nodes(List.of(TopologyNode.builder().id("rtr-edge").nodeType("ROUTER").traceRefs(traceRefs()).build()))
+                .links(List.of())
+                .build());
+        plan.setZones(List.of());
+        plan.setAddressPlan(List.of());
+
+        BusinessException exception = assertThrows(BusinessException.class, () -> converter.convert(
+                plan,
+                configSet(),
+                1,
+                ExecutionMode.MININET_RYU,
+                ExecutionEnvironmentType.MININET_RYU,
+                traceRefs(),
+                Map.of()));
+
+        assertEquals("EXECUTION_PLAN_INVALID", exception.getErrorCode());
     }
 
     @Test

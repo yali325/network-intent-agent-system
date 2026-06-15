@@ -36,8 +36,8 @@ public class DefaultExecutionService implements ExecutionService {
         validate(request);
         ExecutionMode mode = resolveMode(request);
         ExecutionEnvironmentType environmentType = resolveEnvironment(request, mode);
-        ExecutionPlan executionPlan = resolvePlan(request, mode, environmentType);
         ExecutionAdapter adapter = adapterRegistry.getRequired(environmentType, mode);
+        ExecutionPlan executionPlan = resolvePlan(request, mode, environmentType);
         return adapter.execute(new ExecutionRequest(
                 request.getTaskId(),
                 request.getNetworkPlan(),

@@ -13,17 +13,22 @@ import com.yali.mactav.model.execution.ExecutionMode;
 import com.yali.mactav.model.execution.ExecutionPlan;
 import com.yali.mactav.model.execution.TestCommand;
 import com.yali.mactav.model.execution.TestResultType;
+import com.yali.mactav.model.plan.AddressPlanItem;
 import com.yali.mactav.model.plan.NetworkPlan;
+import com.yali.mactav.model.plan.NetworkZone;
 import com.yali.mactav.model.plan.TargetEnvironment;
 import com.yali.mactav.model.plan.Topology;
 import com.yali.mactav.model.plan.TopologyLink;
 import com.yali.mactav.model.plan.TopologyNode;
 import com.yali.mactav.model.workspace.TraceRefs;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -64,6 +69,7 @@ public class NetworkExecutionPlanConverter {
         if (!hasAnyTrace(planTraceRefs)) {
             throw invalid("traceRefs must include at least one plan, config, intent, or test reference");
         }
+        Topology executionTopology = prepareTopology(networkPlan, resolvedMode, planTraceRefs);
 
         ExecutionPlan executionPlan = ExecutionPlan.builder()
                 .executionPlanId("execution-plan-" + UUID.randomUUID())
@@ -72,11 +78,11 @@ public class NetworkExecutionPlanConverter {
                 .taskId(networkPlan.getTaskId())
                 .targetEnvironment(resolvedEnvironment)
                 .executionMode(resolvedMode)
-                .topology(networkPlan.getTopology())
+                .topology(executionTopology)
                 .topologyScriptRef(createTopologyRef(networkPlan, artifactRefs))
-                .actions(createStateCheckActions(networkPlan, configSet, planTraceRefs))
-                .cleanupActions(createCleanupActions(networkPlan, configSet, planTraceRefs))
-                .testCommands(createTestCommands(networkPlan, configSet, planTraceRefs))
+                .actions(createStateCheckActions(executionTopology, configSet, planTraceRefs, resolvedMode))
+                .cleanupActions(createCleanupActions(networkPlan, configSet, planTraceRefs, resolvedMode))
+                .testCommands(createTestCommands(executionTopology, configSet, planTraceRefs, resolvedMode))
                 .traceRefs(planTraceRefs)
                 .build();
         safetyPolicy.validate(executionPlan);
@@ -111,7 +117,6 @@ public class NetworkExecutionPlanConverter {
         if (isBlank(configSet.getConfigSetId())) {
             throw invalid("ConfigSet.configSetId is required");
         }
-        validateTopology(networkPlan.getTopology());
         if (networkPlan.getTargetEnvironment() == null) {
             throw invalid("NetworkPlan.targetEnvironment is required");
         }
@@ -123,9 +128,6 @@ public class NetworkExecutionPlanConverter {
         }
         if (topology.getNodes() == null || topology.getNodes().isEmpty()) {
             throw invalid("NetworkPlan.topology.nodes must not be empty");
-        }
-        if (topology.getLinks() == null || topology.getLinks().isEmpty()) {
-            throw invalid("NetworkPlan.topology.links must not be empty");
         }
     }
 
@@ -156,10 +158,215 @@ public class NetworkExecutionPlanConverter {
         return ExecutionEnvironmentType.STRUCTURE_VALIDATION;
     }
 
+    private Topology prepareTopology(NetworkPlan networkPlan, ExecutionMode executionMode, TraceRefs traceRefs) {
+        validateTopology(networkPlan.getTopology());
+        if (executionMode != ExecutionMode.MININET_RYU) {
+            if (networkPlan.getTopology().getLinks() == null || networkPlan.getTopology().getLinks().isEmpty()) {
+                throw invalid("NetworkPlan.topology.links must not be empty");
+            }
+            return networkPlan.getTopology();
+        }
+        Topology topology = copyTopology(networkPlan.getTopology());
+        normalizeSwitchNodes(topology);
+        addDerivedHostsIfMissing(topology, networkPlan, traceRefs);
+        linkHostsToSwitchIfNeeded(topology, traceRefs);
+        validateMininetTopology(topology);
+        return topology;
+    }
+
+    private Topology copyTopology(Topology source) {
+        List<TopologyNode> nodes = new ArrayList<>();
+        for (TopologyNode node : safeList(source.getNodes())) {
+            nodes.add(TopologyNode.builder()
+                    .id(node.getId())
+                    .name(node.getName())
+                    .nodeType(node.getNodeType())
+                    .deviceType(node.getDeviceType())
+                    .hostType(node.getHostType())
+                    .role(node.getRole())
+                    .ipAddress(node.getIpAddress())
+                    .ip(node.getIp())
+                    .mac(node.getMac())
+                    .defaultRoute(node.getDefaultRoute())
+                    .vendor(node.getVendor())
+                    .zoneId(node.getZoneId())
+                    .traceRefs(node.getTraceRefs())
+                    .build());
+        }
+        List<TopologyLink> links = new ArrayList<>();
+        for (TopologyLink link : safeList(source.getLinks())) {
+            links.add(TopologyLink.builder()
+                    .id(link.getId())
+                    .sourceNode(link.getSourceNode())
+                    .sourceInterface(link.getSourceInterface())
+                    .targetNode(link.getTargetNode())
+                    .targetInterface(link.getTargetInterface())
+                    .linkType(link.getLinkType())
+                    .traceRefs(link.getTraceRefs())
+                    .build());
+        }
+        return Topology.builder().nodes(nodes).links(links).build();
+    }
+
+    private void normalizeSwitchNodes(Topology topology) {
+        for (TopologyNode node : safeList(topology.getNodes())) {
+            if (!isHost(node) && isNetworkDevice(node) && !isSwitch(node)) {
+                node.setNodeType("switch");
+                node.setDeviceType(firstNonBlank(node.getDeviceType(), "switch"));
+                node.setRole(firstNonBlank(node.getRole(), "derived-mininet-switch"));
+            }
+        }
+    }
+
+    private void addDerivedHostsIfMissing(Topology topology, NetworkPlan networkPlan, TraceRefs traceRefs) {
+        if (!hostNodes(topology).isEmpty()) {
+            for (TopologyNode host : hostNodes(topology)) {
+                ensureHostAddress(host, networkPlan);
+            }
+            return;
+        }
+        List<TopologyNode> derivedHosts = new ArrayList<>();
+        for (NetworkZone zone : safeList(networkPlan.getZones())) {
+            String zoneId = firstNonBlank(zone.getId(), zone.getName());
+            if (isBlank(zoneId)) {
+                continue;
+            }
+            String ip = hostAddressForZone(networkPlan, zoneId, derivedHosts.size());
+            if (isBlank(ip)) {
+                continue;
+            }
+            derivedHosts.add(TopologyNode.builder()
+                    .id("host-" + safeId(zoneId, null, derivedHosts.size()))
+                    .name(firstNonBlank(zone.getName(), zoneId) + "-host")
+                    .nodeType("host")
+                    .hostType("host")
+                    .role("derived-zone-host")
+                    .ipAddress(ip)
+                    .zoneId(zone.getId())
+                    .traceRefs(traceRefs)
+                    .build());
+        }
+        topology.getNodes().addAll(derivedHosts);
+    }
+
+    private void ensureHostAddress(TopologyNode host, NetworkPlan networkPlan) {
+        if (!isBlank(firstNonBlank(host.getIpAddress(), host.getIp()))) {
+            return;
+        }
+        String ip = hostAddressForZone(networkPlan, host.getZoneId(), 0);
+        if (!isBlank(ip)) {
+            host.setIpAddress(ip);
+        }
+    }
+
+    private String hostAddressForZone(NetworkPlan networkPlan, String zoneId, int index) {
+        for (AddressPlanItem item : safeList(networkPlan.getAddressPlan())) {
+            if (!sameText(zoneId, item.getZoneId())) {
+                continue;
+            }
+            String direct = firstNonBlank(item.getExampleHostAddress(),
+                    item.getHostAddressHints() == null || item.getHostAddressHints().isEmpty()
+                            ? null : item.getHostAddressHints().get(0));
+            if (!isBlank(direct)) {
+                return direct;
+            }
+            String fromSubnet = firstHostAddress(item.getSubnet(), index);
+            if (!isBlank(fromSubnet)) {
+                return fromSubnet;
+            }
+        }
+        return null;
+    }
+
+    private String firstHostAddress(String subnet, int index) {
+        if (isBlank(subnet) || !subnet.contains("/")) {
+            return null;
+        }
+        String base = subnet.substring(0, subnet.indexOf('/'));
+        String[] parts = base.split("\\.");
+        if (parts.length != 4) {
+            return null;
+        }
+        try {
+            int hostOctet = Math.min(250, Math.max(10, 10 + index));
+            return parts[0] + "." + parts[1] + "." + parts[2] + "." + hostOctet + subnet.substring(subnet.indexOf('/'));
+        } catch (RuntimeException exception) {
+            return null;
+        }
+    }
+
+    private void linkHostsToSwitchIfNeeded(Topology topology, TraceRefs traceRefs) {
+        List<TopologyNode> switches = switchNodes(topology);
+        if (switches.isEmpty()) {
+            return;
+        }
+        String switchId = switches.get(0).getId();
+        Set<String> linkedHosts = new HashSet<>();
+        for (TopologyLink link : safeList(topology.getLinks())) {
+            if (!isBlank(link.getSourceNode())) {
+                linkedHosts.add(link.getSourceNode());
+            }
+            if (!isBlank(link.getTargetNode())) {
+                linkedHosts.add(link.getTargetNode());
+            }
+        }
+        for (TopologyNode host : hostNodes(topology)) {
+            if (linkedHosts.contains(host.getId())) {
+                continue;
+            }
+            topology.getLinks().add(TopologyLink.builder()
+                    .id("link-" + host.getId() + "-" + switchId)
+                    .sourceNode(host.getId())
+                    .targetNode(switchId)
+                    .linkType("mininet-access")
+                    .traceRefs(traceRefs)
+                    .build());
+        }
+    }
+
+    private void validateMininetTopology(Topology topology) {
+        List<TopologyNode> hosts = hostNodes(topology);
+        List<TopologyNode> switches = switchNodes(topology);
+        if (hosts.isEmpty()) {
+            throw executionPlanInvalid("Mininet/Ryu execution requires at least one host derived from topology zones/address plan");
+        }
+        if (switches.isEmpty()) {
+            throw executionPlanInvalid("Mininet/Ryu execution requires at least one switch or router/gateway mappable to a switch");
+        }
+        Set<String> nodeIds = new LinkedHashSet<>();
+        for (TopologyNode node : safeList(topology.getNodes())) {
+            if (isBlank(node.getId())) {
+                throw executionPlanInvalid("Mininet/Ryu topology node id must not be blank");
+            }
+            nodeIds.add(node.getId());
+        }
+        boolean hasHostSwitchLink = false;
+        for (TopologyLink link : safeList(topology.getLinks())) {
+            if (isBlank(link.getSourceNode()) || isBlank(link.getTargetNode())
+                    || !nodeIds.contains(link.getSourceNode()) || !nodeIds.contains(link.getTargetNode())) {
+                throw executionPlanInvalid("Mininet/Ryu topology links must reference existing node ids");
+            }
+            boolean sourceHost = hosts.stream().anyMatch(host -> host.getId().equals(link.getSourceNode()));
+            boolean targetHost = hosts.stream().anyMatch(host -> host.getId().equals(link.getTargetNode()));
+            boolean sourceSwitch = switches.stream().anyMatch(node -> node.getId().equals(link.getSourceNode()));
+            boolean targetSwitch = switches.stream().anyMatch(node -> node.getId().equals(link.getTargetNode()));
+            hasHostSwitchLink = hasHostSwitchLink || (sourceHost && targetSwitch) || (targetHost && sourceSwitch);
+        }
+        if (!hasHostSwitchLink) {
+            throw executionPlanInvalid("Mininet/Ryu topology requires at least one host-to-switch link");
+        }
+        for (TopologyNode host : hosts) {
+            if (isBlank(firstNonBlank(host.getIpAddress(), host.getIp()))) {
+                throw executionPlanInvalid("Mininet/Ryu host node " + host.getId() + " requires ipAddress or ip");
+            }
+        }
+    }
+
     private List<ExecutionAction> createStateCheckActions(
-            NetworkPlan networkPlan,
+            Topology topology,
             ConfigSet configSet,
-            TraceRefs planTraceRefs) {
+            TraceRefs planTraceRefs,
+            ExecutionMode executionMode) {
         List<ExecutionAction> actions = new ArrayList<>();
         actions.add(action(
                 "action-topology-state-check",
@@ -168,8 +375,8 @@ public class NetworkExecutionPlanConverter {
                 null,
                 null,
                 Map.of(
-                        "nodeCount", networkPlan.getTopology().getNodes().size(),
-                        "linkCount", networkPlan.getTopology().getLinks().size()),
+                        "nodeCount", topology.getNodes().size(),
+                        "linkCount", topology.getLinks().size()),
                 planTraceRefs));
         actions.add(action(
                 "action-ryu-controller-check",
@@ -177,7 +384,7 @@ public class NetworkExecutionPlanConverter {
                 ExecutionActionType.RYU_CONTROLLER_CHECK,
                 null,
                 null,
-                Map.of("expectedState", "not-started-in-structure-validation"),
+                Map.of("expectedState", executionMode == ExecutionMode.MININET_RYU ? "available" : "not-started-in-structure-validation"),
                 planTraceRefs));
         actions.add(action(
                 "action-ryu-flow-query",
@@ -206,7 +413,8 @@ public class NetworkExecutionPlanConverter {
     private List<ExecutionAction> createCleanupActions(
             NetworkPlan networkPlan,
             ConfigSet configSet,
-            TraceRefs planTraceRefs) {
+            TraceRefs planTraceRefs,
+            ExecutionMode executionMode) {
         return List.of(action(
                 "action-mininet-cleanup",
                 900,
@@ -216,22 +424,20 @@ public class NetworkExecutionPlanConverter {
                 Map.of(
                         "planId", networkPlan.getPlanId(),
                         "configSetId", configSet.getConfigSetId(),
-                        "cleanupScope", "structure-validation-only"),
+                        "cleanupScope", executionMode == ExecutionMode.MININET_RYU ? "mininet-ryu" : "structure-validation-only"),
                 planTraceRefs));
     }
 
     private List<TestCommand> createTestCommands(
-            NetworkPlan networkPlan,
+            Topology topology,
             ConfigSet configSet,
-            TraceRefs planTraceRefs) {
-        List<TopologyNode> hosts = hostNodes(networkPlan.getTopology());
-        if (hosts.size() < 2) {
-            hosts = safeList(networkPlan.getTopology().getNodes());
-        }
+            TraceRefs planTraceRefs,
+            ExecutionMode executionMode) {
+        List<TopologyNode> hosts = hostNodes(topology);
         List<TestCommand> tests = new ArrayList<>();
-        addTestIfPossible(tests, TestResultType.PING, hosts, "Reachability structure check", planTraceRefs);
-        addTestIfPossible(tests, TestResultType.TRACEROUTE, hosts, "Path structure check", planTraceRefs);
-        addTestIfPossible(tests, TestResultType.IPERF, hosts, "Throughput test descriptor check", planTraceRefs);
+        addTestIfPossible(tests, TestResultType.PING, hosts, "Reachability structure check", planTraceRefs, executionMode);
+        addTestIfPossible(tests, TestResultType.TRACEROUTE, hosts, "Path structure check", planTraceRefs, executionMode);
+        addTestIfPossible(tests, TestResultType.IPERF, hosts, "Throughput test descriptor check", planTraceRefs, executionMode);
         tests.add(TestCommand.builder()
                 .testId("test-flow-table-structure")
                 .testType(TestResultType.FLOW_TABLE)
@@ -254,7 +460,8 @@ public class NetworkExecutionPlanConverter {
             TestResultType testType,
             List<TopologyNode> hosts,
             String expectedResult,
-            TraceRefs traceRefs) {
+            TraceRefs traceRefs,
+            ExecutionMode executionMode) {
         if (hosts.size() < 2) {
             return;
         }
@@ -265,8 +472,10 @@ public class NetworkExecutionPlanConverter {
                 .testType(testType)
                 .sourceNode(source.getId())
                 .targetNode(target.getId())
-                .parameters(Map.of("mode", "structure-validation", "realExecution", false))
-                .expectedResult(expectedResult + "; no real " + testType.name() + " command is executed.")
+                .parameters(testParameters(testType, executionMode))
+                .expectedResult(executionMode == ExecutionMode.MININET_RYU
+                        ? expectedResult + " against Mininet hosts."
+                        : expectedResult + "; no real " + testType.name() + " command is executed.")
                 .traceRefs(traceRefs)
                 .build());
     }
@@ -274,12 +483,33 @@ public class NetworkExecutionPlanConverter {
     private List<TopologyNode> hostNodes(Topology topology) {
         List<TopologyNode> result = new ArrayList<>();
         for (TopologyNode node : safeList(topology.getNodes())) {
-            String type = firstNonBlank(node.getNodeType(), node.getHostType(), node.getRole());
-            if (type != null && type.toLowerCase(Locale.ROOT).contains("host")) {
+            if (isHost(node)) {
                 result.add(node);
             }
         }
         return result;
+    }
+
+    private List<TopologyNode> switchNodes(Topology topology) {
+        List<TopologyNode> result = new ArrayList<>();
+        for (TopologyNode node : safeList(topology.getNodes())) {
+            if (isSwitch(node)) {
+                result.add(node);
+            }
+        }
+        return result;
+    }
+
+    private Map<String, Object> testParameters(TestResultType testType, ExecutionMode executionMode) {
+        if (executionMode != ExecutionMode.MININET_RYU) {
+            return Map.of("mode", "structure-validation", "realExecution", false);
+        }
+        return switch (testType) {
+            case PING -> Map.of("count", 3);
+            case TRACEROUTE -> Map.of("maxHops", 8);
+            case IPERF -> Map.of("durationSeconds", 3);
+            default -> Map.of();
+        };
     }
 
     private ExecutionAction action(
@@ -388,11 +618,50 @@ public class NetworkExecutionPlanConverter {
         return value == null ? "" : value;
     }
 
+    private boolean isHost(TopologyNode node) {
+        return hasType(node, "host");
+    }
+
+    private boolean isSwitch(TopologyNode node) {
+        return hasType(node, "switch");
+    }
+
+    private boolean isNetworkDevice(TopologyNode node) {
+        return hasType(node, "switch")
+                || hasType(node, "router")
+                || hasType(node, "gateway")
+                || hasType(node, "firewall")
+                || hasType(node, "network");
+    }
+
+    private boolean hasType(TopologyNode node, String token) {
+        if (node == null || token == null) {
+            return false;
+        }
+        String normalizedToken = token.toLowerCase(Locale.ROOT);
+        return containsToken(node.getNodeType(), normalizedToken)
+                || containsToken(node.getDeviceType(), normalizedToken)
+                || containsToken(node.getHostType(), normalizedToken)
+                || containsToken(node.getRole(), normalizedToken);
+    }
+
+    private boolean containsToken(String value, String token) {
+        return value != null && value.toLowerCase(Locale.ROOT).contains(token);
+    }
+
+    private boolean sameText(String left, String right) {
+        return !isBlank(left) && !isBlank(right) && left.trim().equalsIgnoreCase(right.trim());
+    }
+
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
     }
 
     private BusinessException invalid(String message) {
         return new BusinessException(ErrorCode.PARAM_INVALID, message);
+    }
+
+    private BusinessException executionPlanInvalid(String message) {
+        return new BusinessException(ErrorCode.EXECUTION_PLAN_INVALID, message);
     }
 }

@@ -68,15 +68,15 @@ def validate_run_request(request: ExecutionRunRequest, config: Settings = settin
 
     host_count = _count_nodes(request, "host")
     switch_count = _count_nodes(request, "switch")
-    if host_count > config.max_hosts:
+    if _limit_exceeded(host_count, config.max_hosts):
         raise SafetyViolation(f"host count {host_count} exceeds MAX_HOSTS={config.max_hosts}")
-    if switch_count > config.max_switches:
+    if _limit_exceeded(switch_count, config.max_switches):
         raise SafetyViolation(f"switch count {switch_count} exceeds MAX_SWITCHES={config.max_switches}")
-    if len(request.topology.links) > config.max_links:
+    if _limit_exceeded(len(request.topology.links), config.max_links):
         raise SafetyViolation(f"link count {len(request.topology.links)} exceeds MAX_LINKS={config.max_links}")
-    if len(request.actions) + len(request.cleanupActions) > config.max_actions:
+    if _limit_exceeded(len(request.actions) + len(request.cleanupActions), config.max_actions):
         raise SafetyViolation("action count exceeds configured limit")
-    if len(request.testCommands) > config.max_tests:
+    if _limit_exceeded(len(request.testCommands), config.max_tests):
         raise SafetyViolation(f"testCommand count {len(request.testCommands)} exceeds MAX_TESTS={config.max_tests}")
     for action in [*request.actions, *request.cleanupActions]:
         if not action.actionId or not action.actionId.strip():
@@ -98,7 +98,7 @@ def validate_run_request(request: ExecutionRunRequest, config: Settings = settin
 def validate_cleanup_request(request: CleanupRequest, config: Settings = settings) -> None:
     """Validate cleanup payload size and content."""
 
-    if len(request.cleanupActions) > config.max_actions:
+    if _limit_exceeded(len(request.cleanupActions), config.max_actions):
         raise SafetyViolation("cleanup action count exceeds configured limit")
     for action in request.cleanupActions:
         if not action.actionId or not action.actionId.strip():
@@ -115,6 +115,10 @@ def _count_nodes(request: ExecutionRunRequest, token: str) -> int:
         if any(value and token in value.lower() for value in values):
             count += 1
     return count
+
+
+def _limit_exceeded(value: int, limit: int) -> bool:
+    return limit > 0 and value > limit
 
 
 def _reject_dangerous_shape(value: Any, path: str = "$") -> None:

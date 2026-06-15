@@ -48,9 +48,10 @@ EXECUTOR_HOST=0.0.0.0 EXECUTOR_PORT=18091 uvicorn app.main:app --host 0.0.0.0 --
 may start only the fixed Ryu command shown above, and it will only stop the Ryu
 process that it started itself.
 
-Small 2C2G cloud servers should run only small topologies. The first hard
-limits are `hosts <= 8`, `switches <= 4`, and `links <= 16`; lower values are
-recommended when memory pressure is visible.
+Small 2C2G cloud servers should still run only small topologies in practice.
+The Python executor no longer enforces default host/switch/link/action/test
+count caps; set `MAX_HOSTS`, `MAX_SWITCHES`, `MAX_LINKS`, `MAX_ACTIONS`, or
+`MAX_TESTS` to a positive value if a deployment needs explicit guardrails.
 
 ## Health And Execution
 
@@ -198,3 +199,5 @@ download commands.
 - Flow support is read-only through Ryu `ofctl_rest` query endpoints.
 - The executor runs one execution at a time in process and returns
   `EXECUTOR_BUSY` for concurrent run requests.
+- Topology and test count caps are disabled by default. Positive `MAX_*`
+  environment values re-enable those caps for constrained deployments.

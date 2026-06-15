@@ -5,8 +5,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.yali.mactav.execution.client.MininetRyuExecutorClient;
+import com.yali.mactav.execution.client.dto.MininetRyuHealthResponse;
 import com.yali.mactav.execution.client.dto.MininetRyuRunResponse;
 import com.yali.mactav.execution.client.dto.MininetRyuRuntimeStateResponse;
+import com.yali.mactav.execution.client.dto.MininetRyuStatusResponse;
 import com.yali.mactav.execution.client.dto.MininetRyuTestResultResponse;
 import com.yali.mactav.execution.config.ExecutionProperties;
 import com.yali.mactav.execution.model.ExecutionRequest;
@@ -183,9 +185,9 @@ class MininetRyuExecutionAdapterTest {
     private Topology topology() {
         return Topology.builder()
                 .nodes(List.of(
-                        TopologyNode.builder().id("h1").nodeType("host").traceRefs(traceRefs()).build(),
+                        TopologyNode.builder().id("h1").nodeType("host").ipAddress("10.0.0.10/24").traceRefs(traceRefs()).build(),
                         TopologyNode.builder().id("s1").nodeType("switch").traceRefs(traceRefs()).build(),
-                        TopologyNode.builder().id("h2").nodeType("host").traceRefs(traceRefs()).build()))
+                        TopologyNode.builder().id("h2").nodeType("host").ipAddress("10.0.0.11/24").traceRefs(traceRefs()).build()))
                 .links(List.of(
                         TopologyLink.builder().id("l1").sourceNode("h1").targetNode("s1").traceRefs(traceRefs()).build(),
                         TopologyLink.builder().id("l2").sourceNode("s1").targetNode("h2").traceRefs(traceRefs()).build()))
@@ -255,6 +257,21 @@ class MininetRyuExecutionAdapterTest {
             this.called = true;
             this.lastPlan = executionPlan;
             return response;
+        }
+
+        @Override
+        public MininetRyuHealthResponse health() {
+            return new MininetRyuHealthResponse("ok", "3.10", 18091, List.of("simple_switch_13", "ofctl_rest"), "true");
+        }
+
+        @Override
+        public MininetRyuStatusResponse ryuStatus() {
+            return new MininetRyuStatusResponse("available", Map.of());
+        }
+
+        @Override
+        public MininetRyuStatusResponse mininetStatus() {
+            return new MininetRyuStatusResponse("available", Map.of());
         }
     }
 }

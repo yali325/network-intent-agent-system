@@ -47,6 +47,7 @@ class MininetRyuExecutorClientTest {
             assertTrue(body.get().contains("\"topology\""));
             assertTrue(body.get().contains("\"actions\""));
             assertTrue(body.get().contains("\"testCommands\""));
+            assertTrue(body.get().contains("\"timeoutSeconds\""));
             assertFalse(containsForbiddenShellField(body.get()));
         }
     }
@@ -116,7 +117,7 @@ class MininetRyuExecutorClientTest {
 
         BusinessException exception = assertThrows(BusinessException.class, client::health);
 
-        assertEquals("EXECUTION_ADAPTER_FAILED", exception.getErrorCode());
+        assertEquals("EXECUTOR_UNAVAILABLE", exception.getErrorCode());
     }
 
     private MininetRyuExecutorClient client(String baseUrl) {
@@ -145,9 +146,9 @@ class MininetRyuExecutorClientTest {
                 .executionMode(ExecutionMode.MININET_RYU)
                 .topology(Topology.builder()
                         .nodes(List.of(
-                                TopologyNode.builder().id("h1").nodeType("host").traceRefs(traceRefs()).build(),
+                                TopologyNode.builder().id("h1").nodeType("host").ipAddress("10.0.0.10/24").traceRefs(traceRefs()).build(),
                                 TopologyNode.builder().id("s1").nodeType("switch").traceRefs(traceRefs()).build(),
-                                TopologyNode.builder().id("h2").nodeType("host").traceRefs(traceRefs()).build()))
+                                TopologyNode.builder().id("h2").nodeType("host").ipAddress("10.0.0.11/24").traceRefs(traceRefs()).build()))
                         .links(List.of(
                                 TopologyLink.builder().id("l1").sourceNode("h1").targetNode("s1").traceRefs(traceRefs()).build(),
                                 TopologyLink.builder().id("l2").sourceNode("s1").targetNode("h2").traceRefs(traceRefs()).build()))

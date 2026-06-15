@@ -237,6 +237,7 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
                         response.getMessage() == null ? "Remote PlanningAgent failed" : response.getMessage());
             }
             NetworkPlan plan = parsePlan(response.getPayloadJson());
+            normalizeNetworkPlan(plan, workspace, planVersion);
             NetworkArtifact artifact = workspaceService.saveStageArtifact(
                     taskId,
                     ArtifactType.NETWORK_PLAN,
@@ -748,7 +749,8 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
                         "Failed to serialize current ExecutionReport for verification request"))
                 .traceId(traceId)
                 .userContext(targetEnvironmentHints.get(workspace.getTask().getTaskId()))
-                .workspaceSnapshot(workspaceSnapshot(workspace))
+                .workspaceSnapshot(compactVerificationWorkspaceSnapshot(
+                        workspace, currentExecutionReport, validationVersion, traceId))
                 .createdBy(workspace.getTask().getCreatedBy())
                 .build();
         return A2aRequest.builder()
@@ -876,6 +878,29 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
                 "Failed to serialize compact configuration workspace snapshot");
     }
 
+    private String compactVerificationWorkspaceSnapshot(NetworkWorkspace workspace,
+                                                        ExecutionReport currentExecutionReport,
+                                                        int validationVersion,
+                                                        String traceId) {
+        Map<String, Object> compact = new LinkedHashMap<>();
+        compact.put("task", compactTask(workspace == null ? null : workspace.getTask()));
+        compact.put("traceId", traceId);
+        compact.put("currentIntentVersion", workspace == null ? null : workspace.getCurrentIntentVersion());
+        compact.put("currentPlanVersion", workspace == null ? null : workspace.getCurrentPlanVersion());
+        compact.put("currentConfigVersion", workspace == null ? null : workspace.getCurrentConfigVersion());
+        compact.put("currentExecutionVersion", workspace == null ? null : workspace.getCurrentExecutionVersion());
+        compact.put("validationVersion", validationVersion);
+        compact.put("currentStage", workspace == null || workspace.getTask() == null
+                ? null
+                : workspace.getTask().getCurrentStage());
+        compact.put("workspaceStatus", workspace == null ? null : workspace.getWorkspaceStatus());
+        compact.put("currentArtifactRefs", compactArtifactRefs(workspace));
+        compact.put("currentExecutionReportSummary", compactExecutionReportSummary(currentExecutionReport));
+        return serialize(compact,
+                ErrorCode.A2A_CALL_FAILED,
+                "Failed to serialize compact verification workspace snapshot");
+    }
+
     private Map<String, Object> compactTask(NetworkTask task) {
         Map<String, Object> compact = new LinkedHashMap<>();
         if (task == null) {
@@ -896,14 +921,11 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
         if (workspace == null || workspace.getCurrentArtifactRefs() == null) {
             return compact;
         }
-        String intentArtifactRef = workspace.getCurrentArtifactRefs().get(ArtifactType.NETWORK_INTENT);
-        if (intentArtifactRef != null && !intentArtifactRef.isBlank()) {
-            compact.put(ArtifactType.NETWORK_INTENT.name(), intentArtifactRef);
-        }
-        String planArtifactRef = workspace.getCurrentArtifactRefs().get(ArtifactType.NETWORK_PLAN);
-        if (planArtifactRef != null && !planArtifactRef.isBlank()) {
-            compact.put(ArtifactType.NETWORK_PLAN.name(), planArtifactRef);
-        }
+        workspace.getCurrentArtifactRefs().forEach((artifactType, artifactRef) -> {
+            if (artifactType != null && artifactRef != null && !artifactRef.isBlank()) {
+                compact.put(artifactType.name(), artifactRef);
+            }
+        });
         return compact;
     }
 
@@ -927,6 +949,25 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
                     ? 0
                     : intent.getSemanticIntentGraph().getRelations().size());
         }
+        return compact;
+    }
+
+    private Map<String, Object> compactExecutionReportSummary(ExecutionReport report) {
+        Map<String, Object> compact = new LinkedHashMap<>();
+        if (report == null) {
+            return compact;
+        }
+        compact.put("executionId", report.getExecutionId());
+        compact.put("taskId", report.getTaskId());
+        compact.put("planId", report.getPlanId());
+        compact.put("configSetId", report.getConfigSetId());
+        compact.put("executionVersion", report.getExecutionVersion());
+        compact.put("overallStatus", report.getOverallStatus());
+        compact.put("environmentType", report.getEnvironmentType());
+        compact.put("testResultCount", report.getTestResults() == null ? 0 : report.getTestResults().size());
+        compact.put("errorCount", report.getErrors() == null ? 0 : report.getErrors().size());
+        compact.put("warningCount", report.getWarnings() == null ? 0 : report.getWarnings().size());
+        compact.put("traceRefs", report.getTraceRefs());
         return compact;
     }
 
@@ -1144,8 +1185,18 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
 
     private void normalizeConfigSet(ConfigSet configSet, NetworkWorkspace workspace,
                                     NetworkPlan currentPlan, int configVersion) {
+        if (configSet == null) {
+            throw new BusinessException(ErrorCode.A2A_RESPONSE_INVALID, "ConfigurationAgent returned empty ConfigSet");
+        }
+        if (currentPlan == null || currentPlan.getPlanId() == null || currentPlan.getPlanId().isBlank()) {
+            throw new BusinessException(ErrorCode.STAGE_NOT_READY,
+                    "Current NetworkPlan must have planId before configuration can be saved");
+        }
         if (configSet.getTaskId() == null || configSet.getTaskId().isBlank()) {
             configSet.setTaskId(workspace.getTask().getTaskId());
+        }
+        if (configSet.getPlanId() == null || configSet.getPlanId().isBlank()) {
+            configSet.setPlanId(currentPlan.getPlanId());
         }
         if (configSet.getPlanVersion() == null) {
             configSet.setPlanVersion(currentPlan.getPlanVersion());
@@ -1153,8 +1204,58 @@ public class MacTavWorkflowOrchestrator implements WorkflowOrchestrator {
         if (configSet.getConfigVersion() == null) {
             configSet.setConfigVersion(configVersion);
         }
+        if (configSet.getConfigSetId() == null || configSet.getConfigSetId().isBlank()) {
+            configSet.setConfigSetId("config-" + configSet.getTaskId() + "-v" + configSet.getConfigVersion());
+        }
+        if (configSet.getTargetEnvironment() == null) {
+            configSet.setTargetEnvironment(currentPlan.getTargetEnvironment());
+        }
         if (configSet.getTraceRefs() == null) {
             configSet.setTraceRefs(currentPlan.getTraceRefs());
+        }
+        if (configSet.getStageStatus() == null) {
+            configSet.setStageStatus(StageStatus.SUCCESS);
+        }
+        if (configSet.getCreateTime() == null) {
+            configSet.setCreateTime(LocalDateTime.now());
+        }
+        if (configSet.getUpdateTime() == null) {
+            configSet.setUpdateTime(LocalDateTime.now());
+        }
+        if (configSet.getCreatedBy() == null || configSet.getCreatedBy().isBlank()) {
+            configSet.setCreatedBy(CONFIGURATION_AGENT);
+        }
+    }
+
+    private void normalizeNetworkPlan(NetworkPlan plan, NetworkWorkspace workspace, int planVersion) {
+        if (plan == null) {
+            throw new BusinessException(ErrorCode.A2A_RESPONSE_INVALID, "PlanningAgent returned empty NetworkPlan");
+        }
+        String taskId = workspace.getTask().getTaskId();
+        if (plan.getTaskId() == null || plan.getTaskId().isBlank()) {
+            plan.setTaskId(taskId);
+        }
+        if (plan.getPlanVersion() == null) {
+            plan.setPlanVersion(planVersion);
+        }
+        if (plan.getPlanId() == null || plan.getPlanId().isBlank()) {
+            plan.setPlanId("plan-" + plan.getTaskId() + "-v" + plan.getPlanVersion());
+        }
+        if (plan.getTraceRefs() == null) {
+            plan.setTraceRefs(TraceRefs.builder().build());
+        }
+        addOne(plan.getTraceRefs().getPlanElementIds(), plan.getPlanId());
+        if (plan.getStageStatus() == null) {
+            plan.setStageStatus(StageStatus.SUCCESS);
+        }
+        if (plan.getCreateTime() == null) {
+            plan.setCreateTime(LocalDateTime.now());
+        }
+        if (plan.getUpdateTime() == null) {
+            plan.setUpdateTime(LocalDateTime.now());
+        }
+        if (plan.getCreatedBy() == null || plan.getCreatedBy().isBlank()) {
+            plan.setCreatedBy(PLANNING_AGENT);
         }
     }
 

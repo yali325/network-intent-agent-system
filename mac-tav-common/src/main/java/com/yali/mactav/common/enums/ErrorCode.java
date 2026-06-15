@@ -54,7 +54,11 @@ public enum ErrorCode {
     EXECUTION_ADAPTER_FAILED(60001, "EXECUTION_ADAPTER_FAILED", "Execution adapter failed"),
     EXECUTION_FORBIDDEN_COMMAND(60002, "EXECUTION_FORBIDDEN_COMMAND", "Execution action is forbidden"),
     EXECUTION_TIMEOUT(60003, "EXECUTION_TIMEOUT", "Execution timed out"),
-    EXECUTION_ADAPTER_NOT_FOUND(60004, "EXECUTION_ADAPTER_NOT_FOUND", "Execution adapter not found");
+    EXECUTION_ADAPTER_NOT_FOUND(60004, "EXECUTION_ADAPTER_NOT_FOUND", "Execution adapter not found"),
+    EXECUTOR_UNAVAILABLE(60005, "EXECUTOR_UNAVAILABLE", "Execution executor is unavailable"),
+    RYU_UNAVAILABLE(60006, "RYU_UNAVAILABLE", "Ryu controller is unavailable"),
+    MININET_UNAVAILABLE(60007, "MININET_UNAVAILABLE", "Mininet runtime is unavailable"),
+    EXECUTION_PLAN_INVALID(60008, "EXECUTION_PLAN_INVALID", "Execution plan is invalid");
 
     private final int code;
 

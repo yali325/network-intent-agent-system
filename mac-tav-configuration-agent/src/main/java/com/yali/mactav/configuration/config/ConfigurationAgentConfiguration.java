@@ -18,6 +18,7 @@ import com.yali.mactav.configuration.parser.ConfigurationResponseParser;
 import com.yali.mactav.configuration.schema.ConfigurationResponseSchema;
 import com.yali.mactav.configuration.service.ConfigurationService;
 import com.yali.mactav.configuration.service.ConfigurationServiceImpl;
+import com.yali.mactav.configuration.service.ConfigurationTraceRefsStabilizer;
 import com.yali.mactav.configuration.tool.ConfigTemplateTool;
 import com.yali.mactav.configuration.tool.RagCommandSearchTool;
 import com.yali.mactav.configuration.validator.ConfigurationOutputValidator;
@@ -59,8 +60,15 @@ public class ConfigurationAgentConfiguration {
     @ConditionalOnMissingBean
     public ConfigurationService configurationService(
             AgentResponseParser<ConfigurationResponseSchema, ConfigSet> parser,
-            AgentOutputValidator<ConfigSet> validator) {
-        return new ConfigurationServiceImpl(parser, validator);
+            AgentOutputValidator<ConfigSet> validator,
+            ConfigurationTraceRefsStabilizer traceRefsStabilizer) {
+        return new ConfigurationServiceImpl(parser, validator, traceRefsStabilizer);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ConfigurationTraceRefsStabilizer configurationTraceRefsStabilizer(ObjectMapper objectMapper) {
+        return new ConfigurationTraceRefsStabilizer(objectMapper);
     }
 
     @Bean

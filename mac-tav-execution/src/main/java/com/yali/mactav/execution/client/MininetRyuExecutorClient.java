@@ -102,7 +102,7 @@ public class MininetRyuExecutorClient {
                 safeList(executionPlan.getActions()),
                 safeList(executionPlan.getCleanupActions()),
                 safeList(executionPlan.getTestCommands()),
-                null,
+                (int) Math.max(1, readTimeout.toSeconds()),
                 executionPlan.getTraceRefs());
     }
 
@@ -157,7 +157,7 @@ public class MininetRyuExecutorClient {
             }
         } catch (IOException exception) {
             throw new BusinessException(
-                    ErrorCode.EXECUTION_ADAPTER_FAILED,
+                    ErrorCode.EXECUTOR_UNAVAILABLE,
                     "Mininet/Ryu executor connection failed: " + exception.getClass().getSimpleName());
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
@@ -178,7 +178,7 @@ public class MininetRyuExecutorClient {
     }
 
     private static String normalizeBaseUrl(String value) {
-        String resolved = value == null || value.isBlank() ? "http://localhost:18091" : value.trim();
+        String resolved = value == null || value.isBlank() ? "http://127.0.0.1:18091" : value.trim();
         return resolved.endsWith("/") ? resolved.substring(0, resolved.length() - 1) : resolved;
     }
 

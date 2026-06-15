@@ -53,11 +53,11 @@ public class ExecutionProperties {
 
         private boolean enabled = false;
 
-        private String baseUrl = "http://localhost:18091";
+        private String baseUrl = "http://127.0.0.1:18091";
 
         private int connectTimeoutMs = 3000;
 
-        private int readTimeoutMs = 30000;
+        private int readTimeoutMs = 60000;
 
         public boolean isEnabled() {
             return enabled;

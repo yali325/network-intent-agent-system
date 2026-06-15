@@ -31,6 +31,13 @@ mybatis:
 mactav:
   a2a:
     call-timeout-ms: ${MACTAV_A2A_CALL_TIMEOUT_MS:180000}
+  execution:
+    mode: ${MACTAV_EXECUTION_MODE:STRUCTURE_VALIDATION}
+    mininet-ryu:
+      enabled: ${MACTAV_MININET_RYU_ENABLED:false}
+      base-url: ${MACTAV_MININET_RYU_BASE_URL:http://127.0.0.1:18091}
+      connect-timeout-ms: ${MACTAV_MININET_RYU_CONNECT_TIMEOUT_MS:3000}
+      read-timeout-ms: ${MACTAV_MININET_RYU_READ_TIMEOUT_MS:60000}
   events:
     publisher: ${MACTAV_EVENTS_PUBLISHER:redis}
   persistence:

@@ -20,11 +20,11 @@ class Settings:
     ryu_start_timeout_seconds: int = int(os.getenv("RYU_START_TIMEOUT_SECONDS", "15"))
     command_timeout_seconds: int = int(os.getenv("COMMAND_TIMEOUT_SECONDS", "20"))
     cleanup_timeout_seconds: int = int(os.getenv("CLEANUP_TIMEOUT_SECONDS", "20"))
-    max_hosts: int = int(os.getenv("MAX_HOSTS", "8"))
-    max_switches: int = int(os.getenv("MAX_SWITCHES", "4"))
-    max_links: int = int(os.getenv("MAX_LINKS", "16"))
-    max_actions: int = int(os.getenv("MAX_ACTIONS", "32"))
-    max_tests: int = int(os.getenv("MAX_TESTS", "20"))
+    max_hosts: int = int(os.getenv("MAX_HOSTS", "0"))
+    max_switches: int = int(os.getenv("MAX_SWITCHES", "0"))
+    max_links: int = int(os.getenv("MAX_LINKS", "0"))
+    max_actions: int = int(os.getenv("MAX_ACTIONS", "0"))
+    max_tests: int = int(os.getenv("MAX_TESTS", "0"))
     default_timeout_seconds: int = int(os.getenv("DEFAULT_TIMEOUT_SECONDS", "120"))
 
     @property
