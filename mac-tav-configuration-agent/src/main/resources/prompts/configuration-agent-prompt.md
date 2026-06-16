@@ -33,6 +33,12 @@ and must contain:
 The final DTO is ConfigSet. The parser and validator will transform and check
 your ConfigurationResponseSchema, so do not output raw prose around the schema.
 
+generationSummary must be one short business summary sentence only. It MUST NOT
+contain Huawei VRP, ACL, VLAN, interface, route, or any CLI/configuration
+command text. Put all concrete configuration commands only in
+deviceConfigs[].commandBlocks[].commands. If you need to describe configuration
+content, summarize the intent of the generated blocks without writing commands.
+
 ## Required Structure
 
 Group configuration by deviceConfigs. Each deviceConfig must include:
@@ -60,6 +66,13 @@ rollbackCommands with a nonRollbackReason or free-form warning.
 Use traceRefs to link each commandBlock to planElementIds and/or
 intentRelationIds. Important policy blocks must be traceable to the originating
 NetworkPlan element and, when available, to the original intent relation.
+
+Every securityPolicyPlan item that represents access control must be expressed
+by at least one concrete policy/ACL commandBlock. Do not output only generic
+VLAN/interface templates when the plan contains DENY, ISOLATION, ALLOW, or
+PERMIT policies. VLAN commands may be auxiliary, but they must not replace the
+policy commandBlocks that enforce office/guest/server or similar relation
+semantics.
 
 generationSources must identify how the configuration was produced. Allowed
 sourceType values are:
@@ -101,6 +114,7 @@ knowledge document id as sourceId.
 MUST NOT:
 
 - Return one unstructured command text blob.
+- Put CLI, Huawei VRP, ACL, VLAN, interface, route, or command snippets in generationSummary.
 - Execute commands.
 - Claim that commands have been applied or pushed.
 - Judge whether verification passed or failed.

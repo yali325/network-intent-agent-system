@@ -32,9 +32,9 @@ mactav:
   a2a:
     call-timeout-ms: ${MACTAV_A2A_CALL_TIMEOUT_MS:180000}
   execution:
-    mode: ${MACTAV_EXECUTION_MODE:STRUCTURE_VALIDATION}
+    mode: ${MACTAV_EXECUTION_MODE:MININET_RYU}
     mininet-ryu:
-      enabled: ${MACTAV_MININET_RYU_ENABLED:false}
+      enabled: ${MACTAV_MININET_RYU_ENABLED:true}
       base-url: ${MACTAV_MININET_RYU_BASE_URL:http://127.0.0.1:18091}
       connect-timeout-ms: ${MACTAV_MININET_RYU_CONNECT_TIMEOUT_MS:3000}
       read-timeout-ms: ${MACTAV_MININET_RYU_READ_TIMEOUT_MS:60000}

@@ -77,7 +77,8 @@ class TestRunner:
         count = self._bounded_int(command.parameters.get("count"), 1, 5, 3)
         timeout = min(self._config.command_timeout_seconds, count + 5)
         stdout = source.cmd(f"timeout {timeout} ping -c {count} {target.IP()}")
-        status = "PASSED" if " 0% packet loss" in stdout or ", 0% packet loss" in stdout else "FAILED"
+        reachable = self._ping_reachable(stdout)
+        status = self._reachability_status(command.expectedResult, reachable)
         return self._command_result(command, started, monotonic_start, status, stdout, "")
 
     def _run_traceroute(self, command: TestCommand, net: Any, started: datetime, monotonic_start: float) -> TestResult:
@@ -211,8 +212,11 @@ class TestRunner:
 
     def _require_hosts(self, command: TestCommand, net: Any) -> tuple[Any | None, Any | None]:
         try:
-            source = net.get(self._node_id(command, "source"))
-            target = net.get(self._node_id(command, "target"))
+            runtime_names = getattr(net, "mactav_node_runtime_names", {})
+            source_id = self._node_id(command, "source")
+            target_id = self._node_id(command, "target")
+            source = net.get(runtime_names.get(source_id, source_id))
+            target = net.get(runtime_names.get(target_id, target_id))
             return source, target
         except Exception:  # noqa: BLE001
             return None, None
@@ -235,6 +239,22 @@ class TestRunner:
             "TOPOLOGY_STATE_CHECK": "TOPOLOGY_STATE",
         }
         return mapping.get(value, value)
+
+    def _ping_reachable(self, stdout: str) -> bool:
+        """Return whether ping output proves source can reach target."""
+
+        normalized = stdout.lower()
+        return " 0% packet loss" in normalized or ", 0% packet loss" in normalized
+
+    def _reachability_status(self, expected_result: str | None, reachable: bool) -> str:
+        """Judge reachability tests against the expected result contract."""
+
+        expected = (expected_result or "reachable").strip().lower()
+        if expected in {"unreachable", "blocked", "deny", "denied", "isolated", "not_reachable"}:
+            return "PASSED" if not reachable else "FAILED"
+        if expected in {"reachable", "allowed", "allow", "permit", "permitted"}:
+            return "PASSED" if reachable else "FAILED"
+        return "PASSED" if reachable else "FAILED"
 
     def _node_id(self, command: TestCommand, side: str) -> str:
         if side == "source":

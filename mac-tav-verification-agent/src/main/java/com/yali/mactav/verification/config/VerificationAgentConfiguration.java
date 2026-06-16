@@ -17,6 +17,7 @@ import com.yali.mactav.verification.a2a.VerificationAgentA2aExecutor;
 import com.yali.mactav.verification.agent.VerificationAgent;
 import com.yali.mactav.verification.parser.VerificationResponseParser;
 import com.yali.mactav.verification.schema.VerificationResponseSchema;
+import com.yali.mactav.verification.service.ExecutionEvidenceValidationBuilder;
 import com.yali.mactav.verification.service.VerificationService;
 import com.yali.mactav.verification.service.VerificationServiceImpl;
 import com.yali.mactav.verification.tool.VerificationFactTool;
@@ -64,6 +65,14 @@ public class VerificationAgentConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    public ExecutionEvidenceValidationBuilder executionEvidenceValidationBuilder(
+            ObjectMapper objectMapper,
+            AgentOutputValidator<ValidationReport> validator) {
+        return new ExecutionEvidenceValidationBuilder(objectMapper, validator);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
     public VerificationFactTool verificationFactTool() {
         return new VerificationFactTool();
     }
@@ -105,8 +114,10 @@ public class VerificationAgentConfiguration {
     public VerificationAgent verificationAgent(
             @Qualifier(VerificationAgent.REACT_AGENT_BEAN_NAME) ReactAgent verificationReactAgent,
             ObjectMapper objectMapper,
-            VerificationService verificationService) {
-        return new VerificationAgent(verificationReactAgent, objectMapper, verificationService);
+            VerificationService verificationService,
+            ExecutionEvidenceValidationBuilder executionEvidenceValidationBuilder) {
+        return new VerificationAgent(
+                verificationReactAgent, objectMapper, verificationService, executionEvidenceValidationBuilder);
     }
 
     @Bean(name = "agentExecutor")

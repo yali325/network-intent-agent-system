@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+import logging
 import subprocess
 import time
 from datetime import datetime, timezone
@@ -12,6 +13,9 @@ from .errors import make_error
 from .runtime_state import ExecutorRuntimeState
 from .schemas import ExecutionError, ExecutionRunRequest, RuntimeState, StatusResponse, TopologyNode
 from .settings import Settings, settings
+
+
+logger = logging.getLogger(__name__)
 
 
 class MininetRunner:
@@ -60,6 +64,7 @@ class MininetRunner:
                     trace_refs=request.traceRefs,
                 )
             ]
+        net = None
         try:
             net = mininet_net.Mininet(
                 controller=None,
@@ -74,16 +79,18 @@ class MininetRunner:
                 port=self._config.ryu_openflow_port,
             )
             nodes: dict[str, Any] = {}
+            runtime_names = self._runtime_node_names(request)
             for node in request.topology.nodes:
                 if self._is_host(node):
                     nodes[node.id] = net.addHost(
-                        self._node_name(node),
+                        runtime_names[node.id],
                         ip=node.ipAddress or node.ip,
                         mac=node.mac,
                         defaultRoute=node.defaultRoute,
                     )
                 elif self._is_switch(node):
-                    nodes[node.id] = net.addSwitch(self._node_name(node))
+                    nodes[node.id] = net.addSwitch(runtime_names[node.id])
+            setattr(net, "mactav_node_runtime_names", runtime_names)
             for link in request.topology.links:
                 left = nodes.get(link.sourceNode)
                 right = nodes.get(link.targetNode)
@@ -103,10 +110,28 @@ class MininetRunner:
             self._wait_for_switches(net)
             return net, []
         except Exception as exc:  # noqa: BLE001 - convert runtime failures to structured errors.
+            if net is not None:
+                try:
+                    net.stop()
+                except Exception:  # noqa: BLE001
+                    logger.warning(
+                        "Best-effort Mininet stop after startup failure also failed executionId=%s",
+                        request.executionId,
+                        exc_info=True,
+                    )
+            logger.exception(
+                "Mininet topology startup failed executionId=%s taskId=%s nodes=%s links=%s errorType=%s",
+                request.executionId,
+                request.taskId,
+                len(request.topology.nodes),
+                len(request.topology.links),
+                type(exc).__name__,
+            )
             return None, [
                 make_error(
                     "MININET_START_FAILED",
-                    f"Mininet failed to start structured topology: {type(exc).__name__}",
+                    "Mininet failed to start structured topology: "
+                    f"{type(exc).__name__}: {self._safe_error_message(exc)}",
                     "MININET_START",
                     recoverable=True,
                     trace_refs=request.traceRefs,
@@ -262,5 +287,23 @@ class MininetRunner:
         values = [node.nodeType, node.deviceType, node.hostType, node.role]
         return any(value is not None and token in value.lower() for value in values)
 
-    def _node_name(self, node: TopologyNode) -> str:
-        return node.name or node.id
+    def _runtime_node_names(self, request: ExecutionRunRequest) -> dict[str, str]:
+        """Map external topology node ids to Mininet-safe runtime names."""
+
+        names: dict[str, str] = {}
+        host_index = 1
+        switch_index = 1
+        for node in request.topology.nodes:
+            if self._is_host(node):
+                names[node.id] = f"h{host_index}"
+                host_index += 1
+            elif self._is_switch(node):
+                names[node.id] = f"s{switch_index}"
+                switch_index += 1
+        return names
+
+    def _safe_error_message(self, exc: Exception) -> str:
+        message = " ".join(str(exc).split())
+        if not message:
+            return "no detail"
+        return message[:240]

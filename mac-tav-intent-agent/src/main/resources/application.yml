@@ -15,7 +15,7 @@ spring:
       api-key: ${ALI_API_KEY:}
       chat:
         options:
-          model: qwen-plus
+          model: qwen3.7-max
     alibaba:
       a2a:
         nacos:

@@ -77,6 +77,43 @@ class VerificationServiceTest {
         assertThrows(AgentValidationException.class, () -> service.parse(schema, request()));
     }
 
+    @Test
+    void parseShouldRejectEmptyItems() {
+        VerificationService service = new VerificationServiceImpl();
+        VerificationResponseSchema schema = VerificationResponseSchema.builder()
+                .overallStatus(ValidationStatus.PARTIAL)
+                .summary("No validation items were generated.")
+                .items(List.of())
+                .build();
+
+        AgentValidationException error = assertThrows(
+                AgentValidationException.class,
+                () -> service.parse(schema, request()));
+
+        assertTrue(error.getMessage().contains("items must not be empty"));
+    }
+
+    @Test
+    void parseShouldRejectItemWithoutTraceableReference() {
+        VerificationService service = new VerificationServiceImpl();
+        VerificationResponseSchema schema = VerificationResponseSchema.builder()
+                .overallStatus(ValidationStatus.FAILED)
+                .summary("Validation item is not traceable.")
+                .items(List.of(VerificationResponseSchema.ValidationItemSchema.builder()
+                        .itemId("val-untraceable")
+                        .expected("UNREACHABLE")
+                        .actual("REACHABLE")
+                        .passed(false)
+                        .build()))
+                .build();
+
+        AgentValidationException error = assertThrows(
+                AgentValidationException.class,
+                () -> service.parse(schema, request()));
+
+        assertTrue(error.getMessage().contains("item must reference at least one intent/plan/config/test id"));
+    }
+
     private VerificationAgentRequest request() {
         return VerificationAgentRequest.builder()
                 .taskId("task-verification-test")

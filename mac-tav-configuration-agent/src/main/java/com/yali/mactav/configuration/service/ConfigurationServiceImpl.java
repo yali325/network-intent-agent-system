@@ -18,18 +18,45 @@ public class ConfigurationServiceImpl implements ConfigurationService {
 
     private final AgentOutputValidator<ConfigSet> validator;
 
+    private final ConfigurationConfigSetNormalizer configSetNormalizer;
+
+    private final DeterministicPolicyConfigBuilder policyConfigBuilder;
+
     private final ConfigurationTraceRefsStabilizer traceRefsStabilizer;
 
     public ConfigurationServiceImpl(AgentResponseParser<ConfigurationResponseSchema, ConfigSet> parser,
                                     AgentOutputValidator<ConfigSet> validator) {
-        this(parser, validator, new ConfigurationTraceRefsStabilizer(new ObjectMapper()));
+        this(
+                parser,
+                validator,
+                new ConfigurationConfigSetNormalizer(),
+                new DeterministicPolicyConfigBuilder(new ObjectMapper()),
+                new ConfigurationTraceRefsStabilizer(new ObjectMapper()));
     }
 
     public ConfigurationServiceImpl(AgentResponseParser<ConfigurationResponseSchema, ConfigSet> parser,
                                     AgentOutputValidator<ConfigSet> validator,
                                     ConfigurationTraceRefsStabilizer traceRefsStabilizer) {
+        this(parser, validator, new ConfigurationConfigSetNormalizer(),
+                new DeterministicPolicyConfigBuilder(new ObjectMapper()), traceRefsStabilizer);
+    }
+
+    public ConfigurationServiceImpl(AgentResponseParser<ConfigurationResponseSchema, ConfigSet> parser,
+                                    AgentOutputValidator<ConfigSet> validator,
+                                    ConfigurationConfigSetNormalizer configSetNormalizer,
+                                    ConfigurationTraceRefsStabilizer traceRefsStabilizer) {
+        this(parser, validator, configSetNormalizer, new DeterministicPolicyConfigBuilder(new ObjectMapper()), traceRefsStabilizer);
+    }
+
+    public ConfigurationServiceImpl(AgentResponseParser<ConfigurationResponseSchema, ConfigSet> parser,
+                                    AgentOutputValidator<ConfigSet> validator,
+                                    ConfigurationConfigSetNormalizer configSetNormalizer,
+                                    DeterministicPolicyConfigBuilder policyConfigBuilder,
+                                    ConfigurationTraceRefsStabilizer traceRefsStabilizer) {
         this.parser = parser;
         this.validator = validator;
+        this.configSetNormalizer = configSetNormalizer;
+        this.policyConfigBuilder = policyConfigBuilder;
         this.traceRefsStabilizer = traceRefsStabilizer;
     }
 
@@ -43,7 +70,9 @@ public class ConfigurationServiceImpl implements ConfigurationService {
             safeSchema.setConfigVersion(payload.getConfigVersion());
         }
         ConfigSet configSet = parser.parse(safeSchema, toContext(payload));
-        ConfigSet stabilizedConfigSet = traceRefsStabilizer.stabilize(configSet, payload);
+        ConfigSet normalizedConfigSet = configSetNormalizer.normalize(configSet, payload);
+        ConfigSet policyStabilizedConfigSet = policyConfigBuilder.stabilize(normalizedConfigSet, payload);
+        ConfigSet stabilizedConfigSet = traceRefsStabilizer.stabilize(policyStabilizedConfigSet, payload);
         return validator.validateAndReturn(stabilizedConfigSet);
     }
 

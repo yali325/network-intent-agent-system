@@ -1,0 +1,253 @@
+[INFO] Scanning for projects...
+[INFO] ------------------------------------------------------------------------
+[INFO] Reactor Build Order:
+[INFO] 
+[INFO] network-intent-agent-system                                        [pom]
+[INFO] mac-tav-common                                                     [jar]
+[INFO] mac-tav-model                                                      [jar]
+[INFO] mac-tav-model-core                                                 [jar]
+[INFO] mac-tav-execution                                                  [jar]
+[INFO] mac-tav-orchestrator                                               [jar]
+[INFO] mac-tav-web                                                        [jar]
+[INFO] 
+[INFO] ----------------< com.yali:network-intent-agent-system >----------------
+[INFO] Building network-intent-agent-system 0.0.1-SNAPSHOT                [1/7]
+[INFO]   from pom.xml
+[INFO] --------------------------------[ pom ]---------------------------------
+[INFO] 
+[INFO] >>> spring-boot:3.5.14:run (default-cli) > test-compile @ network-intent-agent-system >>>
+[INFO] 
+[INFO] <<< spring-boot:3.5.14:run (default-cli) < test-compile @ network-intent-agent-system <<<
+[INFO] 
+[INFO] 
+[INFO] --- spring-boot:3.5.14:run (default-cli) @ network-intent-agent-system ---
+[INFO] 
+[INFO] ----------------------< com.yali:mac-tav-common >-----------------------
+[INFO] Building mac-tav-common 0.0.1-SNAPSHOT                             [2/7]
+[INFO]   from mac-tav-common\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] >>> spring-boot:3.5.14:run (default-cli) > test-compile @ mac-tav-common >>>
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ mac-tav-common ---
+[INFO] skip non existing resourceDirectory E:\code\network-intent-agent-system\mac-tav-common\src\main\resources
+[INFO] skip non existing resourceDirectory E:\code\network-intent-agent-system\mac-tav-common\src\main\resources
+[INFO] 
+[INFO] --- compiler:3.14.1:compile (default-compile) @ mac-tav-common ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ mac-tav-common ---
+[INFO] Not copying test resources
+[INFO] 
+[INFO] --- compiler:3.14.1:testCompile (default-testCompile) @ mac-tav-common ---
+[INFO] Not compiling test sources
+[INFO] 
+[INFO] <<< spring-boot:3.5.14:run (default-cli) < test-compile @ mac-tav-common <<<
+[INFO] 
+[INFO] 
+[INFO] --- spring-boot:3.5.14:run (default-cli) @ mac-tav-common ---
+[INFO] 
+[INFO] -----------------------< com.yali:mac-tav-model >-----------------------
+[INFO] Building mac-tav-model 0.0.1-SNAPSHOT                              [3/7]
+[INFO]   from mac-tav-model\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] >>> spring-boot:3.5.14:run (default-cli) > test-compile @ mac-tav-model >>>
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ mac-tav-model ---
+[INFO] skip non existing resourceDirectory E:\code\network-intent-agent-system\mac-tav-model\src\main\resources
+[INFO] skip non existing resourceDirectory E:\code\network-intent-agent-system\mac-tav-model\src\main\resources
+[INFO] 
+[INFO] --- compiler:3.14.1:compile (default-compile) @ mac-tav-model ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ mac-tav-model ---
+[INFO] Not copying test resources
+[INFO] 
+[INFO] --- compiler:3.14.1:testCompile (default-testCompile) @ mac-tav-model ---
+[INFO] Not compiling test sources
+[INFO] 
+[INFO] <<< spring-boot:3.5.14:run (default-cli) < test-compile @ mac-tav-model <<<
+[INFO] 
+[INFO] 
+[INFO] --- spring-boot:3.5.14:run (default-cli) @ mac-tav-model ---
+[INFO] 
+[INFO] --------------------< com.yali:mac-tav-model-core >---------------------
+[INFO] Building mac-tav-model-core 0.0.1-SNAPSHOT                         [4/7]
+[INFO]   from mac-tav-model-core\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] >>> spring-boot:3.5.14:run (default-cli) > test-compile @ mac-tav-model-core >>>
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ mac-tav-model-core ---
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] Copying 7 resources from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.14.1:compile (default-compile) @ mac-tav-model-core ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ mac-tav-model-core ---
+[INFO] Not copying test resources
+[INFO] 
+[INFO] --- compiler:3.14.1:testCompile (default-testCompile) @ mac-tav-model-core ---
+[INFO] Not compiling test sources
+[INFO] 
+[INFO] <<< spring-boot:3.5.14:run (default-cli) < test-compile @ mac-tav-model-core <<<
+[INFO] 
+[INFO] 
+[INFO] --- spring-boot:3.5.14:run (default-cli) @ mac-tav-model-core ---
+[INFO] 
+[INFO] ---------------------< com.yali:mac-tav-execution >---------------------
+[INFO] Building mac-tav-execution 0.0.1-SNAPSHOT                          [5/7]
+[INFO]   from mac-tav-execution\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] >>> spring-boot:3.5.14:run (default-cli) > test-compile @ mac-tav-execution >>>
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ mac-tav-execution ---
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.14.1:compile (default-compile) @ mac-tav-execution ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ mac-tav-execution ---
+[INFO] Not copying test resources
+[INFO] 
+[INFO] --- compiler:3.14.1:testCompile (default-testCompile) @ mac-tav-execution ---
+[INFO] Not compiling test sources
+[INFO] 
+[INFO] <<< spring-boot:3.5.14:run (default-cli) < test-compile @ mac-tav-execution <<<
+[INFO] 
+[INFO] 
+[INFO] --- spring-boot:3.5.14:run (default-cli) @ mac-tav-execution ---
+[INFO] 
+[INFO] -------------------< com.yali:mac-tav-orchestrator >--------------------
+[INFO] Building mac-tav-orchestrator 0.0.1-SNAPSHOT                       [6/7]
+[INFO]   from mac-tav-orchestrator\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] >>> spring-boot:3.5.14:run (default-cli) > test-compile @ mac-tav-orchestrator >>>
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ mac-tav-orchestrator ---
+[INFO] skip non existing resourceDirectory E:\code\network-intent-agent-system\mac-tav-orchestrator\src\main\resources
+[INFO] skip non existing resourceDirectory E:\code\network-intent-agent-system\mac-tav-orchestrator\src\main\resources
+[INFO] 
+[INFO] --- compiler:3.14.1:compile (default-compile) @ mac-tav-orchestrator ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ mac-tav-orchestrator ---
+[INFO] Not copying test resources
+[INFO] 
+[INFO] --- compiler:3.14.1:testCompile (default-testCompile) @ mac-tav-orchestrator ---
+[INFO] Not compiling test sources
+[INFO] 
+[INFO] <<< spring-boot:3.5.14:run (default-cli) < test-compile @ mac-tav-orchestrator <<<
+[INFO] 
+[INFO] 
+[INFO] --- spring-boot:3.5.14:run (default-cli) @ mac-tav-orchestrator ---
+[INFO] 
+[INFO] ------------------------< com.yali:mac-tav-web >------------------------
+[INFO] Building mac-tav-web 0.0.1-SNAPSHOT                                [7/7]
+[INFO]   from mac-tav-web\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] >>> spring-boot:3.5.14:run (default-cli) > test-compile @ mac-tav-web >>>
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ mac-tav-web ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.14.1:compile (default-compile) @ mac-tav-web ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ mac-tav-web ---
+[INFO] Not copying test resources
+[INFO] 
+[INFO] --- compiler:3.14.1:testCompile (default-testCompile) @ mac-tav-web ---
+[INFO] Not compiling test sources
+[INFO] 
+[INFO] <<< spring-boot:3.5.14:run (default-cli) < test-compile @ mac-tav-web <<<
+[INFO] 
+[INFO] 
+[INFO] --- spring-boot:3.5.14:run (default-cli) @ mac-tav-web ---
+[INFO] Attaching agents: []
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::               (v3.5.14)
+
+2026-06-16T21:54:36.293+08:00  INFO 24952 --- [           main] com.yali.mactav.web.MacTavApplication    : Starting MacTavApplication using Java 21.0.7 with PID 24952 (E:\code\network-intent-agent-system\mac-tav-web\target\classes started by w in E:\code\network-intent-agent-system\mac-tav-web)
+2026-06-16T21:54:36.296+08:00  INFO 24952 --- [           main] com.yali.mactav.web.MacTavApplication    : No active profile set, falling back to 1 default profile: "default"
+2026-06-16T21:54:37.084+08:00  INFO 24952 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
+2026-06-16T21:54:37.099+08:00  INFO 24952 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-06-16T21:54:37.137+08:00  INFO 24952 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 13 ms. Found 0 Redis repository interfaces.
+2026-06-16T21:54:37.599+08:00  INFO 24952 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 18080 (http)
+2026-06-16T21:54:37.631+08:00  INFO 24952 --- [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-06-16T21:54:37.631+08:00  INFO 24952 --- [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.54]
+2026-06-16T21:54:37.687+08:00  INFO 24952 --- [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-06-16T21:54:37.687+08:00  INFO 24952 --- [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 1349 ms
+2026-06-16T21:54:38.472+08:00  INFO 24952 --- [           main] c.a.nacos.client.logging.NacosLogging    : Nacos Logging Adapter Builder: com.alibaba.nacos.logger.adapter.logback12.LogbackNacosLoggingAdapterBuilder
+2026-06-16T21:54:38.472+08:00  INFO 24952 --- [           main] c.a.nacos.client.logging.NacosLogging    : Nacos Logging Adapter Builder: com.alibaba.nacos.logger.adapter.logback14.LogbackNacosLoggingAdapterBuilder
+2026-06-16T21:54:38.472+08:00  INFO 24952 --- [           main] c.a.nacos.client.logging.NacosLogging    : Nacos Logging Adapter: com.alibaba.nacos.logger.adapter.logback14.LogbackNacosLoggingAdapter match ch.qos.logback.classic.Logger success.
+2026-06-16T21:54:38.487+08:00  INFO 24952 --- [           main] c.a.nacos.client.logging.NacosLogging    : Nacos Logging Adapter Builder: com.alibaba.nacos.logger.adapter.log4j2.Log4j2NacosLoggingAdapterBuilder
+2026-06-16T21:54:39.247+08:00  INFO 24952 --- [           main] c.a.n.c.a.AbstractAbilityControlManager  : Ready to get current node abilities...
+2026-06-16T21:54:39.260+08:00  INFO 24952 --- [           main] c.a.n.c.a.AbstractAbilityControlManager  : Ready to initialize current node abilities, support modes: [SDK_CLIENT]
+2026-06-16T21:54:39.260+08:00  INFO 24952 --- [           main] c.a.n.c.a.AbstractAbilityControlManager  : Initialize current abilities finish...
+2026-06-16T21:54:39.261+08:00  INFO 24952 --- [           main] c.a.n.c.a.d.NacosAbilityManagerHolder    : [AbilityControlManager] Successfully initialize AbilityControlManager
+2026-06-16T21:54:39.289+08:00  INFO 24952 --- [           main] c.a.n.p.a.s.c.ClientAuthPluginManager    : [ClientAuthPluginManager] Load ClientAuthService com.alibaba.nacos.client.auth.impl.NacosClientAuthServiceImpl success.
+2026-06-16T21:54:39.290+08:00  INFO 24952 --- [           main] c.a.n.p.a.s.c.ClientAuthPluginManager    : [ClientAuthPluginManager] Load ClientAuthService com.alibaba.nacos.client.auth.ram.RamClientAuthServiceImpl success.
+2026-06-16T21:54:40.071+08:00  INFO 24952 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port 18080 (http) with context path '/'
+2026-06-16T21:54:41.407+08:00  INFO 24952 --- [           main] com.yali.mactav.web.MacTavApplication    : Started MacTavApplication in 5.603 seconds (process running for 6.03)
+2026-06-16T21:54:41.418+08:00  INFO 24952 --- [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-06-16T21:54:41.681+08:00  INFO 24952 --- [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@6bbff652
+2026-06-16T21:54:41.697+08:00  INFO 24952 --- [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-06-16T21:58:41.939+08:00  INFO 24952 --- [io-18080-exec-2] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-06-16T21:58:41.939+08:00  INFO 24952 --- [io-18080-exec-2] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-06-16T21:58:41.939+08:00  INFO 24952 --- [io-18080-exec-2] o.s.web.servlet.DispatcherServlet        : Completed initialization in 0 ms
+2026-06-16T21:58:43.006+08:00  INFO 24952 --- [ctav-workflow-1] c.y.m.o.remote.client.OfficialA2aClient  : Invoking SAA A2A agent targetAgent=IntentAgent, taskId=task-8c90d109-715b-494f-ac61-6e263f54015c, traceId=trace-4456c404-02b0-49c3-b650-b507598210b6, payloadLength=2072, requestJsonLength=2686, timeoutMs=180000, agentCardStreaming=false, url=http://192.168.109.1:18081/a2a
+[SAA_A2A_REQUEST_URL_REDACTED]
+[SAA_A2A_REQUEST_REDACTED]
+2026-06-16T21:58:55.219+08:00  INFO 24952 --- [ctav-workflow-2] c.y.m.o.s.MacTavWorkflowOrchestrator     : Planning A2A payload compacted taskId=task-8c90d109-715b-494f-ac61-6e263f54015c, traceId=trace-7ae3d7b5-8e0d-415b-ab9e-02e2e79f314c, intentJsonLength=1141, compactWorkspaceLength=734, payloadLength=2394, networkIntentArtifactRefPresent=true
+2026-06-16T21:58:55.243+08:00  INFO 24952 --- [ctav-workflow-2] c.y.m.o.remote.client.OfficialA2aClient  : Invoking SAA A2A agent targetAgent=PlanningAgent, taskId=task-8c90d109-715b-494f-ac61-6e263f54015c, traceId=trace-7ae3d7b5-8e0d-415b-ab9e-02e2e79f314c, payloadLength=2394, requestJsonLength=3090, timeoutMs=180000, agentCardStreaming=false, url=http://192.168.109.1:18082/a2a
+[SAA_A2A_REQUEST_URL_REDACTED]
+[SAA_A2A_REQUEST_REDACTED]
+2026-06-16T21:59:31.530+08:00  INFO 24952 --- [ctav-workflow-3] c.y.m.o.s.MacTavWorkflowOrchestrator     : Configuration A2A payload compacted taskId=task-8c90d109-715b-494f-ac61-6e263f54015c, traceId=trace-cdedca91-118d-475d-aeb1-aeb3a1ff45db, planJsonLength=6156, compactWorkspaceLength=973, payloadLength=8324, networkPlanArtifactRefPresent=true
+2026-06-16T21:59:31.558+08:00  INFO 24952 --- [ctav-workflow-3] c.y.m.o.remote.client.OfficialA2aClient  : Invoking SAA A2A agent targetAgent=ConfigurationAgent, taskId=task-8c90d109-715b-494f-ac61-6e263f54015c, traceId=trace-cdedca91-118d-475d-aeb1-aeb3a1ff45db, payloadLength=8324, requestJsonLength=10352, timeoutMs=180000, agentCardStreaming=false, url=http://192.168.109.1:18083/a2a
+[SAA_A2A_REQUEST_URL_REDACTED]
+[SAA_A2A_REQUEST_REDACTED]
+2026-06-16T22:00:40.377+08:00  WARN 24952 --- [ctav-workflow-3] c.y.m.o.remote.client.OfficialA2aClient  : SAA A2A invocation failed targetAgent=ConfigurationAgent, taskId=task-8c90d109-715b-494f-ac61-6e263f54015c, traceId=trace-cdedca91-118d-475d-aeb1-aeb3a1ff45db, timeoutMs=180000, agentCardStreaming=false, url=http://192.168.109.1:18083/a2a, errorClass=IllegalStateException, message=remote errorCode=AGENT_OUTPUT_INVALID message=generationSummary contains non-structured config text
+2026-06-16T22:03:33.437+08:00  INFO 24952 --- [ctav-workflow-4] c.y.m.o.remote.client.OfficialA2aClient  : Invoking SAA A2A agent targetAgent=VerificationAgent, taskId=task-ad2a4a3d-94c3-4582-bf0c-991fabcd76e9, traceId=trace-e263bc5a-7fdf-4a4d-85aa-5cce1de732e0, payloadLength=67143, requestJsonLength=79955, timeoutMs=180000, agentCardStreaming=false, url=http://192.168.109.1:18084/a2a
+[SAA_A2A_REQUEST_URL_REDACTED]
+[SAA_A2A_REQUEST_REDACTED]
+[INFO] ------------------------------------------------------------------------
+[INFO] Reactor Summary for network-intent-agent-system 0.0.1-SNAPSHOT:
+[INFO] 
+[INFO] network-intent-agent-system ........................ SUCCESS [  0.712 s]
+[INFO] mac-tav-common ..................................... SUCCESS [  0.422 s]
+[INFO] mac-tav-model ...................................... SUCCESS [  0.099 s]
+[INFO] mac-tav-model-core ................................. SUCCESS [  0.385 s]
+[INFO] mac-tav-execution .................................. SUCCESS [  0.066 s]
+[INFO] mac-tav-orchestrator ............................... SUCCESS [  0.836 s]
+[INFO] mac-tav-web ........................................ FAILURE [10:39 min]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  10:42 min
+[INFO] Finished at: 2026-06-16T22:05:14+08:00
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.springframework.boot:spring-boot-maven-plugin:3.5.14:run (default-cli) on project mac-tav-web: Process terminated with exit code: -1 -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoExecutionException
+[ERROR] 
+[ERROR] After correcting the problems, you can resume the build with the command
+[ERROR]   mvn <args> -rf :mac-tav-web

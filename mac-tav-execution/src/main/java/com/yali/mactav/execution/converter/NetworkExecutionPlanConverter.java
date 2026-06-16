@@ -16,6 +16,7 @@ import com.yali.mactav.model.execution.TestResultType;
 import com.yali.mactav.model.plan.AddressPlanItem;
 import com.yali.mactav.model.plan.NetworkPlan;
 import com.yali.mactav.model.plan.NetworkZone;
+import com.yali.mactav.model.plan.SecurityPolicyPlanItem;
 import com.yali.mactav.model.plan.TargetEnvironment;
 import com.yali.mactav.model.plan.Topology;
 import com.yali.mactav.model.plan.TopologyLink;
@@ -82,7 +83,7 @@ public class NetworkExecutionPlanConverter {
                 .topologyScriptRef(createTopologyRef(networkPlan, artifactRefs))
                 .actions(createStateCheckActions(executionTopology, configSet, planTraceRefs, resolvedMode))
                 .cleanupActions(createCleanupActions(networkPlan, configSet, planTraceRefs, resolvedMode))
-                .testCommands(createTestCommands(executionTopology, configSet, planTraceRefs, resolvedMode))
+                .testCommands(createTestCommands(networkPlan, executionTopology, configSet, planTraceRefs, resolvedMode))
                 .traceRefs(planTraceRefs)
                 .build();
         safetyPolicy.validate(executionPlan);
@@ -219,34 +220,63 @@ public class NetworkExecutionPlanConverter {
     }
 
     private void addDerivedHostsIfMissing(Topology topology, NetworkPlan networkPlan, TraceRefs traceRefs) {
-        if (!hostNodes(topology).isEmpty()) {
-            for (TopologyNode host : hostNodes(topology)) {
-                ensureHostAddress(host, networkPlan);
-            }
-            return;
+        for (TopologyNode host : hostNodes(topology)) {
+            ensureHostAddress(host, networkPlan);
         }
-        List<TopologyNode> derivedHosts = new ArrayList<>();
-        for (NetworkZone zone : safeList(networkPlan.getZones())) {
-            String zoneId = firstNonBlank(zone.getId(), zone.getName());
+        Set<String> existingHostZones = new LinkedHashSet<>();
+        for (TopologyNode host : hostNodes(topology)) {
+            String zoneKey = normalizedZoneKey(firstNonBlank(host.getZoneId(), host.getId(), host.getName()));
+            if (!isBlank(zoneKey)) {
+                existingHostZones.add(zoneKey);
+            }
+        }
+        int derivedIndex = hostNodes(topology).size();
+        for (Map.Entry<String, String> candidate : requiredHostZones(networkPlan).entrySet()) {
+            String zoneId = candidate.getKey();
             if (isBlank(zoneId)) {
                 continue;
             }
-            String ip = hostAddressForZone(networkPlan, zoneId, derivedHosts.size());
+            String normalizedZoneId = normalizedZoneKey(zoneId);
+            if (existingHostZones.contains(normalizedZoneId) || findHostForZone(topology, zoneId) != null) {
+                continue;
+            }
+            String ip = hostAddressForZone(networkPlan, zoneId, derivedIndex);
             if (isBlank(ip)) {
                 continue;
             }
-            derivedHosts.add(TopologyNode.builder()
-                    .id("host-" + safeId(zoneId, null, derivedHosts.size()))
-                    .name(firstNonBlank(zone.getName(), zoneId) + "-host")
+            TraceRefs hostTraceRefs = mergeTraceRefs(traceRefs, addressTraceRefsForZone(networkPlan, zoneId));
+            topology.getNodes().add(TopologyNode.builder()
+                    .id("host-" + safeId(zoneId, null, derivedIndex))
+                    .name(firstNonBlank(candidate.getValue(), zoneId) + "-host")
                     .nodeType("host")
                     .hostType("host")
                     .role("derived-zone-host")
                     .ipAddress(ip)
-                    .zoneId(zone.getId())
-                    .traceRefs(traceRefs)
+                    .zoneId(zoneId)
+                    .traceRefs(hostTraceRefs)
                     .build());
+            existingHostZones.add(normalizedZoneId);
+            derivedIndex++;
         }
-        topology.getNodes().addAll(derivedHosts);
+    }
+
+    private Map<String, String> requiredHostZones(NetworkPlan networkPlan) {
+        Map<String, String> zones = new LinkedHashMap<>();
+        for (NetworkZone zone : safeList(networkPlan.getZones())) {
+            String zoneId = firstNonBlank(zone.getId(), zone.getName());
+            if (!isBlank(zoneId)) {
+                zones.put(zoneId, firstNonBlank(zone.getName(), zoneId));
+            }
+        }
+        for (SecurityPolicyPlanItem policy : safeList(networkPlan.getSecurityPolicyPlan())) {
+            if (!isBlank(policy.getSourceZone())) {
+                zones.putIfAbsent(policy.getSourceZone(), policy.getSourceZone());
+            }
+            if (!isBlank(policy.getTargetZone())) {
+                zones.putIfAbsent(policy.getTargetZone(), policy.getTargetZone());
+            }
+        }
+        return zones;
     }
 
     private void ensureHostAddress(TopologyNode host, NetworkPlan networkPlan) {
@@ -261,7 +291,7 @@ public class NetworkExecutionPlanConverter {
 
     private String hostAddressForZone(NetworkPlan networkPlan, String zoneId, int index) {
         for (AddressPlanItem item : safeList(networkPlan.getAddressPlan())) {
-            if (!sameText(zoneId, item.getZoneId())) {
+            if (!sameZone(zoneId, item.getZoneId())) {
                 continue;
             }
             String direct = firstNonBlank(item.getExampleHostAddress(),
@@ -273,6 +303,15 @@ public class NetworkExecutionPlanConverter {
             String fromSubnet = firstHostAddress(item.getSubnet(), index);
             if (!isBlank(fromSubnet)) {
                 return fromSubnet;
+            }
+        }
+        return null;
+    }
+
+    private TraceRefs addressTraceRefsForZone(NetworkPlan networkPlan, String zoneId) {
+        for (AddressPlanItem item : safeList(networkPlan.getAddressPlan())) {
+            if (sameZone(zoneId, item.getZoneId())) {
+                return item.getTraceRefs();
             }
         }
         return null;
@@ -429,12 +468,16 @@ public class NetworkExecutionPlanConverter {
     }
 
     private List<TestCommand> createTestCommands(
+            NetworkPlan networkPlan,
             Topology topology,
             ConfigSet configSet,
             TraceRefs planTraceRefs,
             ExecutionMode executionMode) {
         List<TopologyNode> hosts = hostNodes(topology);
         List<TestCommand> tests = new ArrayList<>();
+        if (executionMode == ExecutionMode.MININET_RYU) {
+            addRelationLevelTests(tests, networkPlan, topology, configSet, executionMode);
+        }
         addTestIfPossible(tests, TestResultType.PING, hosts, "Reachability structure check", planTraceRefs, executionMode);
         addTestIfPossible(tests, TestResultType.TRACEROUTE, hosts, "Path structure check", planTraceRefs, executionMode);
         addTestIfPossible(tests, TestResultType.IPERF, hosts, "Throughput test descriptor check", planTraceRefs, executionMode);
@@ -453,6 +496,123 @@ public class NetworkExecutionPlanConverter {
                 .traceRefs(planTraceRefs)
                 .build());
         return tests;
+    }
+
+    private void addRelationLevelTests(
+            List<TestCommand> tests,
+            NetworkPlan networkPlan,
+            Topology topology,
+            ConfigSet configSet,
+            ExecutionMode executionMode) {
+        Set<String> existingTestIds = new LinkedHashSet<>();
+        for (TestCommand test : tests) {
+            if (test != null && !isBlank(test.getTestId())) {
+                existingTestIds.add(test.getTestId());
+            }
+        }
+        for (SecurityPolicyPlanItem policy : safeList(networkPlan.getSecurityPolicyPlan())) {
+            if (policy == null) {
+                continue;
+            }
+            if (isBlank(policy.getSourceZone()) || isBlank(policy.getTargetZone())) {
+                continue;
+            }
+            TopologyNode source = findHostForZone(topology, policy.getSourceZone());
+            TopologyNode target = findHostForZone(topology, policy.getTargetZone());
+            if (source == null || target == null) {
+                throw executionPlanInvalid("Unable to derive relation-level test host for security policy "
+                        + valueOrBlank(policy.getId())
+                        + " sourceZone=" + valueOrBlank(policy.getSourceZone())
+                        + " targetZone=" + valueOrBlank(policy.getTargetZone()));
+            }
+            if (isBlank(firstNonBlank(source.getIpAddress(), source.getIp()))
+                    || isBlank(firstNonBlank(target.getIpAddress(), target.getIp()))) {
+                throw executionPlanInvalid("Relation-level test hosts require ipAddress or ip for security policy "
+                        + valueOrBlank(policy.getId()));
+            }
+            String testId = relationTestId(policy);
+            if (!existingTestIds.add(testId)) {
+                testId = testId + "-" + existingTestIds.size();
+                existingTestIds.add(testId);
+            }
+            TraceRefs traceRefs = relationTraceRefs(policy, configSet, testId);
+            tests.add(TestCommand.builder()
+                    .testId(testId)
+                    .testType(TestResultType.PING)
+                    .sourceNode(source.getId())
+                    .targetNode(target.getId())
+                    .parameters(relationTestParameters(policy, executionMode))
+                    .expectedResult(expectedConnectivity(policy))
+                    .traceRefs(traceRefs)
+                    .build());
+        }
+    }
+
+    private String relationTestId(SecurityPolicyPlanItem policy) {
+        String relationId = firstNonBlank(policy.getBasedOnIntentRelation(),
+                first(policy.getTraceRefs() == null ? null : policy.getTraceRefs().getIntentRelationIds()));
+        if (!isBlank(relationId)) {
+            return "test-ping-" + safeId(relationId, null, 0).replaceFirst("^rel-", "");
+        }
+        return "test-ping-" + safeId(policy.getSourceZone(), null, 0)
+                + "-" + safeId(policy.getTargetZone(), null, 1);
+    }
+
+    private Map<String, Object> relationTestParameters(SecurityPolicyPlanItem policy, ExecutionMode executionMode) {
+        Map<String, Object> parameters = new LinkedHashMap<>(testParameters(TestResultType.PING, executionMode));
+        parameters.put("sourceZone", valueOrBlank(policy.getSourceZone()));
+        parameters.put("targetZone", valueOrBlank(policy.getTargetZone()));
+        parameters.put("policyId", valueOrBlank(policy.getId()));
+        parameters.put("service", valueOrBlank(policy.getService()));
+        parameters.put("policyAction", valueOrBlank(policy.getAction()));
+        return parameters;
+    }
+
+    private String expectedConnectivity(SecurityPolicyPlanItem policy) {
+        String action = policy.getAction() == null ? "" : policy.getAction().trim().toUpperCase(Locale.ROOT);
+        if (action.contains("DENY") || action.contains("BLOCK") || action.contains("DROP")
+                || action.contains("REJECT") || action.contains("ISOLAT")) {
+            return "unreachable";
+        }
+        return "reachable";
+    }
+
+    private TraceRefs relationTraceRefs(SecurityPolicyPlanItem policy, ConfigSet configSet, String testId) {
+        TraceRefs traceRefs = mergeTraceRefs(policy.getTraceRefs());
+        addOne(traceRefs.getTestIds(), testId);
+        addOne(traceRefs.getPlanElementIds(), policy.getId());
+        addOne(traceRefs.getIntentRelationIds(), policy.getBasedOnIntentRelation());
+        addAll(traceRefs.getConfigBlockIds(), matchingConfigBlockIds(configSet, traceRefs, policy));
+        if (!hasAnyTrace(traceRefs)) {
+            throw executionPlanInvalid("Relation-level test traceRefs cannot be derived for security policy "
+                    + valueOrBlank(policy.getId()));
+        }
+        return traceRefs;
+    }
+
+    private List<String> matchingConfigBlockIds(ConfigSet configSet, TraceRefs traceRefs, SecurityPolicyPlanItem policy) {
+        List<String> blockIds = new ArrayList<>();
+        for (DeviceConfig deviceConfig : safeList(configSet.getDeviceConfigs())) {
+            for (CommandBlock block : safeList(deviceConfig.getCommandBlocks())) {
+                if (block == null || isBlank(block.getBlockId())) {
+                    continue;
+                }
+                TraceRefs blockTraceRefs = block.getTraceRefs();
+                boolean traceMatch = intersects(blockTraceRefs == null ? null : blockTraceRefs.getPlanElementIds(),
+                        traceRefs.getPlanElementIds())
+                        || intersects(blockTraceRefs == null ? null : blockTraceRefs.getIntentRelationIds(),
+                        traceRefs.getIntentRelationIds());
+                boolean textMatch = containsToken(block.getBlockId(), policy.getId())
+                        || containsToken(block.getBlockType(), policy.getId())
+                        || containsToken(block.getTitle(), policy.getId())
+                        || containsToken(block.getExplanation(), policy.getId())
+                        || containsToken(block.getBlockId(), policy.getBasedOnIntentRelation());
+                if (traceMatch || textMatch) {
+                    blockIds.add(block.getBlockId());
+                }
+            }
+        }
+        return blockIds;
     }
 
     private void addTestIfPossible(
@@ -584,6 +744,21 @@ public class NetworkExecutionPlanConverter {
         }
     }
 
+    private void addOne(List<String> target, String value) {
+        if (!isBlank(value) && !target.contains(value)) {
+            target.add(value);
+        }
+    }
+
+    private String first(List<String> values) {
+        for (String value : safeList(values)) {
+            if (!isBlank(value)) {
+                return value;
+            }
+        }
+        return null;
+    }
+
     private boolean hasAnyTrace(TraceRefs traceRefs) {
         return traceRefs != null
                 && (!traceRefs.getIntentNodeIds().isEmpty()
@@ -618,6 +793,23 @@ public class NetworkExecutionPlanConverter {
         return value == null ? "" : value;
     }
 
+    private TopologyNode findHostForZone(Topology topology, String zoneId) {
+        if (isBlank(zoneId)) {
+            return null;
+        }
+        String normalizedZoneId = normalizedZoneKey(zoneId);
+        for (TopologyNode host : hostNodes(topology)) {
+            if (sameZone(zoneId, host.getZoneId())
+                    || normalizedZoneId.equals(normalizedZoneKey(host.getId()))
+                    || normalizedZoneId.equals(normalizedZoneKey(host.getName()))
+                    || containsToken(host.getId(), zoneId)
+                    || containsToken(host.getName(), zoneId)) {
+                return host;
+            }
+        }
+        return null;
+    }
+
     private boolean isHost(TopologyNode node) {
         return hasType(node, "host");
     }
@@ -646,11 +838,47 @@ public class NetworkExecutionPlanConverter {
     }
 
     private boolean containsToken(String value, String token) {
-        return value != null && value.toLowerCase(Locale.ROOT).contains(token);
+        return !isBlank(value) && !isBlank(token) && value.toLowerCase(Locale.ROOT).contains(token.toLowerCase(Locale.ROOT));
     }
 
     private boolean sameText(String left, String right) {
         return !isBlank(left) && !isBlank(right) && left.trim().equalsIgnoreCase(right.trim());
+    }
+
+    private boolean sameZone(String left, String right) {
+        return !isBlank(left) && !isBlank(right) && normalizedZoneKey(left).equals(normalizedZoneKey(right));
+    }
+
+    private String normalizedZoneKey(String value) {
+        if (value == null) {
+            return "";
+        }
+        String normalized = safeId(value, null, 0);
+        if (normalized.startsWith("host-zone-")) {
+            normalized = normalized.substring("host-zone-".length());
+        }
+        else if (normalized.startsWith("host-")) {
+            normalized = normalized.substring("host-".length());
+        }
+        if (normalized.startsWith("zone-")) {
+            normalized = normalized.substring("zone-".length());
+        }
+        if (normalized.endsWith("-host")) {
+            normalized = normalized.substring(0, normalized.length() - "-host".length());
+        }
+        return normalized;
+    }
+
+    private boolean intersects(List<String> left, List<String> right) {
+        if (left == null || right == null) {
+            return false;
+        }
+        for (String value : left) {
+            if (!isBlank(value) && right.contains(value)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean isBlank(String value) {

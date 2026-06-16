@@ -1,0 +1,42 @@
+﻿[
+    {
+        "Name":  "intent",
+        "Module":  "mac-tav-intent-agent",
+        "Port":  18081,
+        "Pid":  19080,
+        "Out":  "E:\\code\\network-intent-agent-system\\.codex-runtime-logs\\run-20260616-154158\\intent.out.log",
+        "Err":  "E:\\code\\network-intent-agent-system\\.codex-runtime-logs\\run-20260616-154158\\intent.err.log"
+    },
+    {
+        "Name":  "planning",
+        "Module":  "mac-tav-planning-agent",
+        "Port":  18082,
+        "Pid":  22292,
+        "Out":  "E:\\code\\network-intent-agent-system\\.codex-runtime-logs\\run-20260616-154158\\planning.out.log",
+        "Err":  "E:\\code\\network-intent-agent-system\\.codex-runtime-logs\\run-20260616-154158\\planning.err.log"
+    },
+    {
+        "Name":  "configuration",
+        "Module":  "mac-tav-configuration-agent",
+        "Port":  18083,
+        "Pid":  8760,
+        "Out":  "E:\\code\\network-intent-agent-system\\.codex-runtime-logs\\run-20260616-154158\\configuration.out.log",
+        "Err":  "E:\\code\\network-intent-agent-system\\.codex-runtime-logs\\run-20260616-154158\\configuration.err.log"
+    },
+    {
+        "Name":  "verification",
+        "Module":  "mac-tav-verification-agent",
+        "Port":  18084,
+        "Pid":  24788,
+        "Out":  "E:\\code\\network-intent-agent-system\\.codex-runtime-logs\\run-20260616-154158\\verification.out.log",
+        "Err":  "E:\\code\\network-intent-agent-system\\.codex-runtime-logs\\run-20260616-154158\\verification.err.log"
+    },
+    {
+        "Name":  "web",
+        "Module":  "mac-tav-web",
+        "Port":  18080,
+        "Pid":  24972,
+        "Out":  "E:\\code\\network-intent-agent-system\\.codex-runtime-logs\\run-20260616-154158\\web.out.log",
+        "Err":  "E:\\code\\network-intent-agent-system\\.codex-runtime-logs\\run-20260616-154158\\web.err.log"
+    }
+]

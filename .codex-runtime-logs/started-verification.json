@@ -1,0 +1,16 @@
+[
+    {
+        "Name":  "verification",
+        "Pid":  22716,
+        "Port":  18084,
+        "Out":  "E:\\code\\network-intent-agent-system\\.codex-runtime-logs\\verification.out.log",
+        "Err":  "E:\\code\\network-intent-agent-system\\.codex-runtime-logs\\verification.err.log"
+    },
+    {
+        "Name":  "web",
+        "Pid":  23892,
+        "Port":  18080,
+        "Out":  "E:\\code\\network-intent-agent-system\\.codex-runtime-logs\\web.out.log",
+        "Err":  "E:\\code\\network-intent-agent-system\\.codex-runtime-logs\\web.err.log"
+    }
+]

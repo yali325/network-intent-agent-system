@@ -4,7 +4,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yali.mactav.common.exception.BusinessException;
 import com.yali.mactav.execution.safety.ExecutionSafetyPolicy;
 import com.yali.mactav.model.config.CommandBlock;
@@ -19,6 +21,7 @@ import com.yali.mactav.model.execution.TestResultType;
 import com.yali.mactav.model.plan.AddressPlanItem;
 import com.yali.mactav.model.plan.NetworkPlan;
 import com.yali.mactav.model.plan.NetworkZone;
+import com.yali.mactav.model.plan.SecurityPolicyPlanItem;
 import com.yali.mactav.model.plan.TargetEnvironment;
 import com.yali.mactav.model.plan.Topology;
 import com.yali.mactav.model.plan.TopologyLink;
@@ -196,6 +199,129 @@ class NetworkExecutionPlanConverterTest {
         assertEquals("MAC_TAV_PARAM_INVALID", exception.getErrorCode());
     }
 
+    @Test
+    void createsRelationLevelPingTestsForIntentSecurityPolicies() {
+        ExecutionPlan executionPlan = converter.convert(
+                relationLevelNetworkPlan(),
+                configSet(),
+                1,
+                ExecutionMode.MININET_RYU,
+                ExecutionEnvironmentType.MININET_RYU,
+                traceRefs(),
+                Map.of("NETWORK_PLAN", "artifact-plan-1"));
+
+        var officeServer = testById(executionPlan, "test-ping-office-server");
+        assertEquals(TestResultType.PING, officeServer.getTestType());
+        assertEquals("host-zone-office", officeServer.getSourceNode());
+        assertEquals("host-zone-server", officeServer.getTargetNode());
+        assertEquals("reachable", officeServer.getExpectedResult());
+        assertTrue(officeServer.getTraceRefs().getIntentRelationIds().contains("rel-office-server"));
+        assertTrue(officeServer.getTraceRefs().getPlanElementIds().contains("policy-office-server"));
+        assertTrue(officeServer.getTraceRefs().getTestIds().contains("test-ping-office-server"));
+
+        var guestServer = testById(executionPlan, "test-ping-guest-server");
+        assertEquals("host-zone-guest", guestServer.getSourceNode());
+        assertEquals("host-zone-server", guestServer.getTargetNode());
+        assertEquals("unreachable", guestServer.getExpectedResult());
+        assertTrue(guestServer.getTraceRefs().getIntentRelationIds().contains("rel-guest-server"));
+        assertTrue(guestServer.getTraceRefs().getPlanElementIds().contains("policy-guest-server"));
+
+        var guestWeb = testById(executionPlan, "test-ping-guest-web");
+        assertEquals("host-zone-guest", guestWeb.getSourceNode());
+        assertEquals("host-zone-web", guestWeb.getTargetNode());
+        assertEquals("reachable", guestWeb.getExpectedResult());
+        assertTrue(guestWeb.getTraceRefs().getIntentRelationIds().contains("rel-guest-web"));
+        assertTrue(guestWeb.getTraceRefs().getPlanElementIds().contains("policy-guest-web"));
+
+        assertTrue(executionPlan.getTopology().getNodes().stream()
+                .anyMatch(node -> "host-zone-web".equals(node.getId()) && node.getIpAddress() != null));
+        new ExecutionSafetyPolicy().validate(executionPlan);
+    }
+
+    @Test
+    void relationLevelExecutionPlanDoesNotContainForbiddenCommandFields() throws Exception {
+        ExecutionPlan executionPlan = converter.convert(
+                relationLevelNetworkPlan(),
+                configSet(),
+                1,
+                ExecutionMode.MININET_RYU,
+                ExecutionEnvironmentType.MININET_RYU,
+                traceRefs(),
+                Map.of("NETWORK_PLAN", "artifact-plan-1"));
+
+        String json = new ObjectMapper().writeValueAsString(executionPlan);
+        assertFalse(json.contains("\"command\""));
+        assertFalse(json.contains("\"cmd\""));
+        assertFalse(json.contains("\"shell\""));
+        assertFalse(json.contains("\"script\""));
+        assertFalse(json.contains("\"cli\""));
+        assertFalse(json.contains("\"rawCommand\""));
+    }
+
+    @Test
+    void failsWhenRelationLevelTargetHostCannotBeDerived() {
+        NetworkPlan plan = relationLevelNetworkPlan();
+        plan.setAddressPlan(List.of(
+                AddressPlanItem.builder().id("addr-office").zoneId("zone-office").subnet("10.10.1.0/24").traceRefs(traceRefs()).build(),
+                AddressPlanItem.builder().id("addr-server").zoneId("zone-server").subnet("10.10.2.0/24").traceRefs(traceRefs()).build(),
+                AddressPlanItem.builder().id("addr-guest").zoneId("zone-guest").subnet("10.10.3.0/24").traceRefs(traceRefs()).build()));
+
+        BusinessException exception = assertThrows(BusinessException.class, () -> converter.convert(
+                plan,
+                configSet(),
+                1,
+                ExecutionMode.MININET_RYU,
+                ExecutionEnvironmentType.MININET_RYU,
+                traceRefs(),
+                Map.of("NETWORK_PLAN", "artifact-plan-1")));
+
+        assertEquals("EXECUTION_PLAN_INVALID", exception.getErrorCode());
+        assertTrue(exception.getMessage().contains("policy-guest-web"));
+    }
+
+    @Test
+    void skipsRelationLevelPolicyWithoutZonesWithoutBlockingExecution() {
+        NetworkPlan plan = relationLevelNetworkPlan();
+        plan.setSecurityPolicyPlan(List.of(
+                securityPolicy("policy-missing-target", "zone-guest", null, "DENY", "rel-guest-server")));
+
+        ExecutionPlan executionPlan = converter.convert(
+                plan,
+                configSet(),
+                1,
+                ExecutionMode.MININET_RYU,
+                ExecutionEnvironmentType.MININET_RYU,
+                traceRefs(),
+                Map.of("NETWORK_PLAN", "artifact-plan-1"));
+
+        assertFalse(executionPlan.getTestCommands().stream()
+                .anyMatch(test -> "test-ping-guest-server".equals(test.getTestId())));
+        assertFalse(executionPlan.getTestCommands().isEmpty());
+    }
+
+    @Test
+    void structureValidationDoesNotRequireDerivedRelationHosts() {
+        NetworkPlan plan = relationLevelNetworkPlan();
+        plan.setTargetEnvironment(TargetEnvironment.builder()
+                .adapterType("STRUCTURE_VALIDATION")
+                .simulationTarget("STRUCTURE_VALIDATION")
+                .build());
+
+        ExecutionPlan executionPlan = converter.convert(
+                plan,
+                configSet(),
+                1,
+                ExecutionMode.STRUCTURE_VALIDATION,
+                ExecutionEnvironmentType.STRUCTURE_VALIDATION,
+                traceRefs(),
+                Map.of("NETWORK_PLAN", "artifact-plan-1"));
+
+        assertEquals(ExecutionMode.STRUCTURE_VALIDATION, executionPlan.getExecutionMode());
+        assertFalse(executionPlan.getTestCommands().stream()
+                .anyMatch(test -> "test-ping-office-guest-isolation".equals(test.getTestId())));
+        assertFalse(executionPlan.getTestCommands().isEmpty());
+    }
+
     private NetworkPlan networkPlan() {
         return NetworkPlan.builder()
                 .planId("plan-1")
@@ -218,6 +344,73 @@ class NetworkExecutionPlanConverterTest {
                         .build())
                 .traceRefs(traceRefs())
                 .build();
+    }
+
+    private NetworkPlan relationLevelNetworkPlan() {
+        return NetworkPlan.builder()
+                .planId("plan-1")
+                .taskId("task-1")
+                .targetEnvironment(TargetEnvironment.builder()
+                        .adapterType("MININET_RYU")
+                        .simulationTarget("MININET_RYU")
+                        .build())
+                .topology(Topology.builder()
+                        .nodes(List.of(TopologyNode.builder()
+                                .id("sw-core")
+                                .nodeType("SWITCH")
+                                .traceRefs(traceRefs())
+                                .build()))
+                        .links(List.of(TopologyLink.builder()
+                                .id("link-core-loopback")
+                                .sourceNode("sw-core")
+                                .targetNode("sw-core")
+                                .traceRefs(traceRefs())
+                                .build()))
+                        .build())
+                .zones(List.of(
+                        NetworkZone.builder().id("zone-office").name("office").build(),
+                        NetworkZone.builder().id("zone-server").name("server").build(),
+                        NetworkZone.builder().id("zone-guest").name("guest").build(),
+                        NetworkZone.builder().id("zone-web").name("web").build()))
+                .addressPlan(List.of(
+                        AddressPlanItem.builder().id("addr-office").zoneId("zone-office").subnet("10.10.1.0/24").traceRefs(traceRefs()).build(),
+                        AddressPlanItem.builder().id("addr-server").zoneId("zone-server").subnet("10.10.2.0/24").traceRefs(traceRefs()).build(),
+                        AddressPlanItem.builder().id("addr-guest").zoneId("zone-guest").subnet("10.10.3.0/24").traceRefs(traceRefs()).build(),
+                        AddressPlanItem.builder().id("addr-web").zoneId("zone-web").subnet("10.10.4.0/24").traceRefs(traceRefs()).build()))
+                .securityPolicyPlan(List.of(
+                        securityPolicy("policy-office-server", "zone-office", "zone-server", "ALLOW", "rel-office-server"),
+                        securityPolicy("policy-guest-server", "zone-guest", "zone-server", "DENY", "rel-guest-server"),
+                        securityPolicy("policy-guest-web", "zone-guest", "zone-web", "ALLOW", "rel-guest-web")))
+                .traceRefs(traceRefs())
+                .build();
+    }
+
+    private SecurityPolicyPlanItem securityPolicy(
+            String policyId,
+            String sourceZone,
+            String targetZone,
+            String action,
+            String intentRelationId) {
+        return SecurityPolicyPlanItem.builder()
+                .id(policyId)
+                .name(policyId)
+                .sourceZone(sourceZone)
+                .targetZone(targetZone)
+                .action(action)
+                .service("IP")
+                .basedOnIntentRelation(intentRelationId)
+                .traceRefs(TraceRefs.builder()
+                        .intentRelationIds(List.of(intentRelationId))
+                        .planElementIds(List.of(policyId))
+                        .build())
+                .build();
+    }
+
+    private com.yali.mactav.model.execution.TestCommand testById(ExecutionPlan executionPlan, String testId) {
+        return executionPlan.getTestCommands().stream()
+                .filter(test -> testId.equals(test.getTestId()))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Missing test " + testId));
     }
 
     private ConfigSet configSet() {

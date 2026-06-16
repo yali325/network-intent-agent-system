@@ -1,0 +1,30 @@
+[
+    {
+        "Name":  "intent",
+        "Pid":  13264,
+        "Port":  18081,
+        "Out":  "E:\\code\\network-intent-agent-system\\.codex-runtime-logs\\intent.out.log",
+        "Err":  "E:\\code\\network-intent-agent-system\\.codex-runtime-logs\\intent.err.log"
+    },
+    {
+        "Name":  "planning",
+        "Pid":  10492,
+        "Port":  18082,
+        "Out":  "E:\\code\\network-intent-agent-system\\.codex-runtime-logs\\planning.out.log",
+        "Err":  "E:\\code\\network-intent-agent-system\\.codex-runtime-logs\\planning.err.log"
+    },
+    {
+        "Name":  "configuration",
+        "Pid":  23484,
+        "Port":  18083,
+        "Out":  "E:\\code\\network-intent-agent-system\\.codex-runtime-logs\\configuration.out.log",
+        "Err":  "E:\\code\\network-intent-agent-system\\.codex-runtime-logs\\configuration.err.log"
+    },
+    {
+        "Name":  "web",
+        "Pid":  10032,
+        "Port":  18080,
+        "Out":  "E:\\code\\network-intent-agent-system\\.codex-runtime-logs\\web.out.log",
+        "Err":  "E:\\code\\network-intent-agent-system\\.codex-runtime-logs\\web.err.log"
+    }
+]

@@ -38,7 +38,7 @@ public final class IntentAgentManualValidation {
                 .web(WebApplicationType.NONE)
                 .properties(
                         "spring.ai.dashscope.api-key=" + apiKey,
-                        "spring.ai.dashscope.chat.options.model=qwen-plus",
+                        "spring.ai.dashscope.chat.options.model=qwen3.7-max",
                         "mactav.agents.intent.manual-model-validation-enabled=true")
                 .run(args)) {
             IntentAgent intentAgent = context.getBean(IntentAgent.class);

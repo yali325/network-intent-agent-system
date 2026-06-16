@@ -805,7 +805,7 @@ DashScope 配置 SHOULD 使用环境变量：
 
 ```yaml  
 spring:  
-  ai:    model:      chat: dashscope    dashscope:      api-key: ${ALI_API_KEY}      chat:        options:          model: qwen-plus          temperature: 0.2  
+  ai:    model:      chat: dashscope    dashscope:      api-key: ${ALI_API_KEY}      chat:        options:          model: qwen3.7-max          temperature: 0.2  
 ```  
 
 长期标准 A2A Agent 服务化架构下，Agent 模块 MAY 增加 A2A、Nacos 和 Agent Card 配置，但不得在配置中硬编码 API Key、私有地址凭据或跨模块实现类绑定。

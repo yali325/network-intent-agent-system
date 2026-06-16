@@ -29,9 +29,9 @@ public class VerificationOutputValidator implements AgentOutputValidator<Validat
             "powershell",
             "bash",
             "cmd.exe",
-            "直接修改",
-            "执行修复",
-            "重新执行测试"
+            "\u76f4\u63a5\u4fee\u6539",
+            "\u6267\u884c\u4fee\u590d",
+            "\u91cd\u65b0\u6267\u884c\u6d4b\u8bd5"
     );
 
     @Override

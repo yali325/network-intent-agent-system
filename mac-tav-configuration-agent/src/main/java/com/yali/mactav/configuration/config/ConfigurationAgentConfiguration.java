@@ -16,6 +16,8 @@ import com.yali.mactav.configuration.a2a.ConfigurationAgentA2aExecutor;
 import com.yali.mactav.configuration.agent.ConfigurationAgent;
 import com.yali.mactav.configuration.parser.ConfigurationResponseParser;
 import com.yali.mactav.configuration.schema.ConfigurationResponseSchema;
+import com.yali.mactav.configuration.service.ConfigurationConfigSetNormalizer;
+import com.yali.mactav.configuration.service.DeterministicPolicyConfigBuilder;
 import com.yali.mactav.configuration.service.ConfigurationService;
 import com.yali.mactav.configuration.service.ConfigurationServiceImpl;
 import com.yali.mactav.configuration.service.ConfigurationTraceRefsStabilizer;
@@ -61,8 +63,22 @@ public class ConfigurationAgentConfiguration {
     public ConfigurationService configurationService(
             AgentResponseParser<ConfigurationResponseSchema, ConfigSet> parser,
             AgentOutputValidator<ConfigSet> validator,
+            ConfigurationConfigSetNormalizer configSetNormalizer,
+            DeterministicPolicyConfigBuilder policyConfigBuilder,
             ConfigurationTraceRefsStabilizer traceRefsStabilizer) {
-        return new ConfigurationServiceImpl(parser, validator, traceRefsStabilizer);
+        return new ConfigurationServiceImpl(parser, validator, configSetNormalizer, policyConfigBuilder, traceRefsStabilizer);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ConfigurationConfigSetNormalizer configurationConfigSetNormalizer() {
+        return new ConfigurationConfigSetNormalizer();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public DeterministicPolicyConfigBuilder deterministicPolicyConfigBuilder(ObjectMapper objectMapper) {
+        return new DeterministicPolicyConfigBuilder(objectMapper);
     }
 
     @Bean

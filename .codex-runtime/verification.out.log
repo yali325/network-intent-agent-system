@@ -1,0 +1,193 @@
+[INFO] Scanning for projects...
+[INFO] ------------------------------------------------------------------------
+[INFO] Reactor Build Order:
+[INFO] 
+[INFO] network-intent-agent-system                                        [pom]
+[INFO] mac-tav-common                                                     [jar]
+[INFO] mac-tav-model                                                      [jar]
+[INFO] mac-tav-agent-core                                                 [jar]
+[INFO] mac-tav-verification-agent                                         [jar]
+[INFO] 
+[INFO] ----------------< com.yali:network-intent-agent-system >----------------
+[INFO] Building network-intent-agent-system 0.0.1-SNAPSHOT                [1/5]
+[INFO]   from pom.xml
+[INFO] --------------------------------[ pom ]---------------------------------
+[INFO] 
+[INFO] >>> spring-boot:3.5.14:run (default-cli) > test-compile @ network-intent-agent-system >>>
+[INFO] 
+[INFO] <<< spring-boot:3.5.14:run (default-cli) < test-compile @ network-intent-agent-system <<<
+[INFO] 
+[INFO] 
+[INFO] --- spring-boot:3.5.14:run (default-cli) @ network-intent-agent-system ---
+[INFO] 
+[INFO] ----------------------< com.yali:mac-tav-common >-----------------------
+[INFO] Building mac-tav-common 0.0.1-SNAPSHOT                             [2/5]
+[INFO]   from mac-tav-common\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] >>> spring-boot:3.5.14:run (default-cli) > test-compile @ mac-tav-common >>>
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ mac-tav-common ---
+[INFO] skip non existing resourceDirectory E:\code\network-intent-agent-system\mac-tav-common\src\main\resources
+[INFO] skip non existing resourceDirectory E:\code\network-intent-agent-system\mac-tav-common\src\main\resources
+[INFO] 
+[INFO] --- compiler:3.14.1:compile (default-compile) @ mac-tav-common ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ mac-tav-common ---
+[INFO] skip non existing resourceDirectory E:\code\network-intent-agent-system\mac-tav-common\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.14.1:testCompile (default-testCompile) @ mac-tav-common ---
+[INFO] No sources to compile
+[INFO] 
+[INFO] <<< spring-boot:3.5.14:run (default-cli) < test-compile @ mac-tav-common <<<
+[INFO] 
+[INFO] 
+[INFO] --- spring-boot:3.5.14:run (default-cli) @ mac-tav-common ---
+[INFO] 
+[INFO] -----------------------< com.yali:mac-tav-model >-----------------------
+[INFO] Building mac-tav-model 0.0.1-SNAPSHOT                              [3/5]
+[INFO]   from mac-tav-model\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] >>> spring-boot:3.5.14:run (default-cli) > test-compile @ mac-tav-model >>>
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ mac-tav-model ---
+[INFO] skip non existing resourceDirectory E:\code\network-intent-agent-system\mac-tav-model\src\main\resources
+[INFO] skip non existing resourceDirectory E:\code\network-intent-agent-system\mac-tav-model\src\main\resources
+[INFO] 
+[INFO] --- compiler:3.14.1:compile (default-compile) @ mac-tav-model ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ mac-tav-model ---
+[INFO] skip non existing resourceDirectory E:\code\network-intent-agent-system\mac-tav-model\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.14.1:testCompile (default-testCompile) @ mac-tav-model ---
+[INFO] No sources to compile
+[INFO] 
+[INFO] <<< spring-boot:3.5.14:run (default-cli) < test-compile @ mac-tav-model <<<
+[INFO] 
+[INFO] 
+[INFO] --- spring-boot:3.5.14:run (default-cli) @ mac-tav-model ---
+[INFO] 
+[INFO] --------------------< com.yali:mac-tav-agent-core >---------------------
+[INFO] Building mac-tav-agent-core 0.0.1-SNAPSHOT                         [4/5]
+[INFO]   from mac-tav-agent-core\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] >>> spring-boot:3.5.14:run (default-cli) > test-compile @ mac-tav-agent-core >>>
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ mac-tav-agent-core ---
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.14.1:compile (default-compile) @ mac-tav-agent-core ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ mac-tav-agent-core ---
+[INFO] Copying 1 resource from src\test\resources to target\test-classes
+[INFO] 
+[INFO] --- compiler:3.14.1:testCompile (default-testCompile) @ mac-tav-agent-core ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] <<< spring-boot:3.5.14:run (default-cli) < test-compile @ mac-tav-agent-core <<<
+[INFO] 
+[INFO] 
+[INFO] --- spring-boot:3.5.14:run (default-cli) @ mac-tav-agent-core ---
+[INFO] 
+[INFO] ----------------< com.yali:mac-tav-verification-agent >-----------------
+[INFO] Building mac-tav-verification-agent 0.0.1-SNAPSHOT                 [5/5]
+[INFO]   from mac-tav-verification-agent\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] >>> spring-boot:3.5.14:run (default-cli) > test-compile @ mac-tav-verification-agent >>>
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ mac-tav-verification-agent ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.14.1:compile (default-compile) @ mac-tav-verification-agent ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ mac-tav-verification-agent ---
+[INFO] skip non existing resourceDirectory E:\code\network-intent-agent-system\mac-tav-verification-agent\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.14.1:testCompile (default-testCompile) @ mac-tav-verification-agent ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] <<< spring-boot:3.5.14:run (default-cli) < test-compile @ mac-tav-verification-agent <<<
+[INFO] 
+[INFO] 
+[INFO] --- spring-boot:3.5.14:run (default-cli) @ mac-tav-verification-agent ---
+[INFO] Attaching agents: []
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::               (v3.5.14)
+
+2026-06-16T21:36:23.956+08:00  INFO 26752 --- [           main] c.y.m.v.VerificationAgentApplication     : Starting VerificationAgentApplication using Java 21.0.7 with PID 26752 (E:\code\network-intent-agent-system\mac-tav-verification-agent\target\classes started by w in E:\code\network-intent-agent-system\mac-tav-verification-agent)
+2026-06-16T21:36:23.961+08:00  INFO 26752 --- [           main] c.y.m.v.VerificationAgentApplication     : No active profile set, falling back to 1 default profile: "default"
+2026-06-16T21:36:26.016+08:00  INFO 26752 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 18084 (http)
+2026-06-16T21:36:26.056+08:00  INFO 26752 --- [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-06-16T21:36:26.056+08:00  INFO 26752 --- [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.54]
+2026-06-16T21:36:26.252+08:00  INFO 26752 --- [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-06-16T21:36:26.260+08:00  INFO 26752 --- [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 2207 ms
+2026-06-16T21:36:29.922+08:00  INFO 26752 --- [           main] c.a.nacos.client.logging.NacosLogging    : Nacos Logging Adapter Builder: com.alibaba.nacos.logger.adapter.logback12.LogbackNacosLoggingAdapterBuilder
+2026-06-16T21:36:29.957+08:00  INFO 26752 --- [           main] c.a.nacos.client.logging.NacosLogging    : Nacos Logging Adapter Builder: com.alibaba.nacos.logger.adapter.logback14.LogbackNacosLoggingAdapterBuilder
+2026-06-16T21:36:29.959+08:00  INFO 26752 --- [           main] c.a.nacos.client.logging.NacosLogging    : Nacos Logging Adapter: com.alibaba.nacos.logger.adapter.logback14.LogbackNacosLoggingAdapter match ch.qos.logback.classic.Logger success.
+2026-06-16T21:36:29.976+08:00  INFO 26752 --- [           main] c.a.nacos.client.logging.NacosLogging    : Nacos Logging Adapter Builder: com.alibaba.nacos.logger.adapter.log4j2.Log4j2NacosLoggingAdapterBuilder
+2026-06-16T21:36:31.917+08:00  INFO 26752 --- [           main] c.a.n.c.a.AbstractAbilityControlManager  : Ready to get current node abilities...
+2026-06-16T21:36:31.922+08:00  INFO 26752 --- [           main] c.a.n.c.a.AbstractAbilityControlManager  : Ready to initialize current node abilities, support modes: [SDK_CLIENT]
+2026-06-16T21:36:31.922+08:00  INFO 26752 --- [           main] c.a.n.c.a.AbstractAbilityControlManager  : Initialize current abilities finish...
+2026-06-16T21:36:31.927+08:00  INFO 26752 --- [           main] c.a.n.c.a.d.NacosAbilityManagerHolder    : [AbilityControlManager] Successfully initialize AbilityControlManager
+2026-06-16T21:36:31.972+08:00  INFO 26752 --- [           main] c.a.n.p.a.s.c.ClientAuthPluginManager    : [ClientAuthPluginManager] Load ClientAuthService com.alibaba.nacos.client.auth.impl.NacosClientAuthServiceImpl success.
+2026-06-16T21:36:31.972+08:00  INFO 26752 --- [           main] c.a.n.p.a.s.c.ClientAuthPluginManager    : [ClientAuthPluginManager] Load ClientAuthService com.alibaba.nacos.client.auth.ram.RamClientAuthServiceImpl success.
+2026-06-16T21:36:32.360+08:00  INFO 26752 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port 18084 (http) with context path '/'
+2026-06-16T21:36:32.369+08:00  INFO 26752 --- [           main] c.y.m.v.VerificationAgentApplication     : Started VerificationAgentApplication in 9.397 seconds (process running for 10.27)
+2026-06-16T21:36:32.376+08:00  INFO 26752 --- [           main] c.y.m.v.c.VerificationAgentConfiguration : AgentExecutor bean inventory count=1, hasVerificationAgentA2aExecutor=true, hasGraphAgentExecutor=false
+2026-06-16T21:36:32.376+08:00  INFO 26752 --- [           main] c.y.m.v.c.VerificationAgentConfiguration : AgentExecutor bean: name=agentExecutor, class=com.yali.mactav.verification.a2a.VerificationAgentA2aExecutor
+2026-06-16T21:36:32.381+08:00  INFO 26752 --- [           main] c.a.c.a.a.c.r.AgentRegistryService       : Auto register agent VerificationAgent into Registry Nacos[127.0.0.1:18848].
+2026-06-16T21:36:32.382+08:00  INFO 26752 --- [           main] c.a.c.a.a.r.n.s.NacosA2aOperationService : Register agent card VerificationAgent to Nacos namespace public. 
+2026-06-16T21:36:32.644+08:00  INFO 26752 --- [           main] c.a.c.a.a.r.n.s.NacosA2aOperationService : Register agent card VerificationAgent to Nacos namespace public successfully. 
+2026-06-16T21:36:32.652+08:00  INFO 26752 --- [           main] c.a.c.a.a.c.r.AgentRegistryService       : Auto register agent VerificationAgent into Registry Nacos[127.0.0.1:18848] successfully.
+2026-06-16T22:03:33.491+08:00  INFO 26752 --- [io-18084-exec-5] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-06-16T22:03:33.491+08:00  INFO 26752 --- [io-18084-exec-5] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-06-16T22:03:33.494+08:00  INFO 26752 --- [io-18084-exec-5] o.s.web.servlet.DispatcherServlet        : Completed initialization in 3 ms
+2026-06-16T22:03:33.551+08:00  INFO 26752 --- [pool-2-thread-1] c.y.m.v.a.VerificationAgentA2aExecutor   : VerificationAgentA2aExecutor entry taskId=task-ad2a4a3d-94c3-4582-bf0c-991fabcd76e9, traceId=trace-e263bc5a-7fdf-4a4d-85aa-5cce1de732e0, contextId=8d9cd1f2-b536-42e3-9518-eaaa82d7ca0b, requestTaskId=faab978f-67a1-4cdd-ab07-0408e036db78, stage=VERIFICATION, messageTextLength=79955, payloadLength=67143
+2026-06-16T22:03:33.568+08:00  INFO 26752 --- [pool-2-thread-1] c.y.m.v.a.VerificationAgentA2aExecutor   : VerificationAgent.run start taskId=task-ad2a4a3d-94c3-4582-bf0c-991fabcd76e9, traceId=trace-e263bc5a-7fdf-4a4d-85aa-5cce1de732e0, payloadLength=67143, compactWorkspaceLength=1486
+2026-06-16T22:03:33.570+08:00  INFO 26752 --- [pool-2-thread-1] c.y.m.v.agent.VerificationAgent          : VerificationAgent model call start taskId=task-ad2a4a3d-94c3-4582-bf0c-991fabcd76e9, traceId=trace-e263bc5a-7fdf-4a4d-85aa-5cce1de732e0, serializedRequestLength=67143, executionPayloadLength=32288
+2026-06-16T22:04:08.972+08:00  INFO 26752 --- [pool-2-thread-1] c.y.m.v.agent.VerificationAgent          : VerificationAgent model call completed taskId=task-ad2a4a3d-94c3-4582-bf0c-991fabcd76e9, traceId=trace-e263bc5a-7fdf-4a4d-85aa-5cce1de732e0, durationMs=35403
+2026-06-16T22:04:08.985+08:00  INFO 26752 --- [pool-2-thread-1] c.y.m.v.agent.VerificationAgent          : VerificationAgent parser/validator start taskId=task-ad2a4a3d-94c3-4582-bf0c-991fabcd76e9, traceId=trace-e263bc5a-7fdf-4a4d-85aa-5cce1de732e0
+2026-06-16T22:04:08.988+08:00  INFO 26752 --- [pool-2-thread-1] c.y.m.v.agent.VerificationAgent          : VerificationAgent parser/validator completed taskId=task-ad2a4a3d-94c3-4582-bf0c-991fabcd76e9, traceId=trace-e263bc5a-7fdf-4a4d-85aa-5cce1de732e0, durationMs=4, itemCount=3, evidenceCount=3
+2026-06-16T22:04:08.988+08:00  INFO 26752 --- [pool-2-thread-1] c.y.m.v.a.VerificationAgentA2aExecutor   : VerificationAgent.run completed taskId=task-ad2a4a3d-94c3-4582-bf0c-991fabcd76e9, traceId=trace-e263bc5a-7fdf-4a4d-85aa-5cce1de732e0, durationMs=35421, itemCount=3, evidenceCount=3
+2026-06-16T22:04:08.998+08:00  INFO 26752 --- [pool-2-thread-1] c.y.m.v.a.VerificationAgentA2aExecutor   : VerificationAgentA2aExecutor addArtifact start taskId=task-ad2a4a3d-94c3-4582-bf0c-991fabcd76e9, traceId=trace-e263bc5a-7fdf-4a4d-85aa-5cce1de732e0, outputJsonLength=5603
+2026-06-16T22:04:09.002+08:00  INFO 26752 --- [pool-2-thread-1] c.y.m.v.a.VerificationAgentA2aExecutor   : VerificationAgentA2aExecutor complete taskId=task-ad2a4a3d-94c3-4582-bf0c-991fabcd76e9, traceId=trace-e263bc5a-7fdf-4a4d-85aa-5cce1de732e0
+[INFO] ------------------------------------------------------------------------
+[INFO] Reactor Summary for network-intent-agent-system 0.0.1-SNAPSHOT:
+[INFO] 
+[INFO] network-intent-agent-system ........................ SUCCESS [  2.318 s]
+[INFO] mac-tav-common ..................................... SUCCESS [  0.540 s]
+[INFO] mac-tav-model ...................................... SUCCESS [  0.333 s]
+[INFO] mac-tav-agent-core ................................. SUCCESS [  0.992 s]
+[INFO] mac-tav-verification-agent ......................... FAILURE [28:57 min]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  29:07 min
+[INFO] Finished at: 2026-06-16T22:05:17+08:00
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.springframework.boot:spring-boot-maven-plugin:3.5.14:run (default-cli) on project mac-tav-verification-agent: Process terminated with exit code: -1 -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoExecutionException
+[ERROR] 
+[ERROR] After correcting the problems, you can resume the build with the command
+[ERROR]   mvn <args> -rf :mac-tav-verification-agent

@@ -9,13 +9,18 @@ import com.yali.mactav.common.exception.BusinessException;
 import com.yali.mactav.model.verification.ValidationReport;
 import com.yali.mactav.verification.request.VerificationAgentRequest;
 import com.yali.mactav.verification.schema.VerificationResponseSchema;
+import com.yali.mactav.verification.service.ExecutionEvidenceValidationBuilder;
 import com.yali.mactav.verification.service.VerificationService;
 import java.util.Objects;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Thin real VerificationAgent wrapper for Spring AI Alibaba ReactAgent.
  */
 public class VerificationAgent {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(VerificationAgent.class);
 
     public static final String AGENT_NAME = "VerificationAgent";
 
@@ -29,17 +34,37 @@ public class VerificationAgent {
 
     private final VerificationService verificationService;
 
+    private final ExecutionEvidenceValidationBuilder executionEvidenceValidationBuilder;
+
     public VerificationAgent(ReactAgent reactAgent,
                              ObjectMapper objectMapper,
                              VerificationService verificationService) {
+        this(reactAgent, objectMapper, verificationService, null);
+    }
+
+    public VerificationAgent(ReactAgent reactAgent,
+                             ObjectMapper objectMapper,
+                             VerificationService verificationService,
+                             ExecutionEvidenceValidationBuilder executionEvidenceValidationBuilder) {
         this.reactAgent = Objects.requireNonNull(reactAgent, "reactAgent must not be null");
         this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper must not be null");
         this.verificationService = Objects.requireNonNull(verificationService, "verificationService must not be null");
+        this.executionEvidenceValidationBuilder = executionEvidenceValidationBuilder;
     }
 
     public ValidationReport run(VerificationAgentRequest request) {
         if (request == null) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "VerificationAgentRequest must not be null");
+        }
+        if (executionEvidenceValidationBuilder != null
+                && request.getExecutionReportJson() != null
+                && !request.getExecutionReportJson().isBlank()) {
+            LOGGER.info(
+                    "VerificationAgent deterministic evidence validation start taskId={}, traceId={}, executionReportLength={}",
+                    request.getTaskId(),
+                    request.getTraceId(),
+                    request.getExecutionReportJson().length());
+            return executionEvidenceValidationBuilder.build(request);
         }
         VerificationResponseSchema schema = AgentUtils.callSchema(
                 reactAgent,

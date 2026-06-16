@@ -1,0 +1,24 @@
+MININET_RYU : 无法将“MININET_RYU”项识别为 cmdlet、函数、脚本文件或可运行程序的名称。请检查名称的拼写，如果包括路径，
+请确保路径正确，然后再试一次。
+所在位置 行:1 字符: 146
++ ... 417aa7d93597b5b31d70'; $env:MACTAV_EXECUTION_MODE=MININET_RYU; $env:M ...
++                                                       ~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (MININET_RYU:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+ 
+true : 无法将“true”项识别为 cmdlet、函数、脚本文件或可运行程序的名称。请检查名称的拼写，如果包括路径，请确保路径正确
+，然后再试一次。
+所在位置 行:1 字符: 191
++ ... CUTION_MODE=MININET_RYU; $env:MACTAV_MININET_RYU_ENABLED=true; $env:M ...
++                                                              ~~~~
+    + CategoryInfo          : ObjectNotFound: (true:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+ 
+http://127.0.0.1:18091 : 无法将“http://127.0.0.1:18091”项识别为 cmdlet、函数、脚本文件或可运行程序的名称。请检查名称
+的拼写，如果包括路径，请确保路径正确，然后再试一次。
+所在位置 行:1 字符: 230
++ ... true; $env:MACTAV_MININET_RYU_BASE_URL=http://127.0.0.1:18091; $env:M ...
++                                            ~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (http://127.0.0.1:18091:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+ 

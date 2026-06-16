@@ -11,7 +11,7 @@ from .settings import Settings, settings
 
 
 class CleanupRunner:
-    """Stops the current Mininet network and runs the fixed `mn -c` cleanup."""
+    """Stops executor-owned Mininet state without killing the shared Ryu process."""
 
     def __init__(self, mininet_runner: MininetRunner, config: Settings = settings) -> None:
         self._mininet_runner = mininet_runner
@@ -22,7 +22,6 @@ class CleanupRunner:
 
         errors = []
         errors.extend(self._mininet_runner.stop_network(runtime))
-        errors.extend(self._mininet_runner.run_fixed_cleanup())
         runtime.clear_transient_state()
         return errors
 
@@ -42,7 +41,7 @@ class CleanupRunner:
                 ryuControllerStatus="unchanged",
                 mininetStatus="cleanup-failed" if errors else "cleaned",
                 environmentStatus="CLEANUP_FAILED" if errors else "CLEANUP_COMPLETED",
-                logsSummary="Controlled cleanup executed fixed Mininet cleanup path.",
+                logsSummary="Controlled cleanup stopped executor-owned Mininet state.",
                 startedAt=started,
                 endedAt=ended,
             ),
